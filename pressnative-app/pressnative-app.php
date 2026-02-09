@@ -13,9 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class PressNative_App_Plugin {
 	const OPTION_ENABLED_CATEGORIES = 'pressnative_app_enabled_categories';
 	const REST_NAMESPACE            = 'pressnative/v1';
-	const REST_ROUTE_HOME           = '/page/home';
-	const DEFAULT_PER_PAGE          = 10;
-	const MAX_PER_PAGE              = 50;
+	const REST_ROUTE_HOME           = '/home';
 
 	/**
 	 * Bootstraps the plugin hooks.
@@ -50,54 +48,25 @@ final class PressNative_App_Plugin {
 					'methods'             => WP_REST_Server::READABLE,
 					'callback'            => array( $this, 'get_home_page' ),
 					'permission_callback' => '__return_true',
-					'args'                => array(
-						'per_page' => array(
-							'type'              => 'integer',
-							'default'           => self::DEFAULT_PER_PAGE,
-							'sanitize_callback' => array( $this, 'sanitize_per_page' ),
-						),
-					),
 				),
 			)
 		);
 	}
 
 	/**
-	 * Returns the PressNative home page contract.
+	 * Returns the PressNative home screen layout.
 	 *
 	 * @param WP_REST_Request $request REST request.
 	 * @return WP_REST_Response
 	 */
 	public function get_home_page( WP_REST_Request $request ) {
-		$per_page      = $this->sanitize_per_page( $request->get_param( 'per_page' ) );
-		$category_ids  = $this->get_enabled_category_ids();
 		$layout_engine = new PressNative_Layout_Engine();
-		$data          = $layout_engine->build_home_contract( $per_page, $category_ids );
+		$data          = $layout_engine->get_home_layout();
 
 		$response = new WP_REST_Response( $data );
 		$response->set_header( 'Last-Updated', gmdate( 'c' ) );
 
 		return $response;
-	}
-
-	/**
-	 * Sanitizes per_page values for the REST API.
-	 *
-	 * @param mixed $value Requested per_page.
-	 * @return int
-	 */
-	public function sanitize_per_page( $value ) {
-		$value = absint( $value );
-
-		if ( $value < 1 ) {
-			return self::DEFAULT_PER_PAGE;
-		}
-
-		if ( $value > self::MAX_PER_PAGE ) {
-			return self::MAX_PER_PAGE;
-		}
-
-		return $value;
 	}
 
 	/**
@@ -227,51 +196,141 @@ final class PressNative_App_Plugin {
 
 final class PressNative_Layout_Engine {
 	/**
-	 * Builds the PressNative home contract response.
+	 * Builds the PressNative home layout response.
 	 *
-	 * @param int   $per_page         Number of posts to include.
-	 * @param array $category_ids     Category IDs for the CategoryList component.
 	 * @return array
 	 */
-	public function build_home_contract( $per_page, array $category_ids ) {
-		$posts      = $this->get_latest_posts( $per_page );
-		$categories = $this->get_category_data( $category_ids );
-
+	public function get_home_layout() {
 		return array(
-			'@contract' => 'pressnative.app/contract.json',
-			'version'   => '1.0',
-			'page'      => array(
-				'id'          => 'home',
-				'title'       => get_bloginfo( 'name' ),
-				'description' => get_bloginfo( 'description' ),
-				'layout'      => array(
-					'category_list',
-					'latest_posts',
-				),
+			'screen'     => array(
+				'id'    => 'home',
+				'title' => get_bloginfo( 'name' ),
 			),
 			'components' => array(
-				array(
-					'id'   => 'category_list',
-					'type' => 'CategoryList',
-					'data' => array(
-						'title'      => 'Categories',
-						'categories' => $categories,
-					),
-				),
-				array(
-					'id'   => 'latest_posts',
-					'type' => 'PostList',
-					'data' => array(
-						'title' => 'Latest Posts',
-						'posts' => $posts,
-					),
-				),
+				$this->build_hero_carousel(),
+				$this->build_category_list(),
+				$this->build_post_grid(),
 			),
 		);
 	}
 
 	/**
-	 * Queries and formats the latest posts.
+	 * Builds the HeroCarousel component.
+	 *
+	 * @return array
+	 */
+	private function build_hero_carousel() {
+		$items = array();
+
+		foreach ( $this->get_featured_posts( 3 ) as $post ) {
+			$item = array(
+				'title'     => get_the_title( $post->ID ),
+				'image_url' => $this->get_post_image_url( $post->ID, 'large' ),
+				'action'    => $this->build_post_action( $post->ID ),
+			);
+
+			$subtitle = trim( wp_strip_all_tags( get_the_excerpt( $post ) ) );
+
+			if ( '' !== $subtitle ) {
+				$item['subtitle'] = $subtitle;
+			}
+
+			$items[] = $item;
+		}
+
+		return array(
+			'id'     => 'hero_carousel',
+			'type'   => 'HeroCarousel',
+			'styles' => $this->get_default_styles(),
+			'content' => array(
+				'items' => $items,
+			),
+		);
+	}
+
+	/**
+	 * Builds the CategoryList component.
+	 *
+	 * @return array
+	 */
+	private function build_category_list() {
+		$categories = array();
+
+		foreach ( $this->get_top_level_categories() as $category ) {
+			$categories[] = array(
+				'category_id' => (string) $category->term_id,
+				'name'        => $category->name,
+				'action'      => $this->build_category_action( $category->term_id ),
+			);
+		}
+
+		return array(
+			'id'     => 'category_list',
+			'type'   => 'CategoryList',
+			'styles' => $this->get_default_styles(),
+			'content' => array(
+				'categories' => $categories,
+			),
+		);
+	}
+
+	/**
+	 * Builds the PostGrid component.
+	 *
+	 * @return array
+	 */
+	private function build_post_grid() {
+		$posts = array();
+
+		foreach ( $this->get_latest_posts( 10 ) as $post ) {
+			$post_item = array(
+				'post_id'       => (string) $post->ID,
+				'title'         => get_the_title( $post->ID ),
+				'thumbnail_url' => $this->get_post_image_url( $post->ID, 'medium' ),
+				'action'        => $this->build_post_action( $post->ID ),
+			);
+
+			$excerpt = trim( wp_strip_all_tags( get_the_excerpt( $post ) ) );
+
+			if ( '' !== $excerpt ) {
+				$post_item['excerpt'] = $excerpt;
+			}
+
+			$posts[] = $post_item;
+		}
+
+		return array(
+			'id'     => 'post_grid',
+			'type'   => 'PostGrid',
+			'styles' => $this->get_default_styles(),
+			'content' => array(
+				'columns' => 2,
+				'posts'   => $posts,
+			),
+		);
+	}
+
+	/**
+	 * Returns the default style configuration.
+	 *
+	 * @return array
+	 */
+	private function get_default_styles() {
+		return array(
+			'colors'  => array(
+				'background' => '#FFFFFF',
+				'text'       => '#111111',
+				'accent'     => '#FF6A00',
+			),
+			'padding' => array(
+				'horizontal' => 16,
+				'vertical'   => 16,
+			),
+		);
+	}
+
+	/**
+	 * Queries and returns the latest posts.
 	 *
 	 * @param int $per_page Number of posts to include.
 	 * @return array
@@ -286,11 +345,7 @@ final class PressNative_Layout_Engine {
 			)
 		);
 
-		$posts = array();
-
-		foreach ( $query->posts as $post ) {
-			$posts[] = $this->format_post( $post );
-		}
+		$posts = $query->posts;
 
 		wp_reset_postdata();
 
@@ -298,88 +353,144 @@ final class PressNative_Layout_Engine {
 	}
 
 	/**
-	 * Formats a post for the contract schema.
+	 * Queries and returns featured posts.
 	 *
-	 * @param WP_Post $post Post object.
+	 * @param int $limit Number of posts to include.
 	 * @return array
 	 */
-	private function format_post( WP_Post $post ) {
-		$author_id         = (int) $post->post_author;
-		$featured_image_id = get_post_thumbnail_id( $post->ID );
-		$featured_image    = '';
+	private function get_featured_posts( $limit ) {
+		$featured_term = get_term_by( 'slug', 'featured', 'category' );
 
-		if ( $featured_image_id ) {
-			$featured_image = wp_get_attachment_image_url( $featured_image_id, 'large' );
+		if ( ! $featured_term ) {
+			$featured_term = get_term_by( 'name', 'Featured', 'category' );
 		}
 
-		$categories = array();
-		$terms      = get_the_category( $post->ID );
+		if ( ! $featured_term || is_wp_error( $featured_term ) ) {
+			return array();
+		}
 
-		if ( ! empty( $terms ) ) {
-			foreach ( $terms as $term ) {
-				$categories[] = array(
-					'id'   => (int) $term->term_id,
-					'name' => $term->name,
-					'slug' => $term->slug,
-				);
+		$query = new WP_Query(
+			array(
+				'posts_per_page'      => absint( $limit ),
+				'post_status'         => 'publish',
+				'ignore_sticky_posts' => true,
+				'no_found_rows'       => true,
+				'cat'                 => (int) $featured_term->term_id,
+			)
+		);
+
+		$posts = $query->posts;
+
+		wp_reset_postdata();
+
+		return $posts;
+	}
+
+	/**
+	 * Returns top-level categories, optionally filtered by settings.
+	 *
+	 * @return array
+	 */
+	private function get_top_level_categories() {
+		$enabled_ids = get_option( PressNative_App_Plugin::OPTION_ENABLED_CATEGORIES, null );
+
+		if ( null !== $enabled_ids && false !== $enabled_ids && ! is_array( $enabled_ids ) ) {
+			$enabled_ids = array();
+		}
+
+		$args = array(
+			'hide_empty' => false,
+			'parent'     => 0,
+		);
+
+		$categories = get_categories( $args );
+
+		if ( is_wp_error( $categories ) ) {
+			return array();
+		}
+
+		if ( is_array( $enabled_ids ) ) {
+			$enabled_ids = array_filter( array_map( 'absint', $enabled_ids ) );
+
+			if ( empty( $enabled_ids ) ) {
+				return array();
 			}
+
+			$categories = array_filter(
+				$categories,
+				function ( $category ) use ( $enabled_ids ) {
+					return in_array( (int) $category->term_id, $enabled_ids, true );
+				}
+			);
 		}
 
+		return array_values( $categories );
+	}
+
+	/**
+	 * Builds a navigation action for posts.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array
+	 */
+	private function build_post_action( $post_id ) {
 		return array(
-			'id'             => (int) $post->ID,
-			'title'          => get_the_title( $post->ID ),
-			'excerpt'        => get_the_excerpt( $post ),
-			'permalink'      => get_permalink( $post->ID ),
-			'date'           => get_the_date( 'c', $post->ID ),
-			'modified'       => get_the_modified_date( 'c', $post->ID ),
-			'author'         => array(
-				'id'   => $author_id,
-				'name' => get_the_author_meta( 'display_name', $author_id ),
+			'type'    => 'open_post',
+			'payload' => array(
+				'post_id' => (string) absint( $post_id ),
 			),
-			'featured_image' => array(
-				'url' => $featured_image,
-			),
-			'categories'     => $categories,
 		);
 	}
 
 	/**
-	 * Formats categories for the CategoryList component.
+	 * Builds a navigation action for categories.
 	 *
-	 * @param array $category_ids Category IDs to include.
+	 * @param int $category_id Category ID.
 	 * @return array
 	 */
-	private function get_category_data( array $category_ids ) {
-		if ( empty( $category_ids ) ) {
-			return array();
-		}
-
-		$terms = get_terms(
-			array(
-				'taxonomy'   => 'category',
-				'include'    => $category_ids,
-				'hide_empty' => false,
-				'orderby'    => 'include',
-			)
+	private function build_category_action( $category_id ) {
+		return array(
+			'type'    => 'open_category',
+			'payload' => array(
+				'category_id' => (string) absint( $category_id ),
+			),
 		);
+	}
 
-		if ( is_wp_error( $terms ) ) {
-			return array();
+	/**
+	 * Returns a post image URL or a fallback.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $size    Image size.
+	 * @return string
+	 */
+	private function get_post_image_url( $post_id, $size ) {
+		$image_url = '';
+
+		if ( has_post_thumbnail( $post_id ) ) {
+			$image_url = wp_get_attachment_image_url( get_post_thumbnail_id( $post_id ), $size );
 		}
 
-		$categories = array();
-
-		foreach ( $terms as $term ) {
-			$categories[] = array(
-				'id'    => (int) $term->term_id,
-				'name'  => $term->name,
-				'slug'  => $term->slug,
-				'link'  => get_category_link( $term->term_id ),
-				'count' => (int) $term->count,
-			);
+		if ( empty( $image_url ) ) {
+			$image_url = $this->get_fallback_image_url();
 		}
 
-		return $categories;
+		return $image_url;
+	}
+
+	/**
+	 * Returns a fallback image URL.
+	 *
+	 * @return string
+	 */
+	private function get_fallback_image_url() {
+		$icon_url = get_site_icon_url( 512 );
+
+		if ( $icon_url ) {
+			return $icon_url;
+		}
+
+		return home_url( '/' );
 	}
 }
 
