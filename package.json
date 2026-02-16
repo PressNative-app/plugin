@@ -1,0 +1,10 @@
+{
+  "name": "pressnative-engine",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "bash scripts/build.sh",
+    "deploy": "bash scripts/sync-to-local.sh",
+    "deploy:watch": "bash scripts/watch-and-sync.sh"
+  }
+}

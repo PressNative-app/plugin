@@ -34,11 +34,14 @@ final class PressNative_App_Plugin {
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 	}
 
-	/**
-	 * Registers REST API routes for PressNative.
-	 *
-	 * @return void
-	 */
+/**
+ * Registers REST API routes for PressNative.
+ *
+ * TODO: Validate REST response payloads against the schema defined in www/contract.json.
+ * The plugin must conform to the canonical contract so Android and iOS clients render correctly.
+ *
+ * @return void
+ */
 	public function register_rest_routes() {
 		register_rest_route(
 			self::REST_NAMESPACE,
