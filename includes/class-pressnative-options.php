@@ -23,6 +23,9 @@ class PressNative_Options {
 	const OPTION_FONT_FAMILY      = 'pressnative_font_family';
 	const OPTION_BASE_FONT_SIZE   = 'pressnative_base_font_size';
 
+	// AdMob monetization settings.
+	const OPTION_ADMOB_BANNER_UNIT_ID = 'pressnative_admob_banner_unit_id';
+
 	const DEFAULT_APP_NAME         = 'PressNative';
 	const DEFAULT_PRIMARY_COLOR    = '#1A73E8';
 	const DEFAULT_ACCENT_COLOR     = '#34C759';
@@ -30,6 +33,7 @@ class PressNative_Options {
 	const DEFAULT_TEXT_COLOR       = '#111111';
 	const DEFAULT_FONT_FAMILY      = 'sans-serif';
 	const DEFAULT_BASE_FONT_SIZE   = 16;
+	const DEFAULT_ADMOB_BANNER_UNIT_ID = '';
 
 	/**
 	 * Returns the full branding object for the REST API (contract structure).

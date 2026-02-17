@@ -196,6 +196,15 @@ class PressNative_Admin {
 				'default'           => PressNative_Options::DEFAULT_BASE_FONT_SIZE,
 			)
 		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_ADMOB_BANNER_UNIT_ID,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => PressNative_Options::DEFAULT_ADMOB_BANNER_UNIT_ID,
+			)
+		);
 
 		// Layout Settings
 		register_setting(
@@ -922,6 +931,30 @@ class PressNative_Admin {
 							<button type="button" class="button" id="pressnative_logo_select"><?php esc_html_e( 'Select or upload logo', 'pressnative' ); ?></button>
 							<button type="button" class="button" id="pressnative_logo_remove"><?php esc_html_e( 'Remove', 'pressnative' ); ?></button>
 							<p class="description"><?php esc_html_e( 'Header logo for the app. Used when provided in the API.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+				</table>
+
+				<h2 style="margin-top:2em;"><?php esc_html_e( 'Monetization', 'pressnative' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Configure AdMob to display banner ads in your app. Enable the Ad Placement component in Layout Settings to show ads on the home screen.', 'pressnative' ); ?></p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">
+							<label for="pressnative_admob_banner_unit_id"><?php esc_html_e( 'AdMob Banner Unit ID', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$admob_banner = get_option( PressNative_Options::OPTION_ADMOB_BANNER_UNIT_ID, PressNative_Options::DEFAULT_ADMOB_BANNER_UNIT_ID );
+							?>
+							<input type="text"
+								   id="pressnative_admob_banner_unit_id"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_ADMOB_BANNER_UNIT_ID ); ?>"
+								   value="<?php echo esc_attr( $admob_banner ); ?>"
+								   class="regular-text"
+								   placeholder="ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"/>
+							<p class="description">
+								<?php esc_html_e( 'Your AdMob banner ad unit ID (e.g. ca-app-pub-xxxxx/yyyyy). The App ID is configured in each native app at build time. Leave blank to disable ads.', 'pressnative' ); ?>
+							</p>
 						</td>
 					</tr>
 				</table>
