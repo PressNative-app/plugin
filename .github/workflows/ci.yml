@@ -47,7 +47,7 @@ jobs:
       - name: Build plugin zip
         run: bash scripts/build.sh
 
-      - name: Verify zip was created
+      - name: Verify and stage zip
         run: |
           ZIP_PATH="$(cd .. && pwd)/pressnative.zip"
           if [ ! -f "$ZIP_PATH" ]; then
@@ -56,10 +56,11 @@ jobs:
           fi
           echo "Plugin zip created successfully"
           ls -lh "$ZIP_PATH"
+          cp "$ZIP_PATH" "$GITHUB_WORKSPACE/pressnative.zip"
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
           name: pressnative-plugin
-          path: ../pressnative.zip
+          path: pressnative.zip
           retention-days: 7
