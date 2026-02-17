@@ -14,7 +14,7 @@ class PressNative_Admin {
 
 	const OPTION_REGISTRY_URL    = 'pressnative_registry_url';
 	const OPTION_API_KEY         = 'pressnative_api_key';
-	const DEFAULT_REGISTRY_URL   = 'http://localhost:3000';
+	const DEFAULT_REGISTRY_URL   = 'https://pressnative.app';
 	const OPTION_SCHEMA_VERIFIED = 'pressnative_schema_verified';
 
 	/**
@@ -28,6 +28,7 @@ class PressNative_Admin {
 		add_action( 'admin_init', array( __CLASS__, 'handle_stripe_portal_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_app_settings_assets' ) );
 		add_action( 'admin_post_pressnative_send_push', array( __CLASS__, 'handle_send_push' ) );
+		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification' ), 10, 2 );
 	}
 
 	/**
@@ -394,10 +395,11 @@ class PressNative_Admin {
 			return;
 		}
 
-		$registry_url = get_option( self::OPTION_REGISTRY_URL, self::DEFAULT_REGISTRY_URL );
-		$api_key      = get_option( self::OPTION_API_KEY, '' );
-		$verified     = get_option( self::OPTION_SCHEMA_VERIFIED, '' );
-		$sub_status   = ! empty( $api_key ) ? self::fetch_subscription_status() : null;
+		$registry_url   = get_option( self::OPTION_REGISTRY_URL, self::DEFAULT_REGISTRY_URL );
+		$api_key        = get_option( self::OPTION_API_KEY, '' );
+		$verified       = get_option( self::OPTION_SCHEMA_VERIFIED, '' );
+		$site_verified  = get_option( 'pressnative_site_verified', '' );
+		$sub_status     = ! empty( $api_key ) ? self::fetch_subscription_status() : null;
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'PressNative', 'pressnative' ); ?></h1>
@@ -469,11 +471,26 @@ class PressNative_Admin {
 					</p>
 				<?php endif; ?>
 			</div>
-			<?php elseif ( ! empty( $api_key ) ) : ?>
-			<div class="notice notice-warning" style="max-width:700px;">
-				<p><?php esc_html_e( 'Could not fetch subscription status. Ensure the Registry is running and your API key is valid.', 'pressnative' ); ?></p>
-			</div>
-			<?php endif; ?>
+		<?php elseif ( ! empty( $api_key ) ) : ?>
+		<div class="notice notice-warning" style="max-width:700px;">
+			<p><?php esc_html_e( 'Could not fetch subscription status. Ensure the Registry is running and your API key is valid.', 'pressnative' ); ?></p>
+		</div>
+		<?php endif; ?>
+
+		<?php if ( ! empty( $api_key ) && ! empty( $site_verified ) ) : ?>
+		<div class="notice notice-success" style="max-width:700px;">
+			<p>
+				<strong><?php esc_html_e( 'Site Verified', 'pressnative' ); ?></strong> —
+				<?php echo esc_html( sprintf( __( 'WordPress admin access confirmed on %s.', 'pressnative' ), $site_verified ) ); ?>
+			</p>
+		</div>
+		<?php elseif ( ! empty( $api_key ) && empty( $site_verified ) ) : ?>
+		<div class="notice notice-warning" style="max-width:700px;">
+			<p>
+				<?php esc_html_e( 'Site verification pending. Re-save your API key to verify your WordPress admin access with the Registry.', 'pressnative' ); ?>
+			</p>
+		</div>
+		<?php endif; ?>
 
 			<?php if ( ! empty( $_GET['pressnative_portal_error'] ) ) : ?>
 			<div class="notice notice-error is-dismissible" style="max-width:700px;">
@@ -481,29 +498,31 @@ class PressNative_Admin {
 			</div>
 			<?php endif; ?>
 
-			<form method="post" action="options.php">
-				<?php settings_fields( 'pressnative_settings' ); ?>
-				<table class="form-table" role="presentation">
-					<tr>
-						<th scope="row">
-							<label for="pressnative_registry_url"><?php esc_html_e( 'Registry URL', 'pressnative' ); ?></label>
-						</th>
-						<td>
-							<input type="url"
-								   id="pressnative_registry_url"
-								   name="<?php echo esc_attr( self::OPTION_REGISTRY_URL ); ?>"
-								   value="<?php echo esc_attr( $registry_url ); ?>"
-								   class="regular-text"
-								   placeholder="<?php echo esc_attr( self::DEFAULT_REGISTRY_URL ); ?>"/>
-							<p class="description">
-								<?php esc_html_e( 'Base URL of the PressNative Registry (Core) service. Used to verify schema on activation.', 'pressnative' ); ?>
-								<?php if ( $verified ) : ?>
-									<br><strong><?php esc_html_e( 'Last verified:', 'pressnative' ); ?></strong> <?php echo esc_html( $verified ); ?>
-								<?php endif; ?>
-							</p>
-						</td>
-					</tr>
-					<tr>
+		<form method="post" action="options.php">
+			<?php settings_fields( 'pressnative_settings' ); ?>
+			<table class="form-table" role="presentation">
+				<?php if ( self::is_localhost() ) : ?>
+				<tr>
+					<th scope="row">
+						<label for="pressnative_registry_url"><?php esc_html_e( 'Registry URL', 'pressnative' ); ?></label>
+					</th>
+					<td>
+						<input type="url"
+							   id="pressnative_registry_url"
+							   name="<?php echo esc_attr( self::OPTION_REGISTRY_URL ); ?>"
+							   value="<?php echo esc_attr( $registry_url ); ?>"
+							   class="regular-text"
+							   placeholder="http://localhost:3000"/>
+						<p class="description">
+							<?php esc_html_e( 'Local development: Base URL of your local PressNative Registry.', 'pressnative' ); ?>
+							<?php if ( $verified ) : ?>
+								<br><strong><?php esc_html_e( 'Last verified:', 'pressnative' ); ?></strong> <?php echo esc_html( $verified ); ?>
+							<?php endif; ?>
+						</p>
+					</td>
+				</tr>
+				<?php endif; ?>
+				<tr>
 						<th scope="row">
 							<label for="pressnative_api_key"><?php esc_html_e( 'API Key', 'pressnative' ); ?></label>
 						</th>
@@ -1326,19 +1345,29 @@ class PressNative_Admin {
 
 	/**
 	 * Returns the configured Registry URL.
-	 * When the WordPress site is on localhost, always use the local registry (localhost:3000)
-	 * so push notifications and other registry calls work during local testing.
+	 * Production default is https://pressnative.app.
+	 * On localhost, uses the user-configured value (which defaults to localhost:3000 for dev).
 	 *
 	 * @return string
 	 */
 	public static function get_registry_url() {
-		$home = home_url();
+		if ( self::is_localhost() ) {
+			$saved = get_option( self::OPTION_REGISTRY_URL, '' );
+			return ! empty( $saved ) ? $saved : 'http://localhost:3000';
+		}
+		return self::DEFAULT_REGISTRY_URL;
+	}
+
+	/**
+	 * Checks if the current WordPress site is running on localhost.
+	 *
+	 * @return bool
+	 */
+	public static function is_localhost() {
+		$home   = home_url();
 		$parsed = wp_parse_url( $home );
 		$host   = isset( $parsed['host'] ) ? strtolower( $parsed['host'] ) : '';
-		if ( in_array( $host, array( 'localhost', '127.0.0.1' ), true ) ) {
-			return self::DEFAULT_REGISTRY_URL;
-		}
-		return get_option( self::OPTION_REGISTRY_URL, self::DEFAULT_REGISTRY_URL );
+		return in_array( $host, array( 'localhost', '127.0.0.1' ), true );
 	}
 
 	/**
@@ -1402,5 +1431,64 @@ class PressNative_Admin {
 
 		update_option( self::OPTION_SCHEMA_VERIFIED, current_time( 'mysql' ) );
 		return true;
+	}
+
+	/**
+	 * Triggers site verification when the API key is saved/updated.
+	 *
+	 * Generates a one-time nonce, stores it as a transient, then calls the
+	 * Registry's /api/verify-site endpoint. The Registry calls back to
+	 * /wp-json/pressnative/v1/verify-ownership to confirm the nonce,
+	 * proving this WordPress site has wp-admin access for the given API key.
+	 *
+	 * @param string $old_value Previous API key.
+	 * @param string $new_value New API key.
+	 * @return bool True if verification succeeded.
+	 */
+	public static function trigger_site_verification( $old_value, $new_value ) {
+		$api_key = sanitize_text_field( $new_value );
+		if ( empty( $api_key ) ) {
+			return false;
+		}
+
+		// Generate a one-time verification nonce and store it for 5 minutes
+		$nonce = wp_generate_password( 48, false );
+		set_transient( 'pressnative_verify_nonce', $nonce, 5 * MINUTE_IN_SECONDS );
+
+		$registry_url = self::get_registry_url();
+		$verify_url   = rtrim( $registry_url, '/' ) . '/api/verify-site';
+		$site_url     = site_url();
+
+		$response = wp_remote_post(
+			$verify_url,
+			array(
+				'timeout' => 15,
+				'headers' => array(
+					'Content-Type'          => 'application/json',
+					'X-PressNative-API-Key' => $api_key,
+				),
+				'body'    => wp_json_encode(
+					array(
+						'site_url' => $site_url,
+						'nonce'    => $nonce,
+					)
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return false;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+
+		if ( $code >= 200 && $code < 300 && ! empty( $data['ok'] ) ) {
+			update_option( 'pressnative_site_verified', current_time( 'mysql' ) );
+			return true;
+		}
+
+		return false;
 	}
 }

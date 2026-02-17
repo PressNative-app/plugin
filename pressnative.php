@@ -257,6 +257,41 @@ add_action( 'rest_api_init', function () {
 		)
 	);
 
+	// Site verification endpoint: Registry calls this to confirm wp-admin access.
+	// The plugin generates a nonce (see PressNative_Admin::trigger_site_verification),
+	// sends it to the Registry, and the Registry calls back here to confirm it.
+	register_rest_route(
+		'pressnative/v1',
+		'/verify-ownership',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => function ( WP_REST_Request $request ) {
+				$params = $request->get_json_params();
+				$nonce  = isset( $params['nonce'] ) ? sanitize_text_field( $params['nonce'] ) : '';
+
+				if ( empty( $nonce ) ) {
+					return new WP_Error( 'missing_nonce', 'nonce is required', array( 'status' => 400 ) );
+				}
+
+				// Verify against the stored verification nonce
+				$stored_nonce = get_transient( 'pressnative_verify_nonce' );
+				if ( empty( $stored_nonce ) || ! hash_equals( $stored_nonce, $nonce ) ) {
+					return new WP_Error( 'invalid_nonce', 'Verification nonce is invalid or expired', array( 'status' => 403 ) );
+				}
+
+				// Nonce is valid — delete it (single use) and confirm
+				delete_transient( 'pressnative_verify_nonce' );
+
+				return rest_ensure_response( array(
+					'verified'   => true,
+					'site_url'   => site_url(),
+					'admin_email' => get_option( 'admin_email', '' ),
+				) );
+			},
+			'permission_callback' => '__return_true',
+		)
+	);
+
 	// Preview endpoint: returns home layout with optional overrides (no save).
 	register_rest_route(
 		'pressnative/v1',
