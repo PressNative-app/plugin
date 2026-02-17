@@ -1,0 +1,50 @@
+<?php
+/**
+ * PressNative Uninstall
+ *
+ * Runs when the plugin is deleted via the WordPress admin.
+ * Removes all plugin options and drops the custom database table.
+ *
+ * @package PressNative
+ */
+
+defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
+
+// Plugin options to remove.
+$options = array(
+	// Registry settings.
+	'pressnative_registry_url',
+	'pressnative_api_key',
+	'pressnative_schema_verified',
+
+	// Branding (App Settings).
+	'pressnative_app_name',
+	'pressnative_primary_color',
+	'pressnative_accent_color',
+	'pressnative_logo_attachment_id',
+	'pressnative_background_color',
+	'pressnative_text_color',
+	'pressnative_font_family',
+	'pressnative_base_font_size',
+	'pressnative_theme_id',
+
+	// Layout settings.
+	'pressnative_hero_category_slug',
+	'pressnative_hero_max_items',
+	'pressnative_post_grid_columns',
+	'pressnative_post_grid_per_page',
+	'pressnative_enabled_categories',
+	'pressnative_enabled_components',
+
+	// Legacy option (from pressnative-app plugin).
+	'pressnative_app_enabled_categories',
+);
+
+foreach ( $options as $option ) {
+	delete_option( $option );
+}
+
+// Drop the devices table.
+global $wpdb;
+$table = $wpdb->prefix . 'pressnative_devices';
+$wpdb->query( "DROP TABLE IF EXISTS {$table}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL

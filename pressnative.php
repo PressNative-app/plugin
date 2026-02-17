@@ -1,17 +1,24 @@
 <?php
 /**
  * Plugin Name: PressNative
- * Plugin URI: https://pressnative.app
- * Description: Data provider for the PressNative mobile app. Serves layout and content via REST API.
- * Version: 1.0.0
- * Author: PressNative
- * License: GPL v2 or later
+ * Plugin URI:  https://pressnative.app
+ * Description: Turn your WordPress site into a native mobile app. Serves layout, content, and branding via REST API to the PressNative Android and iOS apps.
+ * Version:     1.0.0
+ * Author:      PressNative
+ * Author URI:  https://pressnative.app
+ * License:     GPL-2.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: pressnative
+ * Domain Path: /languages
+ * Requires at least: 5.0
+ * Requires PHP:      7.4
  */
 
 defined( 'ABSPATH' ) || exit;
 
+define( 'PRESSNATIVE_VERSION', '1.0.0' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-options.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-themes.php';
@@ -20,8 +27,18 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-shortcodes.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-search-api.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-devices.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-analytics.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-admin.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-preview.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-registry-notify.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-qr.php';
+
+/**
+ * Load plugin text domain for translations.
+ */
+add_action( 'init', function () {
+	load_plugin_textdomain( 'pressnative', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+} );
 
 /**
  * Activation: create devices table and verify Registry schema.
@@ -29,6 +46,15 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-registry-notif
 register_activation_hook( __FILE__, function () {
 	PressNative_Devices::create_table();
 	PressNative_Admin::verify_registry_schema();
+} );
+
+/**
+ * Deactivation: currently a no-op. Data is preserved so reactivation is seamless.
+ * Full cleanup (options + database table) happens in uninstall.php.
+ */
+register_deactivation_hook( __FILE__, function () {
+	// Intentionally empty: data is preserved for reactivation.
+	// See uninstall.php for full cleanup on plugin deletion.
 } );
 
 /**
@@ -45,8 +71,11 @@ add_action( 'rest_api_init', function () {
 			'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
 				$data     = $layout->get_home_layout();
 				$response = rest_ensure_response( $data );
-				$response->header( 'X-PressNative-Version', '1.0.0' );
+				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
 				$response->header( 'Last-Updated', gmdate( 'c' ) );
+				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+					PressNative_Analytics::forward_event_to_registry( 'home', 'home', get_bloginfo( 'name' ) );
+				}
 				return $response;
 			},
 			'permission_callback' => '__return_true',
@@ -63,7 +92,12 @@ add_action( 'rest_api_init', function () {
 				if ( ! $data ) {
 					return new WP_Error( 'not_found', 'Post not found', array( 'status' => 404 ) );
 				}
-				return rest_ensure_response( $data );
+				$response = rest_ensure_response( $data );
+				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+					$title = isset( $data['screen']['title'] ) ? $data['screen']['title'] : get_the_title( (int) $request['id'] );
+					PressNative_Analytics::forward_event_to_registry( 'post', (string) $request['id'], $title );
+				}
+				return $response;
 			},
 			'permission_callback' => '__return_true',
 		)
@@ -79,7 +113,12 @@ add_action( 'rest_api_init', function () {
 				if ( ! $data ) {
 					return new WP_Error( 'not_found', 'Page not found', array( 'status' => 404 ) );
 				}
-				return rest_ensure_response( $data );
+				$response = rest_ensure_response( $data );
+				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+					$title = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
+					PressNative_Analytics::forward_event_to_registry( 'page', $request['slug'], $title );
+				}
+				return $response;
 			},
 			'permission_callback' => '__return_true',
 		)
@@ -95,20 +134,224 @@ add_action( 'rest_api_init', function () {
 				if ( ! $data ) {
 					return new WP_Error( 'not_found', 'Category not found', array( 'status' => 404 ) );
 				}
-				return rest_ensure_response( $data );
+				$response = rest_ensure_response( $data );
+				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+					$title = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
+					PressNative_Analytics::forward_event_to_registry( 'category', (string) $request['id'], $title );
+				}
+				return $response;
 			},
 			'permission_callback' => '__return_true',
 		)
 	);
 
+	// Branding sync endpoint: Registry pushes branding updates to WordPress.
+	register_rest_route(
+		'pressnative/v1',
+		'/branding',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => function ( WP_REST_Request $request ) {
+				$params = $request->get_json_params();
+				if ( empty( $params ) || ! is_array( $params ) ) {
+					return new WP_Error( 'invalid_body', 'JSON body required', array( 'status' => 400 ) );
+				}
+
+			$map = array(
+				'app_name'         => PressNative_Options::OPTION_APP_NAME,
+				'primary_color'    => PressNative_Options::OPTION_PRIMARY_COLOR,
+				'accent_color'     => PressNative_Options::OPTION_ACCENT_COLOR,
+				'background_color' => PressNative_Options::OPTION_BACKGROUND_COLOR,
+				'text_color'       => PressNative_Options::OPTION_TEXT_COLOR,
+				'font_family'      => PressNative_Options::OPTION_FONT_FAMILY,
+				'base_font_size'   => PressNative_Options::OPTION_BASE_FONT_SIZE,
+			);
+			$updated = array();
+
+			// Switch to Custom theme when Registry pushes explicit colors,
+			// so theme presets don't override the synced values.
+			if ( isset( $params['theme_id'] ) ) {
+				$theme_id = sanitize_text_field( $params['theme_id'] );
+				$themes   = PressNative_Themes::get_themes();
+				if ( isset( $themes[ $theme_id ] ) ) {
+					update_option( PressNative_Themes::OPTION_THEME_ID, $theme_id );
+					$updated[] = 'theme_id';
+				}
+			}
+
+			foreach ( $map as $key => $option_name ) {
+				if ( isset( $params[ $key ] ) ) {
+					$value = $params[ $key ];
+					if ( in_array( $key, array( 'primary_color', 'accent_color', 'background_color', 'text_color' ), true ) ) {
+						$value = PressNative_Options::sanitize_hex( $value );
+					}
+					update_option( $option_name, $value );
+					$updated[] = $key;
+				}
+			}
+
+				// Handle logo_url: download to media library if it's external.
+				if ( isset( $params['logo_url'] ) && ! empty( $params['logo_url'] ) ) {
+					$logo_url  = esc_url_raw( $params['logo_url'] );
+					$current   = (int) get_option( PressNative_Options::OPTION_LOGO_ATTACHMENT, 0 );
+					$current_u = $current > 0 ? wp_get_attachment_image_url( $current, 'full' ) : '';
+					if ( $logo_url !== $current_u ) {
+						require_once ABSPATH . 'wp-admin/includes/media.php';
+						require_once ABSPATH . 'wp-admin/includes/file.php';
+						require_once ABSPATH . 'wp-admin/includes/image.php';
+						$attachment_id = media_sideload_image( $logo_url, 0, 'PressNative Logo', 'id' );
+						if ( ! is_wp_error( $attachment_id ) ) {
+							update_option( PressNative_Options::OPTION_LOGO_ATTACHMENT, $attachment_id );
+							$updated[] = 'logo_url';
+						}
+					}
+				}
+
+				return rest_ensure_response( array(
+					'ok'      => true,
+					'updated' => $updated,
+				) );
+			},
+			'permission_callback' => function ( WP_REST_Request $request ) {
+				// Accept if request comes from Registry (shared key) or user is admin.
+				$registry_key = $request->get_header( 'X-PressNative-Registry-Key' );
+				$admin_key    = defined( 'PRESSNATIVE_ADMIN_KEY' )
+					? PRESSNATIVE_ADMIN_KEY
+					: getenv( 'ADMIN_API_KEY' );
+				if ( $admin_key && $registry_key === $admin_key ) {
+					return true;
+				}
+				return current_user_can( 'manage_options' );
+			},
+		)
+	);
+
+	// Site info endpoint: Registry fetches admin email and site metadata for the admin dashboard.
+	register_rest_route(
+		'pressnative/v1',
+		'/site-info',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => function () {
+				$app_name = (string) get_option( PressNative_Options::OPTION_APP_NAME, get_bloginfo( 'name' ) );
+				return rest_ensure_response(
+					array(
+						'admin_email' => (string) get_option( 'admin_email', '' ),
+						'site_name'   => $app_name,
+						'blog_name'   => get_bloginfo( 'name' ),
+						'language'    => get_bloginfo( 'language' ),
+						'timezone'    => wp_timezone_string(),
+					)
+				);
+			},
+			'permission_callback' => function ( WP_REST_Request $request ) {
+				$registry_key = $request->get_header( 'X-PressNative-Registry-Key' );
+				$admin_key    = defined( 'PRESSNATIVE_ADMIN_KEY' )
+					? PRESSNATIVE_ADMIN_KEY
+					: getenv( 'ADMIN_API_KEY' );
+				if ( $admin_key && $registry_key === $admin_key ) {
+					return true;
+				}
+				return current_user_can( 'manage_options' );
+			},
+		)
+	);
+
+	// Preview endpoint: returns home layout with optional overrides (no save).
+	register_rest_route(
+		'pressnative/v1',
+		'/preview',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
+				$overrides = $request->get_json_params();
+				if ( ! is_array( $overrides ) ) {
+					$overrides = array();
+				}
+				$callbacks = PressNative_Preview::apply_overrides( $overrides );
+				try {
+					$data = $layout->get_home_layout();
+					return rest_ensure_response( $data );
+				} finally {
+					PressNative_Preview::remove_overrides( $callbacks );
+				}
+			},
+			'permission_callback' => function () {
+				return current_user_can( 'manage_options' );
+			},
+		)
+	);
+
 	PressNative_Devices::register_rest_route();
+	PressNative_Analytics::register_rest_routes();
 	PressNative_Search_Api::register_routes();
+} );
+
+/**
+ * Minimal template for in-app WebView navigations.
+ *
+ * When a same-origin link is followed inside the app's WebView, the request
+ * includes ?pressnative=1. This hook intercepts such requests and renders a
+ * minimal HTML page containing only the post/page content with all enqueued
+ * scripts and styles — no theme header, footer, sidebars or navigation.
+ */
+add_action( 'template_redirect', function () {
+	if ( ! isset( $_GET['pressnative'] ) || $_GET['pressnative'] !== '1' ) {
+		return;
+	}
+
+	// Let WordPress determine the queried object normally.
+	$post = get_queried_object();
+	if ( ! ( $post instanceof WP_Post ) ) {
+		// Fallback: try the global $post.
+		global $post;
+	}
+	if ( ! $post || ! ( $post instanceof WP_Post ) ) {
+		status_header( 404 );
+		echo '<!DOCTYPE html><html><body><p>Not found</p></body></html>';
+		exit;
+	}
+
+	// Set up post data so shortcodes and the_content work.
+	setup_postdata( $post );
+	$content = apply_filters( 'the_content', $post->post_content );
+
+	// Capture the full output so we can relativize absolute site URLs.
+	// This ensures script/style URLs work in the mobile WebView which may
+	// access the site via a different host (e.g. 10.0.2.2 on Android emulator).
+	ob_start();
+	?><!DOCTYPE html>
+<html <?php language_attributes(); ?>>
+<head>
+<meta charset="<?php bloginfo( 'charset' ); ?>">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body { font-family: sans-serif; font-size: 16px; line-height: 1.5; margin: 0; padding: 16px; }
+img { max-width: 100%; height: auto; }
+table { width: 100%; border-collapse: collapse; }
+</style>
+<?php wp_head(); ?>
+</head>
+<body>
+<?php echo $content; ?>
+<?php wp_footer(); ?>
+</body>
+</html><?php
+	$output   = ob_get_clean();
+	$site_url = untrailingslashit( site_url() );
+	echo str_replace( $site_url, '', $output );
+	exit;
 } );
 
 /**
  * Admin: PressNative menu and Registry URL setting.
  */
 PressNative_Admin::init();
+
+/**
+ * QR code shortcode for app deep links.
+ */
+PressNative_QR::init();
 
 /**
  * Notify Registry when branding/layout options are saved (invalidates site branding cache).

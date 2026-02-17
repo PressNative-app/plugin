@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 class PressNative_Admin {
 
 	const OPTION_REGISTRY_URL    = 'pressnative_registry_url';
+	const OPTION_API_KEY         = 'pressnative_api_key';
 	const DEFAULT_REGISTRY_URL   = 'http://localhost:3000';
 	const OPTION_SCHEMA_VERIFIED = 'pressnative_schema_verified';
 
@@ -24,7 +25,9 @@ class PressNative_Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'admin_init', array( __CLASS__, 'handle_stripe_portal_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_app_settings_assets' ) );
+		add_action( 'admin_post_pressnative_send_push', array( __CLASS__, 'handle_send_push' ) );
 	}
 
 	/**
@@ -58,6 +61,22 @@ class PressNative_Admin {
 			'pressnative-layout-settings',
 			array( __CLASS__, 'render_layout_settings_page' )
 		);
+		add_submenu_page(
+			'pressnative',
+			__( 'Analytics', 'pressnative' ),
+			__( 'Analytics', 'pressnative' ),
+			'manage_options',
+			'pressnative-analytics',
+			array( __CLASS__, 'render_analytics_page' )
+		);
+		add_submenu_page(
+			'pressnative',
+			__( 'Push Notifications', 'pressnative' ),
+			__( 'Push Notifications', 'pressnative' ),
+			'manage_options',
+			'pressnative-push',
+			array( __CLASS__, 'render_push_page' )
+		);
 	}
 
 	/**
@@ -73,6 +92,15 @@ class PressNative_Admin {
 				'type'              => 'string',
 				'sanitize_callback' => array( __CLASS__, 'sanitize_registry_url' ),
 				'default'           => self::DEFAULT_REGISTRY_URL,
+			)
+		);
+		register_setting(
+			'pressnative_settings',
+			self::OPTION_API_KEY,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => '',
 			)
 		);
 
@@ -250,17 +278,20 @@ class PressNative_Admin {
 	}
 
 	/**
-	 * Sanitizes component IDs array.
+	 * Sanitizes component IDs (comma-separated string or array).
 	 *
-	 * @param mixed $value Raw value.
+	 * @param mixed $value Raw value (string "id1,id2" or array).
 	 * @return string[]
 	 */
 	public static function sanitize_component_ids( $value ) {
-		if ( empty( $value ) || ! is_array( $value ) ) {
-			return PressNative_Layout_Options::COMPONENT_IDS;
+		$ids = array();
+		if ( is_string( $value ) && '' !== trim( $value ) ) {
+			$ids = array_map( 'trim', explode( ',', $value ) );
+		} elseif ( is_array( $value ) ) {
+			$ids = array_map( 'sanitize_text_field', $value );
 		}
-		$valid = array_intersect( array_map( 'sanitize_text_field', $value ), PressNative_Layout_Options::COMPONENT_IDS );
-		return empty( $valid ) ? PressNative_Layout_Options::COMPONENT_IDS : array_values( $valid );
+		$valid = array_values( array_intersect( array_filter( $ids ), PressNative_Layout_Options::COMPONENT_IDS ) );
+		return empty( $valid ) ? PressNative_Layout_Options::COMPONENT_IDS : $valid;
 	}
 
 	/**
@@ -282,6 +313,78 @@ class PressNative_Admin {
 	}
 
 	/**
+	 * Fetches the subscription status from the Registry via Stripe API.
+	 *
+	 * @return array|null Subscription data or null on failure.
+	 */
+	public static function fetch_subscription_status() {
+		$api_key      = get_option( self::OPTION_API_KEY, '' );
+		$registry_url = self::get_registry_url();
+		if ( empty( $api_key ) || empty( $registry_url ) ) {
+			return null;
+		}
+
+		$url      = rtrim( $registry_url, '/' ) . '/api/stripe/subscription-status';
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout' => 10,
+				'headers' => array(
+					'X-PressNative-API-Key' => $api_key,
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+		$code = wp_remote_retrieve_response_code( $response );
+		if ( $code !== 200 ) {
+			return null;
+		}
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+		return is_array( $data ) ? $data : null;
+	}
+
+	/**
+	 * Creates a Stripe Customer Portal session URL.
+	 *
+	 * @return string|null Portal URL or null on failure.
+	 */
+	public static function get_stripe_portal_url() {
+		$api_key      = get_option( self::OPTION_API_KEY, '' );
+		$registry_url = self::get_registry_url();
+		if ( empty( $api_key ) || empty( $registry_url ) ) {
+			return null;
+		}
+
+		$url      = rtrim( $registry_url, '/' ) . '/api/stripe/portal';
+		$response = wp_remote_post(
+			$url,
+			array(
+				'timeout' => 10,
+				'headers' => array(
+					'Content-Type'         => 'application/json',
+					'X-PressNative-API-Key' => $api_key,
+				),
+				'body'    => wp_json_encode(
+					array(
+						'return_url' => admin_url( 'admin.php?page=pressnative' ),
+					)
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+		return isset( $data['url'] ) ? $data['url'] : null;
+	}
+
+	/**
 	 * Renders the PressNative settings page.
 	 *
 	 * @return void
@@ -292,10 +395,92 @@ class PressNative_Admin {
 		}
 
 		$registry_url = get_option( self::OPTION_REGISTRY_URL, self::DEFAULT_REGISTRY_URL );
+		$api_key      = get_option( self::OPTION_API_KEY, '' );
 		$verified     = get_option( self::OPTION_SCHEMA_VERIFIED, '' );
+		$sub_status   = ! empty( $api_key ) ? self::fetch_subscription_status() : null;
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'PressNative', 'pressnative' ); ?></h1>
+
+			<?php if ( $sub_status ) : ?>
+			<div class="pressnative-subscription-card" style="background:#fff;border:1px solid #c3c4c7;border-left:4px solid <?php echo 'active' === $sub_status['billing_status'] ? '#00a32a' : ( 'trial' === $sub_status['billing_status'] ? '#dba617' : '#d63638' ); ?>;border-radius:4px;padding:16px 20px;margin-bottom:20px;max-width:700px;">
+				<h2 style="margin:0 0 12px;font-size:1.1em;">
+					<?php esc_html_e( 'Subscription Status', 'pressnative' ); ?>
+				</h2>
+				<table style="border-collapse:collapse;width:100%;">
+					<tr>
+						<td style="padding:6px 12px 6px 0;color:#50575e;width:140px;"><strong><?php esc_html_e( 'Plan', 'pressnative' ); ?></strong></td>
+						<td style="padding:6px 0;">
+							<span style="display:inline-block;padding:2px 10px;border-radius:4px;background:#f0f0f1;font-weight:600;text-transform:capitalize;">
+								<?php echo esc_html( $sub_status['plan'] ); ?>
+							</span>
+						</td>
+					</tr>
+					<tr>
+						<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Status', 'pressnative' ); ?></strong></td>
+						<td style="padding:6px 0;">
+							<?php
+							$status_label = $sub_status['billing_status'];
+							$status_color = '#00a32a';
+							if ( 'trial' === $status_label ) {
+								$status_color = '#dba617';
+							} elseif ( 'past_due' === $status_label ) {
+								$status_color = '#dba617';
+							} elseif ( 'canceled' === $status_label ) {
+								$status_color = '#d63638';
+							}
+							?>
+							<span style="display:inline-block;padding:2px 10px;border-radius:4px;background:<?php echo esc_attr( $status_color ); ?>;color:#fff;font-weight:600;text-transform:capitalize;">
+								<?php echo esc_html( str_replace( '_', ' ', $status_label ) ); ?>
+							</span>
+						</td>
+					</tr>
+					<?php if ( ! empty( $sub_status['stripe_subscription'] ) ) : ?>
+						<?php $stripe_sub = $sub_status['stripe_subscription']; ?>
+						<?php if ( ! empty( $stripe_sub['plan_name'] ) ) : ?>
+						<tr>
+							<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Stripe Plan', 'pressnative' ); ?></strong></td>
+							<td style="padding:6px 0;"><?php echo esc_html( $stripe_sub['plan_name'] ); ?>
+								<?php if ( ! empty( $stripe_sub['plan_amount'] ) ) : ?>
+									— <?php echo esc_html( '$' . number_format( $stripe_sub['plan_amount'] / 100, 2 ) . '/' . ( $stripe_sub['plan_interval'] ?? 'month' ) ); ?>
+								<?php endif; ?>
+							</td>
+						</tr>
+						<?php endif; ?>
+						<?php if ( ! empty( $stripe_sub['current_period_end'] ) ) : ?>
+						<tr>
+							<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Renews On', 'pressnative' ); ?></strong></td>
+							<td style="padding:6px 0;">
+								<?php echo esc_html( gmdate( 'F j, Y', $stripe_sub['current_period_end'] ) ); ?>
+								<?php if ( ! empty( $stripe_sub['cancel_at_period_end'] ) ) : ?>
+									<span style="color:#d63638;font-weight:600;margin-left:8px;"><?php esc_html_e( '(Cancels at period end)', 'pressnative' ); ?></span>
+								<?php endif; ?>
+							</td>
+						</tr>
+						<?php endif; ?>
+					<?php endif; ?>
+				</table>
+				<?php if ( $sub_status['has_stripe'] ) : ?>
+					<p style="margin:12px 0 0;">
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative&pressnative_portal=1' ) ); ?>" class="button button-secondary">
+							<?php esc_html_e( 'Manage Subscription', 'pressnative' ); ?>
+						</a>
+						<span class="description" style="margin-left:8px;"><?php esc_html_e( 'Opens the Stripe billing portal to update payment, change plan, or cancel.', 'pressnative' ); ?></span>
+					</p>
+				<?php endif; ?>
+			</div>
+			<?php elseif ( ! empty( $api_key ) ) : ?>
+			<div class="notice notice-warning" style="max-width:700px;">
+				<p><?php esc_html_e( 'Could not fetch subscription status. Ensure the Registry is running and your API key is valid.', 'pressnative' ); ?></p>
+			</div>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $_GET['pressnative_portal_error'] ) ) : ?>
+			<div class="notice notice-error is-dismissible" style="max-width:700px;">
+				<p><?php esc_html_e( 'Could not open the subscription management portal. Ensure your API key is valid and the Registry is running.', 'pressnative' ); ?></p>
+			</div>
+			<?php endif; ?>
+
 			<form method="post" action="options.php">
 				<?php settings_fields( 'pressnative_settings' ); ?>
 				<table class="form-table" role="presentation">
@@ -318,6 +503,23 @@ class PressNative_Admin {
 							</p>
 						</td>
 					</tr>
+					<tr>
+						<th scope="row">
+							<label for="pressnative_api_key"><?php esc_html_e( 'API Key', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<input type="password"
+								   id="pressnative_api_key"
+								   name="<?php echo esc_attr( self::OPTION_API_KEY ); ?>"
+								   value="<?php echo esc_attr( $api_key ); ?>"
+								   class="regular-text"
+								   autocomplete="off"
+								   placeholder="pn_..."/>
+							<p class="description">
+								<?php esc_html_e( 'Issued by PressNative after you start your subscription (sent via email). Required for analytics: events are stored on our servers and the dashboard queries them.', 'pressnative' ); ?>
+							</p>
+						</td>
+					</tr>
 				</table>
 				<?php submit_button(); ?>
 			</form>
@@ -332,25 +534,135 @@ class PressNative_Admin {
 	 * @return void
 	 */
 	public static function enqueue_app_settings_assets( $hook_suffix ) {
-		$app_settings = ( $hook_suffix === 'pressnative_page_pressnative-app-settings' );
+		$app_settings    = ( $hook_suffix === 'pressnative_page_pressnative-app-settings' );
 		$layout_settings = ( $hook_suffix === 'pressnative_page_pressnative-layout-settings' );
-		if ( ! $app_settings && ! $layout_settings ) {
+		$analytics_page  = ( $hook_suffix === 'pressnative_page_pressnative-analytics' );
+		if ( ! $app_settings && ! $layout_settings && ! $analytics_page ) {
 			return;
 		}
-		if ( $app_settings ) {
-		wp_enqueue_style( 'wp-color-picker' );
-		wp_enqueue_script( 'wp-color-picker' );
-		wp_enqueue_media();
-		wp_add_inline_script(
-			'wp-color-picker',
-			'jQuery(function($){$(".pressnative-color-picker").wpColorPicker();});'
-		);
-		wp_add_inline_script(
-			'wp-color-picker',
-			self::get_logo_upload_script() . "\n" . self::get_theme_card_script(),
-			'after'
-		);
+
+		// Live preview assets (both pages).
+		$preview_css = PRESSNATIVE_PLUGIN_DIR . 'assets/css/preview.css';
+		$preview_js  = PRESSNATIVE_PLUGIN_DIR . 'assets/js/preview.js';
+		if ( file_exists( $preview_css ) ) {
+			wp_enqueue_style(
+				'pressnative-preview',
+				plugins_url( 'assets/css/preview.css', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
+				array(),
+				filemtime( $preview_css )
+			);
 		}
+		if ( file_exists( $preview_js ) ) {
+			wp_enqueue_script(
+				'pressnative-preview',
+				plugins_url( 'assets/js/preview.js', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
+				array(),
+				filemtime( $preview_js ),
+				true
+			);
+			wp_localize_script(
+				'pressnative-preview',
+				'pressnativePreview',
+				array(
+					'restUrl' => rest_url(),
+					'nonce'   => wp_create_nonce( 'wp_rest' ),
+				)
+			);
+		}
+
+		if ( $layout_settings ) {
+			wp_enqueue_script( 'jquery-ui-sortable' );
+			wp_add_inline_script(
+				'jquery-ui-sortable',
+				self::get_component_order_script(),
+				'after'
+			);
+		}
+		if ( $analytics_page ) {
+			wp_enqueue_script(
+				'chartjs',
+				plugins_url( 'assets/js/vendor/chart.umd.min.js', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
+				array(),
+				'4.4.1',
+				true
+			);
+			$analytics_js = PRESSNATIVE_PLUGIN_DIR . 'assets/js/analytics-dashboard.js';
+			$analytics_css = PRESSNATIVE_PLUGIN_DIR . 'assets/css/analytics-dashboard.css';
+			if ( file_exists( $analytics_js ) ) {
+				wp_enqueue_script(
+					'pressnative-analytics',
+					plugins_url( 'assets/js/analytics-dashboard.js', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
+					array( 'chartjs' ),
+					filemtime( $analytics_js ),
+					true
+				);
+				wp_localize_script(
+					'pressnative-analytics',
+					'pressnativeAnalytics',
+					array(
+						'restUrl'  => rest_url( 'pressnative/v1' ),
+						'nonce'   => wp_create_nonce( 'wp_rest' ),
+						'adminUrl' => admin_url(),
+					)
+				);
+			}
+			if ( file_exists( $analytics_css ) ) {
+				wp_enqueue_style(
+					'pressnative-analytics',
+					plugins_url( 'assets/css/analytics-dashboard.css', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
+					array(),
+					filemtime( $analytics_css )
+				);
+			}
+		}
+		if ( $app_settings ) {
+			wp_enqueue_style( 'wp-color-picker' );
+			wp_enqueue_script( 'wp-color-picker' );
+			wp_enqueue_media();
+			wp_add_inline_script(
+				'wp-color-picker',
+				'jQuery(function($){$(".pressnative-color-picker").wpColorPicker();});'
+			);
+			wp_add_inline_script(
+				'wp-color-picker',
+				self::get_logo_upload_script() . "\n" . self::get_theme_card_script(),
+				'after'
+			);
+		}
+	}
+
+	/**
+	 * Inline script for component order sortable and hidden input sync.
+	 *
+	 * @return string
+	 */
+	private static function get_component_order_script() {
+		return "
+		jQuery(function($){
+			var \$list = $('#pressnative-component-order');
+			var \$hidden = $('#pressnative-component-order-value');
+			function updateOrder() {
+				var order = [];
+				\$list.find('li').each(function(){
+					var cb = $(this).find('input[type=checkbox]');
+					if (cb.length && cb.prop('checked')) {
+						order.push(cb.val());
+					}
+				});
+				\$hidden.val(order.join(','));
+				if (typeof window.pressnativePreviewRefresh === 'function') {
+					window.pressnativePreviewRefresh();
+				}
+			}
+			\$list.sortable({
+				handle: '.pressnative-drag-handle',
+				placeholder: 'pressnative-sortable-placeholder',
+				items: '> li'
+			});
+			\$list.on('sortupdate', updateOrder);
+			\$list.on('change', 'input[type=checkbox]', updateOrder);
+		});
+		";
 	}
 
 	/**
@@ -375,6 +687,7 @@ class PressNative_Admin {
 					var att = frame.state().get('selection').first().toJSON();
 					$('#pressnative_logo_attachment_id').val(att.id);
 					$('#pressnative_logo_preview').html('<img src=\"'+att.url+'\" style=\"max-height:60px;\" />');
+					if (typeof window.pressnativePreviewRefresh === 'function') { window.pressnativePreviewRefresh(); }
 				});
 				frame.open();
 			});
@@ -382,6 +695,7 @@ class PressNative_Admin {
 				e.preventDefault();
 				$('#pressnative_logo_attachment_id').val('');
 				$('#pressnative_logo_preview').html('');
+				if (typeof window.pressnativePreviewRefresh === 'function') { window.pressnativePreviewRefresh(); }
 			});
 		});
 		";
@@ -432,7 +746,9 @@ class PressNative_Admin {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'App Settings', 'pressnative' ); ?></h1>
 			<p class="description"><?php esc_html_e( 'Branding shown in the PressNative mobile app (toolbar title, logo, theme colors).', 'pressnative' ); ?></p>
-			<form method="post" action="options.php">
+			<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;">
+				<div style="flex:1;min-width:320px;">
+			<form method="post" action="options.php" class="pressnative-settings-form">
 				<?php settings_fields( 'pressnative_app_settings' ); ?>
 				<table class="form-table" role="presentation">
 					<tr>
@@ -592,6 +908,27 @@ class PressNative_Admin {
 				</table>
 				<?php submit_button(); ?>
 			</form>
+				</div>
+				<div class="pressnative-preview-wrapper" style="flex:0 0 auto;">
+					<div class="pressnative-device-switcher">
+						<button type="button" class="pressnative-device-btn active" data-device="iphone" aria-pressed="true">iPhone</button>
+						<button type="button" class="pressnative-device-btn" data-device="android" aria-pressed="false">Android</button>
+					</div>
+					<div class="pressnative-device-frame pressnative-device-iphone" id="pressnative-device-frame">
+						<div class="pressnative-device-screen">
+							<div class="pressnative-device-notch" aria-hidden="true"></div>
+							<div class="pressnative-device-punch" aria-hidden="true"></div>
+							<div id="pressnative-preview" class="pressnative-preview-frame" data-page="app-settings">
+								<div class="pressnative-preview-viewport">
+									<div class="pressnative-preview-toolbar"></div>
+									<div class="pressnative-preview-content"></div>
+								</div>
+							</div>
+							<div class="pressnative-device-home" aria-hidden="true"></div>
+						</div>
+					</div>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -621,13 +958,16 @@ class PressNative_Admin {
 			'hero-carousel'  => __( 'Hero Carousel', 'pressnative' ),
 			'post-grid'      => __( 'Post Grid', 'pressnative' ),
 			'category-list'  => __( 'Category List', 'pressnative' ),
+			'page-list'      => __( 'Page List', 'pressnative' ),
 			'ad-slot-1'      => __( 'Ad Placement', 'pressnative' ),
 		);
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Layout Settings', 'pressnative' ); ?></h1>
 			<p class="description"><?php esc_html_e( 'Configure home screen components and content. Changes appear in the mobile app.', 'pressnative' ); ?></p>
-			<form method="post" action="options.php">
+			<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;">
+				<div style="flex:1;min-width:320px;">
+			<form method="post" action="options.php" class="pressnative-settings-form">
 				<?php settings_fields( 'pressnative_layout_settings' ); ?>
 				<table class="form-table" role="presentation">
 					<tr>
@@ -713,34 +1053,319 @@ class PressNative_Admin {
 							<label><?php esc_html_e( 'Component Order', 'pressnative' ); ?></label>
 						</th>
 						<td>
-							<p class="description"><?php esc_html_e( 'Check components to include. Order reflects display order.', 'pressnative' ); ?></p>
-							<fieldset>
-								<?php foreach ( PressNative_Layout_Options::COMPONENT_IDS as $cid ) : ?>
-									<label style="display:block;margin-bottom:4px;">
-										<input type="checkbox"
-											   name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_ENABLED_COMPONENTS ); ?>[]"
-											   value="<?php echo esc_attr( $cid ); ?>"
-											   <?php checked( in_array( $cid, $enabled_comp, true ) ); ?>/>
-										<?php echo esc_html( $component_labels[ $cid ] ?? $cid ); ?>
-									</label>
+							<style>.pressnative-sortable-placeholder{height:40px;background:#f0f0f1;border:2px dashed #c3c4c7;margin-bottom:6px;list-style:none;}</style>
+							<p class="description"><?php esc_html_e( 'Drag to reorder. Uncheck to hide a component.', 'pressnative' ); ?></p>
+							<input type="hidden" id="pressnative-component-order-value"
+								   name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_ENABLED_COMPONENTS ); ?>"
+								   value="<?php echo esc_attr( implode( ',', $enabled_comp ) ); ?>" />
+							<ul id="pressnative-component-order" style="list-style:none;margin:0;padding:0;">
+								<?php foreach ( $enabled_comp as $cid ) : ?>
+									<li style="margin-bottom:6px;padding:8px;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;">
+										<span class="pressnative-drag-handle" style="cursor:move;margin-right:8px;color:#787c82;">&#9776;</span>
+										<label style="cursor:pointer;margin:0;">
+											<input type="checkbox" value="<?php echo esc_attr( $cid ); ?>" checked="checked" />
+											<?php echo esc_html( $component_labels[ $cid ] ?? $cid ); ?>
+										</label>
+									</li>
 								<?php endforeach; ?>
-							</fieldset>
+								<?php foreach ( array_diff( PressNative_Layout_Options::COMPONENT_IDS, $enabled_comp ) as $cid ) : ?>
+									<li style="margin-bottom:6px;padding:8px;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;">
+										<span class="pressnative-drag-handle" style="cursor:move;margin-right:8px;color:#787c82;">&#9776;</span>
+										<label style="cursor:pointer;margin:0;">
+											<input type="checkbox" value="<?php echo esc_attr( $cid ); ?>" />
+											<?php echo esc_html( $component_labels[ $cid ] ?? $cid ); ?>
+										</label>
+									</li>
+								<?php endforeach; ?>
+							</ul>
 						</td>
 					</tr>
 				</table>
 				<?php submit_button(); ?>
 			</form>
+				</div>
+				<div class="pressnative-preview-wrapper" style="flex:0 0 auto;">
+					<div class="pressnative-device-switcher">
+						<button type="button" class="pressnative-device-btn active" data-device="iphone" aria-pressed="true">iPhone</button>
+						<button type="button" class="pressnative-device-btn" data-device="android" aria-pressed="false">Android</button>
+					</div>
+					<div class="pressnative-device-frame pressnative-device-iphone" id="pressnative-device-frame">
+						<div class="pressnative-device-screen">
+							<div class="pressnative-device-notch" aria-hidden="true"></div>
+							<div class="pressnative-device-punch" aria-hidden="true"></div>
+							<div id="pressnative-preview" class="pressnative-preview-frame" data-page="layout-settings">
+								<div class="pressnative-preview-viewport">
+									<div class="pressnative-preview-toolbar"></div>
+									<div class="pressnative-preview-content"></div>
+								</div>
+							</div>
+							<div class="pressnative-device-home" aria-hidden="true"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Handles ad-hoc push form submission. POSTs to Registry with API key.
+	 *
+	 * @return void
+	 */
+	public static function handle_send_push() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative' ) );
+		}
+		if ( ! isset( $_POST['pressnative_push_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['pressnative_push_nonce'] ) ), 'pressnative_send_push' ) ) {
+			wp_safe_redirect( add_query_arg( 'pressnative_push_error', 'nonce', admin_url( 'admin.php?page=pressnative-push' ) ) );
+			exit;
+		}
+		$api_key     = get_option( self::OPTION_API_KEY, '' );
+		$registry_url = self::get_registry_url();
+		if ( ! $api_key || ! $registry_url ) {
+			wp_safe_redirect( add_query_arg( 'pressnative_push_error', 'no_api_key', admin_url( 'admin.php?page=pressnative-push' ) ) );
+			exit;
+		}
+		$title = isset( $_POST['title'] ) ? sanitize_text_field( wp_unslash( $_POST['title'] ) ) : '';
+		$body  = isset( $_POST['body'] ) ? sanitize_textarea_field( wp_unslash( $_POST['body'] ) ) : '';
+		if ( ! $title || ! $body ) {
+			wp_safe_redirect( add_query_arg( 'pressnative_push_error', 'missing_fields', admin_url( 'admin.php?page=pressnative-push' ) ) );
+			exit;
+		}
+		$link       = isset( $_POST['link'] ) ? esc_url_raw( wp_unslash( $_POST['link'] ) ) : '';
+		$image_url  = isset( $_POST['image_url'] ) ? esc_url_raw( wp_unslash( $_POST['image_url'] ) ) : '';
+		$url        = rtrim( $registry_url, '/' ) . '/api/v1/push/send';
+		$response   = wp_remote_post(
+			$url,
+			array(
+				'timeout'  => 15,
+				'blocking' => true,
+				'headers'  => array(
+					'Content-Type'         => 'application/json',
+					'X-PressNative-API-Key' => $api_key,
+				),
+				'body'     => wp_json_encode(
+					array(
+						'title'      => $title,
+						'body'       => $body,
+						'link'       => $link,
+						'image_url'  => $image_url,
+					)
+				),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			wp_safe_redirect( add_query_arg( 'pressnative_push_error', 'request_failed', admin_url( 'admin.php?page=pressnative-push' ) ) );
+			exit;
+		}
+		$code = wp_remote_retrieve_response_code( $response );
+		$body_res = wp_remote_retrieve_body( $response );
+		$data     = json_decode( $body_res, true );
+		if ( $code >= 200 && $code < 300 ) {
+			$sent = isset( $data['sent'] ) ? (int) $data['sent'] : 0;
+			wp_safe_redirect( add_query_arg( 'pressnative_push_sent', $sent, admin_url( 'admin.php?page=pressnative-push' ) ) );
+			exit;
+		}
+		$err_msg = isset( $data['error'] ) ? $data['error'] : __( 'Unknown error', 'pressnative' );
+		wp_safe_redirect( add_query_arg( array( 'pressnative_push_error' => 'registry', 'pressnative_push_message' => rawurlencode( $err_msg ) ), admin_url( 'admin.php?page=pressnative-push' ) ) );
+		exit;
+	}
+
+	/**
+	 * Renders the Push Notifications page (ad-hoc send).
+	 *
+	 * @return void
+	 */
+	public static function render_push_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$api_key     = get_option( self::OPTION_API_KEY, '' );
+		$registry_url = self::get_registry_url();
+		$has_config  = ! empty( $api_key ) && ! empty( $registry_url );
+		$error       = isset( $_GET['pressnative_push_error'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_error'] ) ) : '';
+		$sent        = isset( $_GET['pressnative_push_sent'] ) ? (int) $_GET['pressnative_push_sent'] : 0;
+		$err_msg     = isset( $_GET['pressnative_push_message'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_message'] ) ) : '';
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Push Notifications', 'pressnative' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'Send an ad-hoc push notification to all app users who have your site favorited and opted into push. Requires API key and Registry URL in Settings.', 'pressnative' ); ?></p>
+
+			<?php if ( $sent > 0 ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php echo esc_html( sprintf( __( 'Push sent successfully to %d device(s).', 'pressnative' ), $sent ) ); ?></p></div>
+			<?php endif; ?>
+
+			<?php if ( $error ) : ?>
+				<div class="notice notice-error is-dismissible">
+					<p>
+						<?php
+						switch ( $error ) {
+							case 'nonce':
+								esc_html_e( 'Security check failed. Please try again.', 'pressnative' );
+								break;
+							case 'no_api_key':
+								esc_html_e( 'API Key and Registry URL must be configured in PressNative Settings.', 'pressnative' );
+								break;
+							case 'missing_fields':
+								esc_html_e( 'Title and body are required.', 'pressnative' );
+								break;
+							case 'request_failed':
+								esc_html_e( 'Failed to reach the Registry. Check your connection and Registry URL.', 'pressnative' );
+								break;
+							case 'registry':
+								echo esc_html( $err_msg ?: __( 'Registry returned an error.', 'pressnative' ) );
+								break;
+							default:
+								esc_html_e( 'An error occurred. Please try again.', 'pressnative' );
+						}
+						?>
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! $has_config ) : ?>
+				<div class="notice notice-warning"><p><?php esc_html_e( 'Configure your API Key and Registry URL in PressNative Settings to send push notifications.', 'pressnative' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative' ) ); ?>"><?php esc_html_e( 'Go to Settings', 'pressnative' ); ?></a></p></div>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pressnative-push-form" style="max-width: 600px; margin-top: 20px;">
+					<input type="hidden" name="action" value="pressnative_send_push" />
+					<?php wp_nonce_field( 'pressnative_send_push', 'pressnative_push_nonce' ); ?>
+					<table class="form-table">
+						<tr>
+							<th scope="row"><label for="pressnative-push-title"><?php esc_html_e( 'Title', 'pressnative' ); ?></label></th>
+							<td><input type="text" id="pressnative-push-title" name="title" class="regular-text" required maxlength="100" placeholder="<?php esc_attr_e( 'e.g. Breaking News', 'pressnative' ); ?>" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="pressnative-push-body"><?php esc_html_e( 'Message', 'pressnative' ); ?></label></th>
+							<td><textarea id="pressnative-push-body" name="body" rows="4" class="large-text" required maxlength="200" placeholder="<?php esc_attr_e( 'Your notification message...', 'pressnative' ); ?>"></textarea></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="pressnative-push-link"><?php esc_html_e( 'Link (optional)', 'pressnative' ); ?></label></th>
+							<td><input type="url" id="pressnative-push-link" name="link" class="regular-text" placeholder="<?php esc_attr_e( 'https://...', 'pressnative' ); ?>" /></td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="pressnative-push-image"><?php esc_html_e( 'Image URL (optional)', 'pressnative' ); ?></label></th>
+							<td><input type="url" id="pressnative-push-image" name="image_url" class="regular-text" placeholder="<?php esc_attr_e( 'https://...', 'pressnative' ); ?>" /></td>
+						</tr>
+					</table>
+					<p class="submit">
+						<button type="submit" class="button button-primary"><?php esc_html_e( 'Send Push Notification', 'pressnative' ); ?></button>
+					</p>
+				</form>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders the Analytics dashboard page.
+	 *
+	 * @return void
+	 */
+	public static function render_analytics_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		?>
+		<div class="wrap pressnative-analytics-wrap">
+			<h1><?php esc_html_e( 'Analytics', 'pressnative' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'App usage and content views from the PressNative mobile app. Views are counted when the app loads content from the server; when the app serves cached content it can send a track event so those views are included.', 'pressnative' ); ?></p>
+
+			<div class="pressnative-analytics-toolbar">
+				<label for="pressnative-analytics-days"><?php esc_html_e( 'Date range:', 'pressnative' ); ?></label>
+				<select id="pressnative-analytics-days" class="pressnative-analytics-days">
+					<option value="7"><?php esc_html_e( 'Last 7 days', 'pressnative' ); ?></option>
+					<option value="30" selected><?php esc_html_e( 'Last 30 days', 'pressnative' ); ?></option>
+					<option value="90"><?php esc_html_e( 'Last 90 days', 'pressnative' ); ?></option>
+				</select>
+			</div>
+
+			<div class="pressnative-analytics-kpis" id="pressnative-analytics-kpis">
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="total">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Total Views', 'pressnative' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="post">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Post Views', 'pressnative' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="page">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Page Views', 'pressnative' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="category">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Category Views', 'pressnative' ); ?></span></div>
+			</div>
+
+			<div class="pressnative-analytics-charts">
+				<div class="pressnative-chart-container">
+					<h3><?php esc_html_e( 'Views over time', 'pressnative' ); ?></h3>
+					<canvas id="pressnative-chart-views-over-time" aria-label="<?php esc_attr_e( 'Views over time', 'pressnative' ); ?>"></canvas>
+				</div>
+				<div class="pressnative-chart-container">
+					<h3><?php esc_html_e( 'Content type breakdown', 'pressnative' ); ?></h3>
+					<canvas id="pressnative-chart-content-type" aria-label="<?php esc_attr_e( 'Content type breakdown', 'pressnative' ); ?>"></canvas>
+				</div>
+				<div class="pressnative-chart-container">
+					<h3><?php esc_html_e( 'Device breakdown', 'pressnative' ); ?></h3>
+					<canvas id="pressnative-chart-device" aria-label="<?php esc_attr_e( 'Device breakdown', 'pressnative' ); ?>"></canvas>
+				</div>
+			</div>
+
+			<div class="pressnative-analytics-tables">
+				<div class="pressnative-table-container">
+					<h3><?php esc_html_e( 'Most viewed posts', 'pressnative' ); ?></h3>
+					<div id="pressnative-table-top-posts" class="pressnative-table-wrapper"></div>
+				</div>
+				<div class="pressnative-table-container">
+					<h3><?php esc_html_e( 'Most viewed pages', 'pressnative' ); ?></h3>
+					<div id="pressnative-table-top-pages" class="pressnative-table-wrapper"></div>
+				</div>
+				<div class="pressnative-table-container">
+					<h3><?php esc_html_e( 'Top categories', 'pressnative' ); ?></h3>
+					<div id="pressnative-table-top-categories" class="pressnative-table-wrapper"></div>
+				</div>
+				<div class="pressnative-table-container">
+					<h3><?php esc_html_e( 'Top search queries', 'pressnative' ); ?></h3>
+					<div id="pressnative-table-top-searches" class="pressnative-table-wrapper"></div>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
 
 	/**
 	 * Returns the configured Registry URL.
+	 * When the WordPress site is on localhost, always use the local registry (localhost:3000)
+	 * so push notifications and other registry calls work during local testing.
 	 *
 	 * @return string
 	 */
 	public static function get_registry_url() {
+		$home = home_url();
+		$parsed = wp_parse_url( $home );
+		$host   = isset( $parsed['host'] ) ? strtolower( $parsed['host'] ) : '';
+		if ( in_array( $host, array( 'localhost', '127.0.0.1' ), true ) ) {
+			return self::DEFAULT_REGISTRY_URL;
+		}
 		return get_option( self::OPTION_REGISTRY_URL, self::DEFAULT_REGISTRY_URL );
+	}
+
+	/**
+	 * Handles the Stripe portal redirect when ?pressnative_portal=1 is present.
+	 *
+	 * @return void
+	 */
+	public static function handle_stripe_portal_redirect() {
+		if ( empty( $_GET['pressnative_portal'] ) || '1' !== $_GET['pressnative_portal'] ) {
+			return;
+		}
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		// Only handle on our settings page.
+		if ( empty( $_GET['page'] ) || 'pressnative' !== $_GET['page'] ) {
+			return;
+		}
+
+		$portal_url = self::get_stripe_portal_url();
+		if ( $portal_url ) {
+			wp_redirect( $portal_url );
+			exit;
+		}
+		// If portal URL failed, redirect back with an error.
+		wp_safe_redirect( add_query_arg( 'pressnative_portal_error', '1', admin_url( 'admin.php?page=pressnative' ) ) );
+		exit;
 	}
 
 	/**

@@ -1,0 +1,165 @@
+/* PressNative Analytics Dashboard */
+
+.pressnative-analytics-wrap {
+	max-width: 1400px;
+}
+
+.pressnative-analytics-toolbar {
+	margin: 16px 0 24px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.pressnative-analytics-toolbar label {
+	margin: 0;
+	font-weight: 600;
+}
+
+.pressnative-analytics-days {
+	min-width: 140px;
+	padding: 6px 10px;
+}
+
+/* KPI cards */
+.pressnative-analytics-kpis {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	gap: 16px;
+	margin-bottom: 28px;
+}
+
+.pressnative-kpi-card {
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-radius: 8px;
+	padding: 16px 20px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.pressnative-kpi-value {
+	display: block;
+	font-size: 1.75rem;
+	font-weight: 600;
+	line-height: 1.2;
+	color: #1d2327;
+}
+
+.pressnative-kpi-label {
+	display: block;
+	font-size: 12px;
+	color: #646970;
+	margin-top: 4px;
+}
+
+/* Charts row */
+.pressnative-analytics-charts {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 24px;
+	margin-bottom: 28px;
+}
+
+.pressnative-chart-container {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 8px;
+	padding: 20px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.pressnative-chart-container h3 {
+	margin: 0 0 16px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.pressnative-chart-container canvas {
+	max-height: 280px;
+	width: 100% !important;
+}
+
+/* Tables */
+.pressnative-analytics-tables {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+	gap: 24px;
+}
+
+.pressnative-table-container {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 8px;
+	padding: 20px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.pressnative-table-container h3 {
+	margin: 0 0 12px;
+	font-size: 14px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.pressnative-table-wrapper {
+	overflow-x: auto;
+	min-height: 60px;
+}
+
+.pressnative-analytics-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+}
+
+.pressnative-analytics-table th,
+.pressnative-analytics-table td {
+	padding: 10px 12px;
+	text-align: left;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.pressnative-analytics-table th {
+	color: #646970;
+	font-weight: 600;
+	text-transform: uppercase;
+	font-size: 11px;
+}
+
+.pressnative-analytics-table tbody tr:last-child td {
+	border-bottom: none;
+}
+
+.pressnative-analytics-table .button-small {
+	padding: 2px 8px;
+	font-size: 12px;
+}
+
+.pressnative-table-empty {
+	margin: 0;
+	padding: 12px 0;
+	color: #646970;
+	font-size: 13px;
+}
+
+.pressnative-analytics-error {
+	color: #d63638;
+	margin: 0;
+	padding: 12px 0;
+}
+
+/* Responsive: stack charts on narrow screens */
+@media screen and (max-width: 782px) {
+	.pressnative-analytics-kpis {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.pressnative-analytics-charts {
+		grid-template-columns: 1fr;
+	}
+
+	.pressnative-analytics-tables {
+		grid-template-columns: 1fr;
+	}
+}

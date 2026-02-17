@@ -39,6 +39,7 @@ class PressNative_Registry_Notify {
 	 */
 	public static function init() {
 		add_action( 'updated_option', array( __CLASS__, 'maybe_notify_registry' ), 10, 3 );
+		add_action( 'transition_post_status', array( __CLASS__, 'maybe_notify_content_changed' ), 10, 3 );
 	}
 
 	/**
@@ -68,6 +69,57 @@ class PressNative_Registry_Notify {
 					'Content-Type' => 'application/json',
 				),
 				'body'       => wp_json_encode( array( 'site_url' => $site_url ) ),
+			)
+		);
+	}
+
+	/**
+	 * When a post is published, notify the Registry so it can increment content_version
+	 * and send FCM push to users who have this site favorited and opted into push.
+	 *
+	 * @param string  $new_status New post status.
+	 * @param string  $old_status Old post status.
+	 * @param WP_Post $post       Post object.
+	 * @return void
+	 */
+	public static function maybe_notify_content_changed( $new_status, $old_status, $post ) {
+		if ( $new_status !== 'publish' || ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+			return;
+		}
+		$registry_url = PressNative_Admin::get_registry_url();
+		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/content-changed';
+		$site_url     = home_url( '/' );
+
+		$thumbnail_url = null;
+		$thumb_id      = get_post_thumbnail_id( $post );
+		if ( $thumb_id ) {
+			$thumb_data = wp_get_attachment_image_src( $thumb_id, 'medium' );
+			if ( ! empty( $thumb_data[0] ) ) {
+				$thumbnail_url = $thumb_data[0];
+			}
+		}
+
+		$body = array(
+			'site_url'        => $site_url,
+			'post_id'         => $post->ID,
+			'post_type'       => $post->post_type,
+			'slug'            => $post->post_name,
+			'title'           => get_the_title( $post ),
+			'excerpt'         => has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( $post->post_content, 30 ),
+			'link'            => get_permalink( $post ),
+			'thumbnail_url'   => $thumbnail_url,
+		);
+
+		wp_remote_post(
+			$url,
+			array(
+				'timeout'    => 5,
+				'blocking'   => false,
+				'sslverify'  => true,
+				'headers'    => array(
+					'Content-Type' => 'application/json',
+				),
+				'body'       => wp_json_encode( $body ),
 			)
 		);
 	}

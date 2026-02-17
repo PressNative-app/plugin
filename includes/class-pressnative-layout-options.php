@@ -27,7 +27,7 @@ class PressNative_Layout_Options {
 	const DEFAULT_POST_GRID_PER_PAGE = 10;
 
 	/** Component IDs in default order. */
-	const COMPONENT_IDS = array( 'hero-carousel', 'post-grid', 'category-list', 'ad-slot-1' );
+	const COMPONENT_IDS = array( 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'ad-slot-1' );
 
 	/**
 	 * Featured category slug for hero carousel.

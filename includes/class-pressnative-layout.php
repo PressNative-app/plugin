@@ -13,6 +13,156 @@ defined( 'ABSPATH' ) || exit;
 class PressNative_Layout {
 
 	/**
+	 * Captures the scripts and styles WordPress would enqueue for a given post/page.
+	 * This simulates a page render to trigger wp_enqueue_scripts, then captures
+	 * the output of wp_head() and wp_footer() which contain all enqueued JS/CSS.
+	 *
+	 * @param WP_Post $post The post/page to capture scripts for.
+	 * @return array Associative array with 'head' and 'footer' HTML strings.
+	 */
+	private function capture_enqueued_assets( $post ) {
+		global $wp_query, $wp_the_query;
+
+		// Save current query state.
+		$original_query     = $wp_query;
+		$original_the_query = $wp_the_query;
+		$original_post      = isset( $GLOBALS['post'] ) ? $GLOBALS['post'] : null;
+
+		// Set up the global post and query as if we are rendering this page.
+		$GLOBALS['post'] = $post;
+		setup_postdata( $post );
+		$wp_query = new \WP_Query( array(
+			'p'              => $post->ID,
+			'post_type'      => $post->post_type,
+			'posts_per_page' => 1,
+		) );
+		$wp_the_query = $wp_query;
+
+		// Fire the enqueue hooks so plugins register their scripts for this page.
+		do_action( 'wp_enqueue_scripts' );
+
+		// Capture wp_head output (scripts, styles, inline JS).
+		ob_start();
+		wp_head();
+		$head = ob_get_clean();
+
+		// Capture wp_footer output (deferred scripts, localized data).
+		ob_start();
+		wp_footer();
+		$footer = ob_get_clean();
+
+		// Restore original state.
+		$wp_query     = $original_query;
+		$wp_the_query = $original_the_query;
+		if ( $original_post ) {
+			$GLOBALS['post'] = $original_post;
+			setup_postdata( $original_post );
+		} else {
+			unset( $GLOBALS['post'] );
+		}
+
+		return array(
+			'head'   => $head,
+			'footer' => $footer,
+		);
+	}
+
+	/**
+	 * Converts absolute site URLs to root-relative paths so they resolve
+	 * correctly against whatever base URL the WebView uses.
+	 *
+	 * For example, http://localhost:10004/wp-includes/js/jquery.js becomes
+	 * /wp-includes/js/jquery.js. This is critical because the mobile WebView
+	 * may use a different host (e.g. 10.0.2.2 for Android emulator).
+	 *
+	 * @param string $html HTML containing absolute URLs.
+	 * @return string HTML with site URLs made relative.
+	 */
+	private function relativize_asset_urls( $html ) {
+		if ( empty( $html ) ) {
+			return $html;
+		}
+		$site_url = untrailingslashit( site_url() );
+		return str_replace( $site_url, '', $html );
+	}
+
+	/**
+	 * Extracts only <script> and <style>/<link> tags from captured wp_head/wp_footer output.
+	 * All absolute site URLs are converted to root-relative paths.
+	 *
+	 * @param string $html Raw wp_head or wp_footer output.
+	 * @return string Only the script/style/link tags with relativized URLs.
+	 */
+	private function extract_script_style_tags( $html ) {
+		if ( empty( $html ) ) {
+			return '';
+		}
+		$tags = '';
+		// Match <script ...>...</script> tags.
+		if ( preg_match_all( '/<script[^>]*>.*?<\/script>/si', $html, $matches ) ) {
+			$tags .= implode( "\n", $matches[0] );
+		}
+		// Match <style ...>...</style> tags.
+		if ( preg_match_all( '/<style[^>]*>.*?<\/style>/si', $html, $matches ) ) {
+			$tags .= "\n" . implode( "\n", $matches[0] );
+		}
+		// Match <link rel="stylesheet" ...> tags.
+		if ( preg_match_all( '/<link[^>]+rel=["\']stylesheet["\'][^>]*\/?>/si', $html, $matches ) ) {
+			$tags .= "\n" . implode( "\n", $matches[0] );
+		}
+		return $this->relativize_asset_urls( $tags );
+	}
+
+	/**
+	 * Builds a complete injectable script/style block for WebView rendering.
+	 * Includes WordPress globals (ajaxurl, nonces) plus all scripts/styles
+	 * that plugins enqueue for the given post.
+	 *
+	 * Global URLs (ajaxurl, REST root) are kept as root-relative paths so the
+	 * WebView resolves them against its own base URL.
+	 *
+	 * @param WP_Post $post The post/page.
+	 * @return array 'head_scripts' and 'footer_scripts' strings.
+	 */
+	private function get_injectable_assets( $post ) {
+		$globals  = sprintf(
+			'<script>'
+			. 'var ajaxurl="%s";'
+			. 'var wpApiSettings={root:"%s",nonce:"%s"};'
+			. 'window.wp=window.wp||{};'
+			. 'wp.i18n=wp.i18n||{__:function(t){return t},_x:function(t){return t},_n:function(s,p,n){return n===1?s:p},_nx:function(s,p,n){return n===1?s:p},sprintf:function(){var a=arguments;return a[0].replace(/%%s/g,function(){return a[1]})},isRTL:function(){return false}};'
+			. '</script>',
+			esc_js( '/wp-admin/admin-ajax.php' ),
+			esc_js( '/wp-json/' ),
+			esc_js( wp_create_nonce( 'wp_rest' ) )
+		);
+
+		$assets = $this->capture_enqueued_assets( $post );
+
+		return array(
+			'head_scripts'   => $globals . "\n" . $this->extract_script_style_tags( $assets['head'] ),
+			'footer_scripts' => $this->extract_script_style_tags( $assets['footer'] ),
+		);
+	}
+
+	/**
+	 * Wraps processed content with the captured page scripts for WebView rendering.
+	 * Also relativizes any absolute site URLs in the content itself.
+	 *
+	 * @param string  $content Processed HTML content.
+	 * @param WP_Post $post    The post/page object.
+	 * @return string Content with all required scripts injected.
+	 */
+	private function wrap_content_with_assets( $content, $post ) {
+		if ( empty( $content ) ) {
+			return $content;
+		}
+		$assets = $this->get_injectable_assets( $post );
+		$content = $this->relativize_asset_urls( $content );
+		return $assets['head_scripts'] . "\n" . $content . "\n" . $assets['footer_scripts'];
+	}
+
+	/**
 	 * Returns component styles from branding theme (live from App Settings).
 	 *
 	 * @return array
@@ -46,6 +196,7 @@ class PressNative_Layout {
 			'hero-carousel'  => array( $this, 'build_hero_carousel' ),
 			'post-grid'      => array( $this, 'build_post_grid' ),
 			'category-list'  => array( $this, 'build_category_list' ),
+			'page-list'      => array( $this, 'build_page_list' ),
 			'ad-slot-1'      => array( $this, 'build_ad_placement' ),
 		);
 
@@ -309,6 +460,47 @@ class PressNative_Layout {
 	}
 
 	/**
+	 * PageList component from get_pages.
+	 *
+	 * @return array
+	 */
+	private function build_page_list() {
+		$pages   = get_pages(
+			array(
+				'sort_order'  => 'ASC',
+				'sort_column' => 'menu_order,post_title',
+				'post_status' => 'publish',
+				'number'      => 50,
+			)
+		);
+		$items   = array();
+		if ( ! empty( $pages ) && ! is_wp_error( $pages ) ) {
+			foreach ( $pages as $page ) {
+				$slug   = $page->post_name ?: 'page-' . $page->ID;
+				$img_url = $this->get_post_image_url( $page->ID, 'thumbnail', $page->post_content );
+				$items[] = array(
+					'page_slug' => $slug,
+					'name'      => get_the_title( $page ),
+					'icon_url'  => ! empty( $img_url ) ? $img_url : null,
+					'action'    => array(
+						'type'    => 'open_page',
+						'payload' => array( 'page_slug' => $slug ),
+					),
+				);
+			}
+		}
+
+		$styles = $this->get_component_styles();
+		$styles['padding']['vertical'] = 12;
+		return array(
+			'id'      => 'page-list',
+			'type'    => 'PageList',
+			'styles'  => $styles,
+			'content' => array( 'pages' => $items ),
+		);
+	}
+
+	/**
 	 * AdPlacement component (contract-style).
 	 *
 	 * @return array
@@ -442,7 +634,10 @@ class PressNative_Layout {
 
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $post->post_content );
 		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $post->post_content );
-		$processed_content = apply_filters( 'the_content', $stripped_content );
+		$processed_content = $this->wrap_content_with_assets(
+			apply_filters( 'the_content', $stripped_content ),
+			$post
+		);
 
 		$styles = $this->get_component_styles();
 		$post_detail = array(
@@ -482,12 +677,29 @@ class PressNative_Layout {
 	public function get_page_layout( $slug ) {
 		$page = get_page_by_path( $slug, OBJECT, 'page' );
 		if ( ! $page || $page->post_status !== 'publish' ) {
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( '[PressNative] get_page_layout: page not found or not published, slug=' . $slug );
+			}
 			return null;
 		}
 
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $page->post_content );
 		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $page->post_content );
-		$processed_content = apply_filters( 'the_content', $stripped_content );
+		$processed_content = $this->wrap_content_with_assets(
+			apply_filters( 'the_content', $stripped_content ),
+			$page
+		);
+
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+			$content_len = is_string( $processed_content ) ? strlen( $processed_content ) : 0;
+			error_log( sprintf(
+				'[PressNative] get_page_layout: slug=%s, post_id=%d, content_len=%d, shortcode_blocks=%d',
+				$slug,
+				$page->ID,
+				$content_len,
+				count( $shortcode_blocks )
+			) );
+		}
 
 		$styles    = $this->get_component_styles();
 		$post_detail = array(

@@ -1,0 +1,434 @@
+/* PressNative wp-admin live preview */
+
+.pressnative-preview-wrapper {
+	box-sizing: border-box;
+}
+
+/* Device switcher */
+.pressnative-device-switcher {
+	display: flex;
+	gap: 0;
+	margin-bottom: 10px;
+	border-radius: 8px;
+	overflow: hidden;
+	background: #1e293b;
+	width: fit-content;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.pressnative-device-btn {
+	padding: 6px 16px;
+	font-size: 13px;
+	font-weight: 500;
+	border: none;
+	background: transparent;
+	color: #94a3b8;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.pressnative-device-btn:hover {
+	color: #f1f5f9;
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.pressnative-device-btn.active {
+	background: #3b82f6;
+	color: #fff;
+}
+
+/* Device frame wrapper */
+.pressnative-device-frame {
+	width: 320px;
+	margin: 0 auto;
+	padding: 12px;
+	border-radius: 36px;
+	background: #0f0f0f;
+	box-shadow:
+		0 0 0 3px #1a1a1a,
+		0 0 0 6px #2a2a2a,
+		0 20px 60px rgba(0, 0, 0, 0.4);
+	box-sizing: border-box;
+}
+
+.pressnative-device-screen {
+	position: relative;
+	border-radius: 24px;
+	overflow: hidden;
+	background: #000;
+	box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+/* iPhone: notch (Dynamic Island style) */
+.pressnative-device-iphone .pressnative-device-notch {
+	position: absolute;
+	top: 0;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 100px;
+	height: 28px;
+	background: #000;
+	border-radius: 0 0 20px 20px;
+	z-index: 3;
+	display: block;
+}
+
+.pressnative-device-android .pressnative-device-notch {
+	display: none;
+}
+
+/* Android: punch-hole */
+.pressnative-device-punch {
+	display: none;
+	position: absolute;
+	top: 12px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 12px;
+	height: 12px;
+	background: #000;
+	border-radius: 50%;
+	z-index: 3;
+	box-shadow: inset 0 0 0 2px #222;
+}
+
+.pressnative-device-android .pressnative-device-punch {
+	display: block;
+}
+
+.pressnative-device-iphone .pressnative-device-punch {
+	display: none;
+}
+
+/* iPhone: home indicator bar */
+.pressnative-device-home {
+	display: none;
+	position: absolute;
+	bottom: 8px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 100px;
+	height: 4px;
+	background: rgba(255, 255, 255, 0.35);
+	border-radius: 2px;
+	z-index: 3;
+}
+
+.pressnative-device-iphone .pressnative-device-home {
+	display: block;
+}
+
+.pressnative-device-android .pressnative-device-home {
+	display: none;
+}
+
+/* Inner preview frame (screen content) */
+.pressnative-preview-frame {
+	width: 100%;
+	margin: 0;
+	border-radius: 0;
+	overflow: hidden;
+	box-shadow: none;
+	border: none;
+	background: #000;
+}
+
+.pressnative-preview-viewport {
+	background: var(--pn-preview-bg, #fff);
+	min-height: 480px;
+	max-height: 640px;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Header extends to top; only bottom safe area for home bar (iPhone) */
+.pressnative-device-iphone .pressnative-preview-viewport {
+	padding-bottom: 20px;
+}
+
+.pressnative-preview-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 16px;
+	min-height: 44px;
+	font-size: 18px;
+	font-weight: 600;
+	color: #fff;
+	background: var(--pn-header-bg, #1a1a1a);
+	border-bottom: none;
+	position: sticky;
+	top: 0;
+	z-index: 2;
+	box-sizing: border-box;
+}
+
+/* Extend header color to top of screen; safe-area padding keeps logo/title below notch/punch */
+.pressnative-device-iphone .pressnative-preview-toolbar {
+	padding-top: 36px;
+}
+
+.pressnative-device-android .pressnative-preview-toolbar {
+	padding-top: 28px;
+}
+
+.pressnative-preview-toolbar-logo {
+	height: 28px;
+	width: auto;
+	max-width: 120px;
+	object-fit: contain;
+	object-position: left center;
+	flex-shrink: 0;
+	display: block;
+}
+
+.pressnative-preview-toolbar-title {
+	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.pressnative-preview-content {
+	padding: 12px 0;
+}
+
+/* Component blocks */
+.pressnative-preview-component {
+	margin-bottom: 16px;
+}
+
+.pressnative-preview-component:last-child {
+	margin-bottom: 0;
+}
+
+/* HeroCarousel */
+.pressnative-hero {
+	padding: 16px;
+}
+
+.pressnative-hero-track {
+	display: flex;
+	gap: 12px;
+	overflow-x: auto;
+	scroll-snap-type: x mandatory;
+	-webkit-overflow-scrolling: touch;
+	padding-bottom: 8px;
+}
+
+.pressnative-hero-track::-webkit-scrollbar {
+	height: 4px;
+}
+
+.pressnative-hero-card {
+	flex: 0 0 85%;
+	scroll-snap-align: start;
+	border-radius: 16px;
+	overflow: hidden;
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+	background: var(--pn-card-bg, #fff);
+}
+
+.pressnative-hero-card-img {
+	width: 100%;
+	height: 160px;
+	object-fit: cover;
+	display: block;
+}
+
+.pressnative-hero-card-body {
+	padding: 14px 16px;
+}
+
+.pressnative-hero-card-title {
+	font-size: 17px;
+	font-weight: 600;
+	color: var(--pn-card-text, #111);
+	margin: 0 0 4px 0;
+	line-height: 1.3;
+}
+
+.pressnative-hero-card-subtitle {
+	font-size: 14px;
+	color: var(--pn-card-text, #111);
+	opacity: 0.85;
+	margin: 0;
+	line-height: 1.4;
+}
+
+.pressnative-hero-dots {
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+	margin-top: 10px;
+}
+
+.pressnative-hero-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--pn-accent, #34c759);
+	opacity: 0.4;
+}
+
+.pressnative-hero-dot.active {
+	width: 8px;
+	height: 8px;
+	opacity: 1;
+}
+
+/* PostGrid */
+.pressnative-postgrid {
+	padding: 16px;
+}
+
+.pressnative-postgrid-inner {
+	display: grid;
+	gap: 12px;
+}
+
+.pressnative-postgrid-cols-1 { grid-template-columns: 1fr; }
+.pressnative-postgrid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.pressnative-postgrid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.pressnative-postgrid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+.pressnative-postgrid-card {
+	border-radius: 16px;
+	overflow: hidden;
+	box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+	background: var(--pn-card-bg, #fff);
+}
+
+.pressnative-postgrid-card-img {
+	width: 100%;
+	aspect-ratio: 4 / 3;
+	object-fit: cover;
+	display: block;
+}
+
+.pressnative-postgrid-card-body {
+	padding: 10px 12px;
+}
+
+.pressnative-postgrid-card-title {
+	font-size: 14px;
+	font-weight: 600;
+	color: var(--pn-card-text, #111);
+	margin: 0 0 4px 0;
+	line-height: 1.3;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.pressnative-postgrid-card-excerpt {
+	font-size: 12px;
+	color: var(--pn-card-text, #111);
+	opacity: 0.75;
+	margin: 0;
+	line-height: 1.35;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+/* CategoryList */
+.pressnative-categories {
+	padding: 12px 16px;
+}
+
+.pressnative-categories-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.pressnative-category-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	border-radius: 12px;
+	background: var(--pn-card-bg, #fff);
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.pressnative-category-chip-img {
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	object-fit: cover;
+}
+
+.pressnative-category-chip-name {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--pn-card-text, #111);
+}
+
+/* PageList */
+.pressnative-pages {
+	padding: 12px 16px;
+}
+
+.pressnative-pages-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.pressnative-page-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	border-radius: 12px;
+	background: var(--pn-card-bg, #fff);
+	box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.pressnative-page-chip-img {
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	object-fit: cover;
+}
+
+.pressnative-page-chip-name {
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--pn-card-text, #111);
+}
+
+/* AdPlacement */
+.pressnative-ad {
+	padding: 16px;
+}
+
+.pressnative-ad-banner {
+	padding: 20px;
+	border-radius: 12px;
+	background: var(--pn-card-bg, #f6f7f9);
+	border: 1px dashed rgba(0, 0, 0, 0.15);
+	text-align: center;
+	font-size: 13px;
+	color: var(--pn-card-text, #111);
+	opacity: 0.85;
+}
+
+/* Loading / error */
+.pressnative-preview-loading,
+.pressnative-preview-error {
+	padding: 32px 16px;
+	text-align: center;
+	font-size: 14px;
+	color: var(--pn-preview-text, #111);
+	opacity: 0.7;
+}
+
+.pressnative-preview-error {
+	color: #b32d2e;
+}
