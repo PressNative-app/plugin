@@ -110,7 +110,8 @@ class PressNative_Search_Api {
 			'components' => array( $post_grid ),
 		);
 
-		PressNative_Analytics::forward_event_to_registry( 'search', $query, null );
+		$device_id = $request->get_param( 'device_id' );
+		PressNative_Analytics::forward_event_to_registry( 'search', $query, null, null, $device_id );
 		return rest_ensure_response( $data );
 	}
 

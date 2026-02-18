@@ -52,6 +52,23 @@
 	margin-top: 4px;
 }
 
+.pressnative-kpi-highlight {
+	border-left: 4px solid #2271b1;
+}
+
+.pressnative-analytics-kpi-note {
+	margin: -12px 0 20px;
+	font-size: 12px;
+	color: #646970;
+}
+
+.pressnative-analytics-push-kpis {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+	gap: 16px;
+	margin-bottom: 8px;
+}
+
 /* Charts row */
 .pressnative-analytics-charts {
 	display: grid;
@@ -69,10 +86,17 @@
 }
 
 .pressnative-chart-container h3 {
-	margin: 0 0 16px;
+	margin: 0 0 8px;
 	font-size: 14px;
 	font-weight: 600;
 	color: #1d2327;
+}
+
+.pressnative-chart-description {
+	margin: 0 0 12px;
+	font-size: 12px;
+	color: #646970;
+	line-height: 1.4;
 }
 
 .pressnative-chart-container canvas {

@@ -26,6 +26,9 @@ class PressNative_Analytics {
 	/**
 	 * Detects device type from User-Agent string.
 	 *
+	 * Android emulators and OkHttp (common in Android apps) often omit "android"
+	 * from the User-Agent. We detect dalvik, okhttp, and kotlin as Android.
+	 *
 	 * @param string|null $user_agent User-Agent header.
 	 * @return string One of ios, android, unknown.
 	 */
@@ -40,6 +43,10 @@ class PressNative_Analytics {
 		if ( strpos( $ua, 'android' ) !== false ) {
 			return self::DEVICE_ANDROID;
 		}
+		// Android emulator / OkHttp: often sends "okhttp/4.x", "dalvik", or "kotlin" without "android".
+		if ( strpos( $ua, 'okhttp' ) !== false || strpos( $ua, 'dalvik' ) !== false || strpos( $ua, 'kotlin' ) !== false ) {
+			return self::DEVICE_ANDROID;
+		}
 		return self::DEVICE_UNKNOWN;
 	}
 
@@ -50,9 +57,10 @@ class PressNative_Analytics {
 	 * @param string      $resource_id   Post ID, page slug, category ID, or search query.
 	 * @param string|null $resource_title Optional display title.
 	 * @param string|null $device_type   Optional; if null, derived from User-Agent.
+	 * @param string|null $device_id     Optional; links event to push subscriber for engagement filtering.
 	 * @return bool True if the Registry accepted the event (or no key configured and we skipped), false on failure.
 	 */
-	public static function forward_event_to_registry( $event_type, $resource_id = '', $resource_title = null, $device_type = null ) {
+	public static function forward_event_to_registry( $event_type, $resource_id = '', $resource_title = null, $device_type = null, $device_id = null ) {
 		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH );
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
 			return false;
@@ -74,6 +82,7 @@ class PressNative_Analytics {
 
 		$resource_id    = is_string( $resource_id ) ? substr( sanitize_text_field( $resource_id ), 0, 255 ) : '';
 		$resource_title = $resource_title !== null ? substr( sanitize_text_field( $resource_title ), 0, 255 ) : null;
+		$device_id      = is_string( $device_id ) && strlen( trim( $device_id ) ) > 0 ? substr( sanitize_text_field( trim( $device_id ) ), 0, 255 ) : null;
 
 		$url = rtrim( $registry_url, '/' ) . '/api/v1/analytics/event';
 		$body = array(
@@ -82,6 +91,9 @@ class PressNative_Analytics {
 			'resource_title' => $resource_title,
 			'device_type'    => $device_type,
 		);
+		if ( $device_id !== null ) {
+			$body['device_id'] = $device_id;
+		}
 
 		$response = wp_remote_post(
 			$url,
@@ -149,13 +161,14 @@ class PressNative_Analytics {
 		$resource_id   = isset( $params['resource_id'] ) ? sanitize_text_field( $params['resource_id'] ) : '';
 		$resource_title = isset( $params['resource_title'] ) ? sanitize_text_field( $params['resource_title'] ) : null;
 		$device_type   = isset( $params['device_type'] ) ? sanitize_text_field( $params['device_type'] ) : null;
+		$device_id     = isset( $params['device_id'] ) ? sanitize_text_field( $params['device_id'] ) : null;
 
 		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH );
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
 			return new WP_Error( 'invalid_event_type', __( 'Invalid event_type.', 'pressnative' ), array( 'status' => 400 ) );
 		}
 
-		$ok = self::forward_event_to_registry( $event_type, $resource_id, $resource_title, $device_type );
+		$ok = self::forward_event_to_registry( $event_type, $resource_id, $resource_title, $device_type, $device_id );
 		return rest_ensure_response( array( 'ok' => $ok ) );
 	}
 
@@ -192,6 +205,7 @@ class PressNative_Analytics {
 						'enum'     => array( self::DEVICE_IOS, self::DEVICE_ANDROID, self::DEVICE_UNKNOWN ),
 						'default'  => null,
 					),
+					'device_id'      => array( 'required' => false, 'type' => 'string', 'default' => null ),
 				),
 			)
 		);
@@ -206,7 +220,7 @@ class PressNative_Analytics {
 					$days = (int) $request->get_param( 'days' );
 					$days = $days >= 1 && $days <= 365 ? $days : 30;
 					$data = self::fetch_from_registry( '/api/v1/analytics/summary?days=' . $days );
-					return rest_ensure_response( $data !== null ? $data : array( 'total' => 0, 'by_type' => array( 'home' => 0, 'post' => 0, 'page' => 0, 'category' => 0, 'search' => 0 ) ) );
+					return rest_ensure_response( $data !== null ? $data : array( 'total' => 0, 'by_type' => array( 'home' => 0, 'post' => 0, 'page' => 0, 'category' => 0, 'search' => 0 ), 'favorites' => 0, 'push_received' => 0, 'push_clicked' => 0 ) );
 				},
 				'permission_callback' => $permission,
 				'args'               => array( 'days' => array( 'default' => 30, 'type' => 'integer', 'minimum' => 1, 'maximum' => 365 ) ),
