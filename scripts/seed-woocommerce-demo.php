@@ -176,7 +176,7 @@ foreach ( $shoppable_posts as $post_data ) {
 	$shortcodes = array();
 	foreach ( $post_data['slugs'] as $pslug ) {
 		if ( isset( $product_ids_by_slug[ $pslug ] ) ) {
-			$shortcodes[] = '[product id="' . $product_ids_by_slug[ $pslug ] . '"]';
+			$shortcodes[] = '[product_page id="' . $product_ids_by_slug[ $pslug ] . '"]';
 		}
 	}
 	$content = '<p>' . esc_html( $post_data['excerpt'] ) . '</p>' . "\n\n"

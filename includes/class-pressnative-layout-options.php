@@ -33,7 +33,13 @@ class PressNative_Layout_Options {
 	const DEFAULT_PRODUCT_GRID_COLUMNS  = 2;
 	const DEFAULT_PRODUCT_GRID_PER_PAGE = 12;
 
-	/** Component IDs in default order. WooCommerce IDs only used when WooCommerce is active. */
+	/** Base component IDs (always available). */
+	const BASE_COMPONENT_IDS = array( 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'ad-slot-1' );
+
+	/** WooCommerce component IDs (only used when WooCommerce is active). */
+	const WOOCOMMERCE_COMPONENT_IDS = array( 'product-grid', 'product-category-list', 'product-carousel' );
+
+	/** All component IDs in default order. */
 	const COMPONENT_IDS = array( 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'product-grid', 'product-category-list', 'product-carousel', 'ad-slot-1' );
 
 	/**
@@ -93,12 +99,15 @@ class PressNative_Layout_Options {
 	 * @return string[]
 	 */
 	public static function get_enabled_components() {
+		$woo_active = class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active();
+		$all_ids    = $woo_active ? self::COMPONENT_IDS : self::BASE_COMPONENT_IDS;
+
 		$option = get_option( self::OPTION_ENABLED_COMPONENTS, null );
 		if ( null === $option || false === $option || ! is_array( $option ) ) {
-			return self::COMPONENT_IDS;
+			return $all_ids;
 		}
-		$valid = array_intersect( $option, self::COMPONENT_IDS );
-		return empty( $valid ) ? self::COMPONENT_IDS : array_values( $valid );
+		$valid = array_intersect( $option, $all_ids );
+		return empty( $valid ) ? $all_ids : array_values( $valid );
 	}
 
 	/**

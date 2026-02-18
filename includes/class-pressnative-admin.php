@@ -1313,11 +1313,14 @@ class PressNative_Admin {
 
 		$categories = get_categories( array( 'hide_empty' => false, 'parent' => 0 ) );
 		$component_labels = array(
-			'hero-carousel'  => __( 'Hero Carousel', 'pressnative' ),
-			'post-grid'      => __( 'Post Grid', 'pressnative' ),
-			'category-list'  => __( 'Category List', 'pressnative' ),
-			'page-list'      => __( 'Page List', 'pressnative' ),
-			'ad-slot-1'      => __( 'Ad Placement', 'pressnative' ),
+			'hero-carousel'        => __( 'Hero Carousel', 'pressnative' ),
+			'post-grid'            => __( 'Post Grid', 'pressnative' ),
+			'category-list'        => __( 'Category List', 'pressnative' ),
+			'page-list'            => __( 'Page List', 'pressnative' ),
+			'product-grid'         => __( 'Product Grid (WooCommerce)', 'pressnative' ),
+			'product-category-list' => __( 'Product Categories (WooCommerce)', 'pressnative' ),
+			'product-carousel'     => __( 'Product Carousel (WooCommerce)', 'pressnative' ),
+			'ad-slot-1'            => __( 'Ad Placement', 'pressnative' ),
 		);
 		?>
 		<div class="wrap">
