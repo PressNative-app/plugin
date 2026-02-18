@@ -199,6 +199,11 @@ class PressNative_Layout {
 			'page-list'      => array( $this, 'build_page_list' ),
 			'ad-slot-1'      => array( $this, 'build_ad_placement' ),
 		);
+		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
+			$builders['product-grid']          = array( $this, 'build_product_grid' );
+			$builders['product-category-list'] = array( $this, 'build_product_category_list' );
+			$builders['product-carousel']      = array( $this, 'build_product_carousel' );
+		}
 
 		$enabled = PressNative_Layout_Options::get_enabled_components();
 		$components = array();
@@ -225,7 +230,7 @@ class PressNative_Layout {
 			}
 		}
 
-		return array(
+		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
@@ -234,6 +239,20 @@ class PressNative_Layout {
 			),
 			'components' => $components,
 		);
+		return $this->inject_shop_config( $layout );
+	}
+
+	/**
+	 * Append shop_config to layout when WooCommerce is active (cart_url, checkout_url, nonce, session).
+	 *
+	 * @param array $layout Layout array with branding, screen, components.
+	 * @return array
+	 */
+	private function inject_shop_config( $layout ) {
+		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
+			$layout['shop_config'] = PressNative_WooCommerce::get_shop_config();
+		}
+		return $layout;
 	}
 
 	/**
@@ -665,7 +684,7 @@ class PressNative_Layout {
 		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
 		$components[] = $post_detail;
 
-		return array(
+		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
@@ -674,6 +693,7 @@ class PressNative_Layout {
 			),
 			'components' => $components,
 		);
+		return $this->inject_shop_config( $layout );
 	}
 
 	/**
@@ -729,7 +749,7 @@ class PressNative_Layout {
 		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
 		$components[] = $post_detail;
 
-		return array(
+		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
@@ -738,6 +758,7 @@ class PressNative_Layout {
 			),
 			'components' => $components,
 		);
+		return $this->inject_shop_config( $layout );
 	}
 
 	/**
@@ -815,7 +836,7 @@ class PressNative_Layout {
 			),
 		);
 
-		return array(
+		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
@@ -824,5 +845,196 @@ class PressNative_Layout {
 			),
 			'components' => array( $post_grid ),
 		);
+		return $this->inject_shop_config( $layout );
+	}
+
+	/**
+	 * ProductGrid component (WooCommerce). Only built when WooCommerce is active.
+	 *
+	 * @return array
+	 */
+	private function build_product_grid() {
+		if ( ! PressNative_WooCommerce::is_active() ) {
+			return array( 'id' => 'product-grid', 'type' => 'ProductGrid', 'styles' => $this->get_component_styles(), 'content' => array( 'columns' => 2, 'products' => array() ) );
+		}
+		$cols = PressNative_Layout_Options::get_product_grid_columns();
+		$per  = PressNative_Layout_Options::get_product_grid_per_page();
+		$products = PressNative_WooCommerce::get_products( array( 'limit' => $per ) );
+		return array(
+			'id'      => 'product-grid',
+			'type'    => 'ProductGrid',
+			'styles'  => $this->get_component_styles(),
+			'content' => array(
+				'columns'   => $cols,
+				'products'  => $products,
+			),
+		);
+	}
+
+	/**
+	 * ProductCategoryList component (WooCommerce).
+	 *
+	 * @return array
+	 */
+	private function build_product_category_list() {
+		if ( ! PressNative_WooCommerce::is_active() ) {
+			return array( 'id' => 'product-category-list', 'type' => 'ProductCategoryList', 'styles' => $this->get_component_styles(), 'content' => array( 'categories' => array() ) );
+		}
+		$categories = PressNative_WooCommerce::get_product_categories( array( 'parent' => 0 ) );
+		$styles = $this->get_component_styles();
+		$styles['padding']['vertical'] = 12;
+		return array(
+			'id'      => 'product-category-list',
+			'type'    => 'ProductCategoryList',
+			'styles'  => $styles,
+			'content' => array( 'categories' => $categories ),
+		);
+	}
+
+	/**
+	 * ProductCarousel component (WooCommerce featured products).
+	 *
+	 * @return array
+	 */
+	private function build_product_carousel() {
+		if ( ! PressNative_WooCommerce::is_active() ) {
+			return array( 'id' => 'product-carousel', 'type' => 'ProductCarousel', 'styles' => $this->get_component_styles(), 'content' => array( 'items' => array() ) );
+		}
+		$slug = PressNative_Layout_Options::get_featured_product_cat();
+		$args = array( 'limit' => 5, 'status' => 'publish' );
+		if ( $slug ) {
+			$term = get_term_by( 'slug', $slug, 'product_cat' );
+			if ( $term && ! is_wp_error( $term ) ) {
+				$args['category'] = array( $term->slug );
+			}
+		}
+		$products = PressNative_WooCommerce::get_products( $args );
+		$items = array();
+		foreach ( $products as $p ) {
+			$items[] = array(
+				'product_id'         => $p['product_id'],
+				'title'              => $p['title'],
+				'subtitle'           => '',
+				'image_url'          => $p['image_url'],
+				'price'              => $p['price'],
+				'action'             => $p['action'],
+				'add_to_cart_action'  => $p['add_to_cart_action'],
+			);
+		}
+		return array(
+			'id'      => 'product-carousel',
+			'type'    => 'ProductCarousel',
+			'styles'  => $this->get_component_styles(),
+			'content' => array( 'items' => $items ),
+		);
+	}
+
+	/**
+	 * Shop screen layout (ProductCategoryList + ProductGrid). WooCommerce only.
+	 *
+	 * @return array|null Layout or null if WooCommerce inactive.
+	 */
+	public function get_shop_layout() {
+		if ( ! PressNative_WooCommerce::is_active() ) {
+			return null;
+		}
+		$components = array(
+			$this->build_product_category_list(),
+			$this->build_product_grid(),
+		);
+		$layout = array(
+			'branding'   => PressNative_Options::get_branding(),
+			'screen'     => array(
+				'id'    => 'shop',
+				'title' => _x( 'Shop', 'Screen title', 'pressnative' ),
+			),
+			'components' => $components,
+		);
+		return $this->inject_shop_config( $layout );
+	}
+
+	/**
+	 * Product detail layout. WooCommerce only.
+	 *
+	 * @param int $product_id Product ID.
+	 * @return array|null Layout or null if not found or WooCommerce inactive.
+	 */
+	public function get_product_layout( $product_id ) {
+		if ( ! PressNative_WooCommerce::is_active() ) {
+			return null;
+		}
+		$product = PressNative_WooCommerce::get_product( $product_id );
+		if ( ! $product ) {
+			return null;
+		}
+		$styles = $this->get_component_styles();
+		$detail = array(
+			'id'      => 'product-detail-' . $product_id,
+			'type'    => 'ProductDetail',
+			'styles'  => $styles,
+			'content' => array(
+				'product_id'         => $product['product_id'],
+				'title'               => $product['title'],
+				'price'               => $product['price'],
+				'description'         => $product['description'],
+				'image_url'           => $product['image_url'],
+				'add_to_cart_action'  => $product['add_to_cart_action'],
+			),
+		);
+		$layout = array(
+			'branding'   => PressNative_Options::get_branding(),
+			'screen'     => array(
+				'id'    => 'product-' . $product_id,
+				'title' => $product['title'],
+			),
+			'components' => array( $detail ),
+		);
+		return $this->inject_shop_config( $layout );
+	}
+
+	/**
+	 * Product category layout (ProductGrid for that category). WooCommerce only.
+	 *
+	 * @param int $category_id Product category term ID.
+	 * @return array|null Layout or null if not found or WooCommerce inactive.
+	 */
+	public function get_product_category_layout( $category_id ) {
+		if ( ! PressNative_WooCommerce::is_active() ) {
+			return null;
+		}
+		$term = get_term( $category_id, 'product_cat' );
+		if ( ! $term || is_wp_error( $term ) ) {
+			return null;
+		}
+		$cols = PressNative_Layout_Options::get_product_grid_columns();
+		$per  = PressNative_Layout_Options::get_product_grid_per_page();
+		$products = PressNative_WooCommerce::get_products( array(
+			'limit'     => $per,
+			'tax_query' => array(
+				array(
+					'taxonomy' => 'product_cat',
+					'field'    => 'term_id',
+					'terms'    => array( (int) $category_id ),
+				),
+			),
+		) );
+		$grid = array(
+			'id'      => 'product-category-grid',
+			'type'    => 'ProductGrid',
+			'styles'  => $this->get_component_styles(),
+			'content' => array(
+				'columns'  => $cols,
+				'products' => $products,
+			),
+		);
+		$layout = array(
+			'branding'   => PressNative_Options::get_branding(),
+			'screen'     => array(
+				'id'    => 'product-category-' . $category_id,
+				'title' => $term->name,
+			),
+			'components' => array( $grid ),
+		);
+		return $this->inject_shop_config( $layout );
 	}
 }
