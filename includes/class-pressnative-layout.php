@@ -226,6 +226,7 @@ class PressNative_Layout {
 		}
 
 		return array(
+			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
 				'id'    => 'home',
@@ -665,6 +666,7 @@ class PressNative_Layout {
 		$components[] = $post_detail;
 
 		return array(
+			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
 				'id'    => 'post-' . $post_id,
@@ -728,6 +730,7 @@ class PressNative_Layout {
 		$components[] = $post_detail;
 
 		return array(
+			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
 				'id'    => 'page-' . $page->post_name,
@@ -813,6 +816,7 @@ class PressNative_Layout {
 		);
 
 		return array(
+			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
 				'id'    => 'category-' . $category_id,
