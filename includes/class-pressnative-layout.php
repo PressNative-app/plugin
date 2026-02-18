@@ -1009,14 +1009,8 @@ class PressNative_Layout {
 		$cols = PressNative_Layout_Options::get_product_grid_columns();
 		$per  = PressNative_Layout_Options::get_product_grid_per_page();
 		$products = PressNative_WooCommerce::get_products( array(
-			'limit'     => $per,
-			'tax_query' => array(
-				array(
-					'taxonomy' => 'product_cat',
-					'field'    => 'term_id',
-					'terms'    => array( (int) $category_id ),
-				),
-			),
+			'limit'    => $per,
+			'category' => array( $term->slug ),
 		) );
 		$grid = array(
 			'id'      => 'product-category-grid',

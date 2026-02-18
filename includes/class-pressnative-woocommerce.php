@@ -270,25 +270,4 @@ class PressNative_WooCommerce {
 		);
 	}
 
-	/**
-	 * Extract product shortcodes from post content for shoppable content.
-	 * Supports [product id="123"] and [products ids="1,2,3"].
-	 *
-	 * @param string $content Post content.
-	 * @return array List of product IDs found in shortcodes.
-	 */
-	public static function extract_product_shortcodes( $content ) {
-		if ( ! self::is_active() || empty( $content ) ) {
-			return array();
-		}
-		$ids = array();
-		if ( preg_match_all( '/\[product\s+id=["\']?(\d+)["\']?[^\]]*\]/i', $content, $m ) ) {
-			$ids = array_merge( $ids, array_map( 'intval', $m[1] ) );
-		}
-		if ( preg_match_all( '/\[products\s+ids=["\']?([^"\']+)["\']?[^\]]*\]/i', $content, $m ) ) {
-			$parts = preg_split( '/[\s,]+/', trim( $m[1][0] ), -1, PREG_SPLIT_NO_EMPTY );
-			$ids   = array_merge( $ids, array_map( 'intval', $parts ) );
-		}
-		return array_unique( array_filter( $ids ) );
-	}
 }

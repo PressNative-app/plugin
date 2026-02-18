@@ -405,7 +405,17 @@ add_action( 'rest_api_init', function () {
 					if ( $product_id < 1 ) {
 						return new WP_Error( 'invalid_product', 'product_id required', array( 'status' => 400 ) );
 					}
-					if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+					if ( ! function_exists( 'WC' ) ) {
+						return new WP_Error( 'woocommerce_unavailable', 'WooCommerce not available', array( 'status' => 503 ) );
+					}
+					if ( ! WC()->cart ) {
+						wc_load_cart();
+						// For WooCommerce 9.0+, also load cart from session
+						if ( method_exists( WC()->cart, 'get_cart_from_session' ) ) {
+							WC()->cart->get_cart_from_session();
+						}
+					}
+					if ( ! WC()->cart ) {
 						return new WP_Error( 'woocommerce_unavailable', 'Cart not available', array( 'status' => 503 ) );
 					}
 					$variation_id = is_numeric( $variation_id ) ? (int) $variation_id : 0;
@@ -444,7 +454,17 @@ add_action( 'rest_api_init', function () {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => function () {
-					if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+					if ( ! function_exists( 'WC' ) ) {
+						return rest_ensure_response( array( 'cart_count' => 0 ) );
+					}
+					if ( ! WC()->cart ) {
+						wc_load_cart();
+						// For WooCommerce 9.0+, also load cart from session
+						if ( method_exists( WC()->cart, 'get_cart_from_session' ) ) {
+							WC()->cart->get_cart_from_session();
+						}
+					}
+					if ( ! WC()->cart ) {
 						return rest_ensure_response( array( 'cart_count' => 0 ) );
 					}
 					return rest_ensure_response( array(
