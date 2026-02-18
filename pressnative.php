@@ -32,6 +32,7 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-admin.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-preview.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-registry-notify.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-qr.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-woocommerce.php';
 
 /**
  * Load plugin text domain for translations.
@@ -148,6 +149,72 @@ add_action( 'rest_api_init', function () {
 			'permission_callback' => '__return_true',
 		)
 	);
+
+	// WooCommerce: shop, product, product-category layouts.
+	if ( PressNative_WooCommerce::is_active() ) {
+		register_rest_route(
+			'pressnative/v1',
+			'/layout/shop',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
+					$data = $layout->get_shop_layout();
+					if ( ! $data ) {
+						return new WP_Error( 'not_found', 'Shop not available', array( 'status' => 404 ) );
+					}
+					$response = rest_ensure_response( $data );
+					if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+						$device_id = $request->get_param( 'device_id' );
+						PressNative_Analytics::forward_event_to_registry( 'shop', 'shop', isset( $data['screen']['title'] ) ? $data['screen']['title'] : 'Shop', null, $device_id );
+					}
+					return $response;
+				},
+				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			'pressnative/v1',
+			'/layout/product/(?P<id>[\d]+)',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
+					$data = $layout->get_product_layout( (int) $request['id'] );
+					if ( ! $data ) {
+						return new WP_Error( 'not_found', 'Product not found', array( 'status' => 404 ) );
+					}
+					$response = rest_ensure_response( $data );
+					if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+						$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
+						$device_id = $request->get_param( 'device_id' );
+						PressNative_Analytics::forward_event_to_registry( 'product', (string) $request['id'], $title, null, $device_id );
+					}
+					return $response;
+				},
+				'permission_callback' => '__return_true',
+			)
+		);
+		register_rest_route(
+			'pressnative/v1',
+			'/layout/product-category/(?P<id>[\d]+)',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
+					$data = $layout->get_product_category_layout( (int) $request['id'] );
+					if ( ! $data ) {
+						return new WP_Error( 'not_found', 'Product category not found', array( 'status' => 404 ) );
+					}
+					$response = rest_ensure_response( $data );
+					if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+						$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
+						$device_id = $request->get_param( 'device_id' );
+						PressNative_Analytics::forward_event_to_registry( 'product_category', (string) $request['id'], $title, null, $device_id );
+					}
+					return $response;
+				},
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
 
 	// Branding sync endpoint: Registry pushes branding updates to WordPress.
 	register_rest_route(
@@ -320,6 +387,94 @@ add_action( 'rest_api_init', function () {
 			},
 		)
 	);
+
+	// WooCommerce: native add-to-cart and cart count (Store API proxy).
+	if ( PressNative_WooCommerce::is_active() ) {
+		register_rest_route(
+			'pressnative/v1',
+			'/cart/add',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => function ( WP_REST_Request $request ) {
+					$product_id   = (int) $request->get_param( 'product_id' );
+					$variation_id = $request->get_param( 'variation_id' );
+					$quantity     = (int) $request->get_param( 'quantity' );
+					if ( $quantity < 1 ) {
+						$quantity = 1;
+					}
+					if ( $product_id < 1 ) {
+						return new WP_Error( 'invalid_product', 'product_id required', array( 'status' => 400 ) );
+					}
+					if ( ! function_exists( 'WC' ) ) {
+						return new WP_Error( 'woocommerce_unavailable', 'WooCommerce not available', array( 'status' => 503 ) );
+					}
+					if ( ! WC()->cart ) {
+						wc_load_cart();
+						// For WooCommerce 9.0+, also load cart from session
+						if ( method_exists( WC()->cart, 'get_cart_from_session' ) ) {
+							WC()->cart->get_cart_from_session();
+						}
+					}
+					if ( ! WC()->cart ) {
+						return new WP_Error( 'woocommerce_unavailable', 'Cart not available', array( 'status' => 503 ) );
+					}
+					$variation_id = is_numeric( $variation_id ) ? (int) $variation_id : 0;
+					$added        = WC()->cart->add_to_cart( $product_id, $quantity, $variation_id );
+					if ( $added === false ) {
+						return new WP_Error( 'add_failed', 'Could not add to cart', array( 'status' => 400 ) );
+					}
+					$count = WC()->cart->get_cart_contents_count();
+					return rest_ensure_response( array(
+						'ok'          => true,
+						'cart_count'  => $count,
+					) );
+				},
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'product_id'   => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
+					),
+					'variation_id' => array(
+						'required' => false,
+						'type'     => 'integer',
+					),
+					'quantity'     => array(
+						'required' => false,
+						'type'     => 'integer',
+						'default'  => 1,
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'pressnative/v1',
+			'/cart/count',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => function () {
+					if ( ! function_exists( 'WC' ) ) {
+						return rest_ensure_response( array( 'cart_count' => 0 ) );
+					}
+					if ( ! WC()->cart ) {
+						wc_load_cart();
+						// For WooCommerce 9.0+, also load cart from session
+						if ( method_exists( WC()->cart, 'get_cart_from_session' ) ) {
+							WC()->cart->get_cart_from_session();
+						}
+					}
+					if ( ! WC()->cart ) {
+						return rest_ensure_response( array( 'cart_count' => 0 ) );
+					}
+					return rest_ensure_response( array(
+						'cart_count' => WC()->cart->get_cart_contents_count(),
+					) );
+				},
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
 
 	PressNative_Devices::register_rest_route();
 	PressNative_Analytics::register_rest_routes();
