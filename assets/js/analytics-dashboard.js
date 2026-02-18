@@ -45,11 +45,17 @@
 		var kpis = document.getElementById('pressnative-analytics-kpis');
 		if (!kpis) return;
 		var byType = summary.by_type;
+		var favoritesEl = kpis.querySelector('[data-kpi="favorites"]');
 		var totalEl = kpis.querySelector('[data-kpi="total"]');
 		var postEl = kpis.querySelector('[data-kpi="post"]');
 		var pageEl = kpis.querySelector('[data-kpi="page"]');
 		var categoryEl = kpis.querySelector('[data-kpi="category"]');
+		var pushReceivedEl = document.querySelector('[data-kpi="push_received"]');
+		var pushClickedEl = document.querySelector('[data-kpi="push_clicked"]');
+		if (favoritesEl) favoritesEl.textContent = formatNumber(summary.favorites ?? 0);
 		if (totalEl) totalEl.textContent = formatNumber(summary.total);
+		if (pushReceivedEl) pushReceivedEl.textContent = formatNumber(summary.push_received ?? 0);
+		if (pushClickedEl) pushClickedEl.textContent = formatNumber(summary.push_clicked ?? 0);
 		if (postEl) postEl.textContent = formatNumber(byType.post || 0);
 		if (pageEl) pageEl.textContent = formatNumber(byType.page || 0);
 		if (categoryEl) categoryEl.textContent = formatNumber(byType.category || 0);
@@ -60,17 +66,21 @@
 		var canvas = document.getElementById('pressnative-chart-views-over-time');
 		if (!canvas || typeof Chart === 'undefined') return;
 		if (charts.viewsOverTime) charts.viewsOverTime.destroy();
+		var labels = (data || []).map(function (d) { return d.date; });
+		var values = (data || []).map(function (d) { return d.views; });
+		var maxVal = values.length ? Math.max.apply(null, values) : 1;
 		charts.viewsOverTime = new Chart(canvas.getContext('2d'), {
 			type: 'line',
 			data: {
-				labels: (data || []).map(function (d) { return d.date; }),
+				labels: labels,
 				datasets: [{
 					label: 'Views',
-					data: (data || []).map(function (d) { return d.views; }),
+					data: values,
 					borderColor: '#2271b1',
 					backgroundColor: 'rgba(34, 113, 177, 0.1)',
 					fill: true,
-					tension: 0.2
+					tension: 0.2,
+					pointRadius: labels.length <= 7 ? 4 : 2
 				}]
 			},
 			options: {
@@ -78,8 +88,12 @@
 				maintainAspectRatio: true,
 				plugins: { legend: { display: false } },
 				scales: {
-					y: { beginAtZero: true, ticks: { precision: 0 } },
-					x: { maxTicksLimit: 12 }
+					y: {
+						beginAtZero: true,
+						ticks: { precision: 0 },
+						suggestedMax: Math.ceil(maxVal * 1.2) || 5
+					},
+					x: { maxTicksLimit: Math.min(12, labels.length || 1) }
 				}
 			}
 		});
@@ -119,7 +133,7 @@
 		var canvas = document.getElementById('pressnative-chart-device');
 		if (!canvas || typeof Chart === 'undefined') return;
 		if (charts.device) charts.device.destroy();
-		var labels = ['iOS', 'Android', 'Unknown'];
+		var labels = ['iOS', 'Android', 'Other'];
 		var keys = ['ios', 'android', 'unknown'];
 		var values = keys.map(function (k) { return byDevice[k] || 0; });
 		var hasData = values.some(function (v) { return v > 0; });
@@ -140,7 +154,19 @@
 			options: {
 				responsive: true,
 				maintainAspectRatio: true,
-				plugins: { legend: { position: 'bottom' } }
+				plugins: {
+					legend: { position: 'bottom' },
+					tooltip: {
+						callbacks: {
+							afterLabel: function (ctx) {
+								if (ctx.dataIndex === 2 && ctx.raw > 0) {
+									return '(emulators, uncategorized)';
+								}
+								return '';
+							}
+						}
+					}
+				}
 			}
 		});
 	}
@@ -153,11 +179,13 @@
 			container.innerHTML = '<p class="pressnative-table-empty">No post views in this period.</p>';
 			return;
 		}
-		var adminUrl = (config.adminUrl || '').replace(/\/$/, '');
+		var editPostUrl = (config.editPostUrl || '').replace(/\/$/, '');
 		var html = '<table class="pressnative-analytics-table"><thead><tr><th>Post</th><th>Views</th><th></th></tr></thead><tbody>';
 		rows.forEach(function (r) {
 			var title = escapeHtml(r.resource_title || '(ID: ' + r.resource_id + ')');
-			var editLink = adminUrl ? '<a href="' + escapeHtml(adminUrl + 'post.php?post=' + r.resource_id + '&action=edit') + '" class="button button-small">Edit</a>' : '';
+			var id = String(r.resource_id || '').trim();
+			var isNumeric = /^\d+$/.test(id);
+			var editLink = (editPostUrl && isNumeric) ? '<a href="' + escapeHtml(editPostUrl + '?post=' + encodeURIComponent(id) + '&action=edit') + '" class="button button-small">Edit</a>' : '';
 			html += '<tr><td>' + title + '</td><td>' + formatNumber(r.views) + '</td><td>' + editLink + '</td></tr>';
 		});
 		html += '</tbody></table>';

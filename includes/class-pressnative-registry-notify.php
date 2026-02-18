@@ -23,6 +23,7 @@ class PressNative_Registry_Notify {
 		PressNative_Options::OPTION_TEXT_COLOR,
 		PressNative_Options::OPTION_FONT_FAMILY,
 		PressNative_Options::OPTION_BASE_FONT_SIZE,
+		PressNative_Options::OPTION_APP_CATEGORIES,
 		PressNative_Themes::OPTION_THEME_ID,
 		PressNative_Layout_Options::OPTION_HERO_CATEGORY_SLUG,
 		PressNative_Layout_Options::OPTION_HERO_MAX_ITEMS,
@@ -58,6 +59,14 @@ class PressNative_Registry_Notify {
 		$registry_url = PressNative_Admin::get_registry_url();
 		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/config-changed';
 		$site_url     = home_url( '/' );
+		$tags         = PressNative_Options::get_app_categories();
+		$branding     = PressNative_Options::get_branding();
+
+		$body = array(
+			'site_url' => $site_url,
+			'tags'     => $tags,
+			'branding' => $branding,
+		);
 
 		wp_remote_post(
 			$url,
@@ -68,7 +77,7 @@ class PressNative_Registry_Notify {
 				'headers'    => array(
 					'Content-Type' => 'application/json',
 				),
-				'body'       => wp_json_encode( array( 'site_url' => $site_url ) ),
+				'body'       => wp_json_encode( $body ),
 			)
 		);
 	}

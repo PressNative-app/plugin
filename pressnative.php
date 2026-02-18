@@ -74,7 +74,8 @@ add_action( 'rest_api_init', function () {
 				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
 				$response->header( 'Last-Updated', gmdate( 'c' ) );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
-					PressNative_Analytics::forward_event_to_registry( 'home', 'home', get_bloginfo( 'name' ) );
+					$device_id = $request->get_param( 'device_id' );
+					PressNative_Analytics::forward_event_to_registry( 'home', 'home', get_bloginfo( 'name' ), null, $device_id );
 				}
 				return $response;
 			},
@@ -94,8 +95,9 @@ add_action( 'rest_api_init', function () {
 				}
 				$response = rest_ensure_response( $data );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
-					$title = isset( $data['screen']['title'] ) ? $data['screen']['title'] : get_the_title( (int) $request['id'] );
-					PressNative_Analytics::forward_event_to_registry( 'post', (string) $request['id'], $title );
+					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : get_the_title( (int) $request['id'] );
+					$device_id = $request->get_param( 'device_id' );
+					PressNative_Analytics::forward_event_to_registry( 'post', (string) $request['id'], $title, null, $device_id );
 				}
 				return $response;
 			},
@@ -115,8 +117,9 @@ add_action( 'rest_api_init', function () {
 				}
 				$response = rest_ensure_response( $data );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
-					$title = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
-					PressNative_Analytics::forward_event_to_registry( 'page', $request['slug'], $title );
+					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
+					$device_id = $request->get_param( 'device_id' );
+					PressNative_Analytics::forward_event_to_registry( 'page', $request['slug'], $title, null, $device_id );
 				}
 				return $response;
 			},
@@ -136,8 +139,9 @@ add_action( 'rest_api_init', function () {
 				}
 				$response = rest_ensure_response( $data );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
-					$title = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
-					PressNative_Analytics::forward_event_to_registry( 'category', (string) $request['id'], $title );
+					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
+					$device_id = $request->get_param( 'device_id' );
+					PressNative_Analytics::forward_event_to_registry( 'category', (string) $request['id'], $title, null, $device_id );
 				}
 				return $response;
 			},

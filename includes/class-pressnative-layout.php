@@ -503,20 +503,26 @@ class PressNative_Layout {
 	/**
 	 * AdPlacement component (contract-style).
 	 *
+	 * Uses the AdMob banner unit ID from App Settings. When no unit ID is
+	 * configured, the component falls back to the Google-provided test ad unit
+	 * so the layout always includes a valid placement.
+	 *
 	 * @return array
 	 */
 	private function build_ad_placement() {
+		$unit_id = get_option( PressNative_Options::OPTION_ADMOB_BANNER_UNIT_ID, '' );
+		if ( empty( $unit_id ) ) {
+			$unit_id = 'ca-app-pub-3940256099942544/6300978111';
+		}
+
 		return array(
 			'id'      => 'ad-slot-1',
 			'type'    => 'AdPlacement',
 			'styles'  => $this->get_component_styles(),
 			'content' => array(
-				'ad_unit_id' => 'pressnative-home-001',
-				'provider'   => 'PressNative Ads',
-				'action'     => array(
-					'type'    => 'open_url',
-					'payload' => array( 'url' => 'https://pressnative.app' ),
-				),
+				'ad_unit_id' => $unit_id,
+				'format'     => 'banner',
+				'provider'   => 'admob',
 			),
 		);
 	}

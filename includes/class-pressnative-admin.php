@@ -23,12 +23,25 @@ class PressNative_Admin {
 	 * @return void
 	 */
 	public static function init() {
-		add_action( 'admin_menu', array( __CLASS__, 'add_menu' ) );
+		add_action( 'admin_menu', array( __CLASS__, 'add_menu' ), 10 );
+		add_action( 'admin_menu', array( __CLASS__, 'reorder_menu_by_subscription' ), 999 );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'admin_init', array( __CLASS__, 'handle_stripe_portal_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_app_settings_assets' ) );
 		add_action( 'admin_post_pressnative_send_push', array( __CLASS__, 'handle_send_push' ) );
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification' ), 10, 2 );
+		add_action( 'add_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification_on_add' ), 10, 2 );
+		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'clear_subscription_cache' ), 10 );
+		add_action( 'admin_post_pressnative_verify_site', array( __CLASS__, 'handle_verify_site' ) );
+	}
+
+	/**
+	 * Clears the subscription status cache (e.g. after API key change).
+	 *
+	 * @return void
+	 */
+	public static function clear_subscription_cache() {
+		delete_transient( self::SUBSCRIPTION_CACHE_KEY . '_' . md5( get_option( self::OPTION_API_KEY, '' ) ) );
 	}
 
 	/**
@@ -64,8 +77,8 @@ class PressNative_Admin {
 		);
 		add_submenu_page(
 			'pressnative',
-			__( 'Analytics', 'pressnative' ),
-			__( 'Analytics', 'pressnative' ),
+			__( 'Dashboard', 'pressnative' ),
+			__( 'Dashboard', 'pressnative' ),
 			'manage_options',
 			'pressnative-analytics',
 			array( __CLASS__, 'render_analytics_page' )
@@ -78,6 +91,59 @@ class PressNative_Admin {
 			'pressnative-push',
 			array( __CLASS__, 'render_push_page' )
 		);
+		add_submenu_page(
+			'pressnative',
+			__( 'Get Started', 'pressnative' ),
+			__( 'Get Started', 'pressnative' ),
+			'manage_options',
+			'pressnative-growth',
+			array( __CLASS__, 'render_growth_page' )
+		);
+	}
+
+	/**
+	 * Reorders PressNative submenu: Dashboard first when subscribed, Get Started first when not.
+	 *
+	 * @return void
+	 */
+	public static function reorder_menu_by_subscription() {
+		global $submenu;
+		if ( ! isset( $submenu['pressnative'] ) || ! is_array( $submenu['pressnative'] ) ) {
+			return;
+		}
+		$sub_status = self::fetch_subscription_status();
+		$has_active = $sub_status && in_array( $sub_status['billing_status'] ?? '', array( 'active', 'trial' ), true );
+
+		$items = $submenu['pressnative'];
+		$by_slug = array();
+		foreach ( $items as $item ) {
+			$slug = $item[2];
+			$by_slug[ $slug ] = $item;
+		}
+
+		$order_subscribed   = array( 'pressnative-analytics', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-push', 'pressnative-growth' );
+		$order_unsubscribed = array( 'pressnative-growth', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-push', 'pressnative-analytics' );
+		$order              = $has_active ? $order_subscribed : $order_unsubscribed;
+
+		$reordered = array();
+		foreach ( $order as $slug ) {
+			if ( isset( $by_slug[ $slug ] ) ) {
+				$reordered[] = $by_slug[ $slug ];
+			}
+		}
+		foreach ( $by_slug as $slug => $item ) {
+			if ( ! in_array( $slug, $order, true ) ) {
+				$reordered[] = $item;
+			}
+		}
+
+		$submenu['pressnative'] = $reordered;
+
+		if ( $has_active ) {
+			$submenu['pressnative'][0][0] = __( 'Dashboard', 'pressnative' );
+		} else {
+			$submenu['pressnative'][0][0] = __( 'Get Started', 'pressnative' );
+		}
 	}
 
 	/**
@@ -132,7 +198,7 @@ class PressNative_Admin {
 			PressNative_Options::OPTION_PRIMARY_COLOR,
 			array(
 				'type'              => 'string',
-				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_hex' ),
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_primary_color' ),
 				'default'           => PressNative_Options::DEFAULT_PRIMARY_COLOR,
 			)
 		);
@@ -168,7 +234,7 @@ class PressNative_Admin {
 			PressNative_Options::OPTION_TEXT_COLOR,
 			array(
 				'type'              => 'string',
-				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_hex' ),
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_text_color' ),
 				'default'           => PressNative_Options::DEFAULT_TEXT_COLOR,
 			)
 		);
@@ -194,6 +260,24 @@ class PressNative_Admin {
 					return max( 12, min( 24, $v ) );
 				},
 				'default'           => PressNative_Options::DEFAULT_BASE_FONT_SIZE,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_APP_CATEGORIES,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_app_categories' ),
+				'default'           => PressNative_Options::DEFAULT_APP_CATEGORIES,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_ADMOB_BANNER_UNIT_ID,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => PressNative_Options::DEFAULT_ADMOB_BANNER_UNIT_ID,
 			)
 		);
 
@@ -313,8 +397,12 @@ class PressNative_Admin {
 		return $value;
 	}
 
+	const SUBSCRIPTION_CACHE_KEY = 'pressnative_subscription_status';
+	const SUBSCRIPTION_CACHE_TTL = 300;
+
 	/**
 	 * Fetches the subscription status from the Registry via Stripe API.
+	 * Cached for 5 minutes to avoid Registry calls on every admin page load.
 	 *
 	 * @return array|null Subscription data or null on failure.
 	 */
@@ -323,6 +411,12 @@ class PressNative_Admin {
 		$registry_url = self::get_registry_url();
 		if ( empty( $api_key ) || empty( $registry_url ) ) {
 			return null;
+		}
+
+		$cache_key = self::SUBSCRIPTION_CACHE_KEY . '_' . md5( $api_key );
+		$cached    = get_transient( $cache_key );
+		if ( is_array( $cached ) ) {
+			return $cached;
 		}
 
 		$url      = rtrim( $registry_url, '/' ) . '/api/stripe/subscription-status';
@@ -345,7 +439,11 @@ class PressNative_Admin {
 		}
 		$body = wp_remote_retrieve_body( $response );
 		$data = json_decode( $body, true );
-		return is_array( $data ) ? $data : null;
+		if ( is_array( $data ) ) {
+			set_transient( $cache_key, $data, self::SUBSCRIPTION_CACHE_TTL );
+			return $data;
+		}
+		return null;
 	}
 
 	/**
@@ -487,8 +585,20 @@ class PressNative_Admin {
 		<?php elseif ( ! empty( $api_key ) && empty( $site_verified ) ) : ?>
 		<div class="notice notice-warning" style="max-width:700px;">
 			<p>
-				<?php esc_html_e( 'Site verification pending. Re-save your API key to verify your WordPress admin access with the Registry.', 'pressnative' ); ?>
+				<?php esc_html_e( 'Site verification pending. Click the button below to verify your WordPress admin access with the Registry.', 'pressnative' ); ?>
 			</p>
+			<p>
+				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pressnative_verify_site' ), 'pressnative_verify_site' ) ); ?>" class="button button-primary">
+					<?php esc_html_e( 'Verify Now', 'pressnative' ); ?>
+				</a>
+			</p>
+			<?php
+			$verify_error = get_transient( 'pressnative_verify_error' );
+			if ( $verify_error ) :
+				delete_transient( 'pressnative_verify_error' );
+			?>
+				<p style="color:#d63638;"><strong><?php esc_html_e( 'Last verification error:', 'pressnative' ); ?></strong> <?php echo esc_html( $verify_error ); ?></p>
+			<?php endif; ?>
 		</div>
 		<?php endif; ?>
 
@@ -556,7 +666,9 @@ class PressNative_Admin {
 		$app_settings    = ( $hook_suffix === 'pressnative_page_pressnative-app-settings' );
 		$layout_settings = ( $hook_suffix === 'pressnative_page_pressnative-layout-settings' );
 		$analytics_page  = ( $hook_suffix === 'pressnative_page_pressnative-analytics' );
-		if ( ! $app_settings && ! $layout_settings && ! $analytics_page ) {
+		$growth_page     = ( $hook_suffix === 'pressnative_page_pressnative-growth' );
+		$push_page       = ( $hook_suffix === 'pressnative_page_pressnative-push' );
+		if ( ! $app_settings && ! $layout_settings && ! $analytics_page && ! $growth_page && ! $push_page ) {
 			return;
 		}
 
@@ -619,9 +731,9 @@ class PressNative_Admin {
 					'pressnative-analytics',
 					'pressnativeAnalytics',
 					array(
-						'restUrl'  => rest_url( 'pressnative/v1' ),
-						'nonce'   => wp_create_nonce( 'wp_rest' ),
-						'adminUrl' => admin_url(),
+						'restUrl'       => rest_url( 'pressnative/v1' ),
+						'nonce'         => wp_create_nonce( 'wp_rest' ),
+						'editPostUrl'   => admin_url( 'post.php' ),
 					)
 				);
 			}
@@ -644,7 +756,7 @@ class PressNative_Admin {
 			);
 			wp_add_inline_script(
 				'wp-color-picker',
-				self::get_logo_upload_script() . "\n" . self::get_theme_card_script(),
+				self::get_logo_upload_script() . "\n" . self::get_theme_card_script() . "\n" . self::get_app_categories_script(),
 				'after'
 			);
 		}
@@ -736,6 +848,112 @@ class PressNative_Admin {
 					$(this).css('border', '2px solid #2271b1');
 				}
 			});
+		});
+		";
+	}
+
+	/**
+	 * Inline script for App Categories tag pills (pill display, add via Enter/comma, remove).
+	 *
+	 * @return string
+	 */
+	private static function get_app_categories_script() {
+		return "
+		jQuery(function($){
+			var \$hidden = $('#pressnative_app_categories');
+			var \$textInput = $('#pressnative_app_categories_input');
+			var \$wrapper = $('.pressnative-tag-input-wrapper');
+			var max = parseInt(\$hidden.attr('data-max') || 5, 10);
+
+			function getTags() {
+				var val = (\$hidden.val() || '').trim();
+				return val ? val.split(',').map(function(t){ return t.trim(); }).filter(Boolean) : [];
+			}
+
+			function setTags(tags) {
+				tags = tags.slice(0, max);
+				\$hidden.val(tags.join(','));
+				\$wrapper.find('.pressnative-tag-pill-display').remove();
+				tags.forEach(function(tag) {
+					var safeTag = $('<span/>').text(tag).html();
+					var safeAttr = tag.replace(/\"/g, '&quot;');
+					var pill = '<span class=\"pressnative-tag-pill-display\" style=\"display:inline-flex;align-items:center;gap:4px;background:#2271b1;color:#fff;border-radius:16px;padding:4px 8px 4px 12px;font-size:13px;cursor:default;\">' +
+						safeTag +
+						' <span class=\"pressnative-tag-remove\" data-tag=\"' + safeAttr + '\" role=\"button\" tabindex=\"0\" style=\"cursor:pointer;padding:2px 4px;line-height:1;opacity:0.85;font-size:15px;font-weight:bold;\" aria-label=\"Remove tag\">&times;</span>' +
+						'</span>';
+					$(pill).insertBefore(\$textInput);
+				});
+				updateSuggestedPills();
+			}
+
+			function updateSuggestedPills() {
+				var tags = getTags();
+				$('.pressnative-tag-pill').each(function() {
+					var tag = String($(this).attr('data-tag') || '');
+					var active = tags.indexOf(tag) >= 0;
+					$(this).toggleClass('active', active).css({
+						'background': active ? '#2271b1' : '',
+						'color': active ? '#fff' : '',
+						'border-color': active ? '#2271b1' : '#8c8f94'
+					});
+				});
+			}
+
+			$('.pressnative-tag-pill').on('click', function() {
+				var tag = String($(this).attr('data-tag') || '');
+				var tags = getTags();
+				var idx = tags.indexOf(tag);
+				if (idx >= 0) {
+					tags.splice(idx, 1);
+				} else if (tags.length < max) {
+					tags.push(tag);
+				}
+				setTags(tags);
+			});
+
+			\$textInput.on('keydown', function(e) {
+				if (e.key === 'Enter' || e.key === ',') {
+					e.preventDefault();
+					var val = ($(this).val() || '').trim();
+					if (val) {
+						var tags = getTags();
+						if (tags.indexOf(val) < 0 && tags.length < max) {
+							tags.push(val);
+							setTags(tags);
+						}
+						$(this).val('');
+					}
+				} else if (e.key === 'Backspace' && !$(this).val()) {
+					var tags = getTags();
+					if (tags.length) {
+						tags.pop();
+						setTags(tags);
+					}
+				}
+			});
+
+			\$textInput.on('blur', function() {
+				var val = ($(this).val() || '').trim();
+				if (val) {
+					var tags = getTags();
+					if (tags.indexOf(val) < 0 && tags.length < max) {
+						tags.push(val);
+						setTags(tags);
+					}
+					$(this).val('');
+				}
+			});
+
+			$(document).on('click', '.pressnative-tag-remove', function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				var tag = String($(this).attr('data-tag') || '');
+				if (!tag) return;
+				var tags = getTags().filter(function(t) { return t !== tag; });
+				setTags(tags);
+			});
+
+			setTags(getTags());
 		});
 		";
 	}
@@ -922,6 +1140,76 @@ class PressNative_Admin {
 							<button type="button" class="button" id="pressnative_logo_select"><?php esc_html_e( 'Select or upload logo', 'pressnative' ); ?></button>
 							<button type="button" class="button" id="pressnative_logo_remove"><?php esc_html_e( 'Remove', 'pressnative' ); ?></button>
 							<p class="description"><?php esc_html_e( 'Header logo for the app. Used when provided in the API.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="pressnative_app_categories"><?php esc_html_e( 'App Categories', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$app_categories = PressNative_Options::get_app_categories();
+							$default_tags   = array( 'TCG', 'News', 'Store', 'Community' );
+							?>
+							<div id="pressnative-app-categories" class="pressnative-tag-cloud" style="margin-bottom:10px;">
+								<span class="pressnative-tag-label" style="display:block;margin-bottom:6px;font-weight:500;"><?php esc_html_e( 'Suggested:', 'pressnative' ); ?></span>
+								<div class="pressnative-tag-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+									<?php foreach ( $default_tags as $tag ) : ?>
+										<button type="button" class="pressnative-tag-pill button" data-tag="<?php echo esc_attr( $tag ); ?>" style="border-radius:16px;padding:4px 12px;height:auto;line-height:1.4;"><?php echo esc_html( $tag ); ?></button>
+									<?php endforeach; ?>
+								</div>
+								<div class="pressnative-tag-input-wrapper" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:38px;padding:6px 10px;border:1px solid #8c8f94;border-radius:4px;background:#fff;">
+									<?php foreach ( $app_categories as $tag ) : ?>
+										<span class="pressnative-tag-pill-display" data-tag="<?php echo esc_attr( $tag ); ?>" style="display:inline-flex;align-items:center;gap:4px;background:#2271b1;color:#fff;border-radius:16px;padding:4px 8px 4px 12px;font-size:13px;">
+											<?php echo esc_html( $tag ); ?>
+											<button type="button" class="pressnative-tag-remove" data-tag="<?php echo esc_attr( $tag ); ?>" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;line-height:1;opacity:0.8;" aria-label="<?php esc_attr_e( 'Remove tag', 'pressnative' ); ?>">&times;</button>
+										</span>
+									<?php endforeach; ?>
+									<input type="text"
+										   id="pressnative_app_categories_input"
+										   class="pressnative-tag-input"
+										   placeholder="<?php esc_attr_e( 'Type and press Enter or comma to add (max 5)', 'pressnative' ); ?>"
+										   data-max="<?php echo (int) PressNative_Options::APP_CATEGORIES_MAX; ?>"
+										   style="flex:1;min-width:120px;border:none;outline:none;font-size:14px;"/>
+									<input type="hidden"
+										   id="pressnative_app_categories"
+										   name="<?php echo esc_attr( PressNative_Options::OPTION_APP_CATEGORIES ); ?>"
+										   value="<?php echo esc_attr( implode( ',', $app_categories ) ); ?>"/>
+								</div>
+							</div>
+							<p class="description">
+								<?php
+								printf(
+									/* translators: %d: max number of tags */
+									esc_html__( 'Tags for Hub discovery. Max %d tags. Syncs to pressnative.app when you save.', 'pressnative' ),
+									PressNative_Options::APP_CATEGORIES_MAX
+								);
+								?>
+							</p>
+						</td>
+					</tr>
+				</table>
+
+				<h2 style="margin-top:2em;"><?php esc_html_e( 'Monetization', 'pressnative' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Configure AdMob to display banner ads in your app. Enable the Ad Placement component in Layout Settings to show ads on the home screen.', 'pressnative' ); ?></p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">
+							<label for="pressnative_admob_banner_unit_id"><?php esc_html_e( 'AdMob Banner Unit ID', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$admob_banner = get_option( PressNative_Options::OPTION_ADMOB_BANNER_UNIT_ID, PressNative_Options::DEFAULT_ADMOB_BANNER_UNIT_ID );
+							?>
+							<input type="text"
+								   id="pressnative_admob_banner_unit_id"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_ADMOB_BANNER_UNIT_ID ); ?>"
+								   value="<?php echo esc_attr( $admob_banner ); ?>"
+								   class="regular-text"
+								   placeholder="ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY"/>
+							<p class="description">
+								<?php esc_html_e( 'Your AdMob banner ad unit ID (e.g. ca-app-pub-xxxxx/yyyyy). The App ID is configured in each native app at build time. Leave blank to disable ads.', 'pressnative' ); ?>
+							</p>
 						</td>
 					</tr>
 				</table>
@@ -1152,9 +1440,27 @@ class PressNative_Admin {
 			wp_safe_redirect( add_query_arg( 'pressnative_push_error', 'missing_fields', admin_url( 'admin.php?page=pressnative-push' ) ) );
 			exit;
 		}
-		$link       = isset( $_POST['link'] ) ? esc_url_raw( wp_unslash( $_POST['link'] ) ) : '';
-		$image_url  = isset( $_POST['image_url'] ) ? esc_url_raw( wp_unslash( $_POST['image_url'] ) ) : '';
-		$url        = rtrim( $registry_url, '/' ) . '/api/v1/push/send';
+		$link        = isset( $_POST['link'] ) ? esc_url_raw( wp_unslash( $_POST['link'] ) ) : '';
+		$image_url   = isset( $_POST['image_url'] ) ? esc_url_raw( wp_unslash( $_POST['image_url'] ) ) : '';
+		$device_type = isset( $_POST['device_type'] ) ? sanitize_text_field( wp_unslash( $_POST['device_type'] ) ) : 'all';
+		if ( ! in_array( $device_type, array( 'all', 'ios', 'android' ), true ) ) {
+			$device_type = 'all';
+		}
+		$engaged_since_days = isset( $_POST['engaged_since_days'] ) ? sanitize_text_field( wp_unslash( $_POST['engaged_since_days'] ) ) : '';
+		if ( in_array( $engaged_since_days, array( '7', '30' ), true ) ) {
+			$engaged_since_days = (int) $engaged_since_days;
+		} else {
+			$engaged_since_days = null;
+		}
+		$url       = rtrim( $registry_url, '/' ) . '/api/v1/push/send';
+		$body_data = array(
+			'title'             => $title,
+			'body'              => $body,
+			'link'              => $link,
+			'image_url'         => $image_url,
+			'device_type'       => $device_type,
+			'engaged_since_days' => $engaged_since_days,
+		);
 		$response   = wp_remote_post(
 			$url,
 			array(
@@ -1164,14 +1470,7 @@ class PressNative_Admin {
 					'Content-Type'         => 'application/json',
 					'X-PressNative-API-Key' => $api_key,
 				),
-				'body'     => wp_json_encode(
-					array(
-						'title'      => $title,
-						'body'       => $body,
-						'link'       => $link,
-						'image_url'  => $image_url,
-					)
-				),
+				'body'     => wp_json_encode( $body_data ),
 			)
 		);
 		if ( is_wp_error( $response ) ) {
@@ -1200,16 +1499,60 @@ class PressNative_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$api_key     = get_option( self::OPTION_API_KEY, '' );
+		$api_key      = get_option( self::OPTION_API_KEY, '' );
 		$registry_url = self::get_registry_url();
-		$has_config  = ! empty( $api_key ) && ! empty( $registry_url );
-		$error       = isset( $_GET['pressnative_push_error'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_error'] ) ) : '';
-		$sent        = isset( $_GET['pressnative_push_sent'] ) ? (int) $_GET['pressnative_push_sent'] : 0;
-		$err_msg     = isset( $_GET['pressnative_push_message'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_message'] ) ) : '';
+		$has_config   = ! empty( $api_key ) && ! empty( $registry_url );
+		$error        = isset( $_GET['pressnative_push_error'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_error'] ) ) : '';
+		$sent         = isset( $_GET['pressnative_push_sent'] ) ? (int) $_GET['pressnative_push_sent'] : 0;
+		$err_msg      = isset( $_GET['pressnative_push_message'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_message'] ) ) : '';
+		$stats        = $has_config ? self::fetch_push_subscriber_stats() : null;
+		$stats        = is_array( $stats ) ? $stats : array( 'total' => 0, 'ios' => 0, 'android' => 0, 'engaged_7d' => 0, 'engaged_30d' => 0 );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Push Notifications', 'pressnative' ); ?></h1>
 			<p class="description"><?php esc_html_e( 'Send an ad-hoc push notification to all app users who have your site favorited and opted into push. Requires API key and Registry URL in Settings.', 'pressnative' ); ?></p>
+
+			<?php if ( $has_config ) : ?>
+				<div class="pressnative-push-stats" style="margin: 16px 0; padding: 12px 16px; background: #f0f0f1; border-left: 4px solid #2271b1; max-width: 600px;">
+					<p style="margin: 0 0 8px; font-weight: 600;">
+						<?php esc_html_e( 'Subscribers', 'pressnative' ); ?>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative-push' ) ); ?>" class="button button-small" style="margin-left: 8px; vertical-align: middle;"><?php esc_html_e( 'Refresh', 'pressnative' ); ?></a>
+					</p>
+					<p style="margin: 0; font-size: 24px; line-height: 1.2;">
+						<?php
+						printf(
+							/* translators: %s: number of subscribers */
+							esc_html__( '%s subscriber(s) will receive this notification', 'pressnative' ),
+							esc_html( number_format_i18n( $stats['total'] ) )
+						);
+						?>
+					</p>
+					<?php if ( $stats['total'] > 0 ) : ?>
+						<p style="margin: 8px 0 0; font-size: 13px; color: #50575e;">
+							<?php
+							printf(
+								/* translators: 1: Android count, 2: iOS count */
+								esc_html__( 'Android: %1$s · iOS: %2$s', 'pressnative' ),
+								esc_html( number_format_i18n( $stats['android'] ) ),
+								esc_html( number_format_i18n( $stats['ios'] ) )
+							);
+							?>
+						</p>
+						<?php if ( ( $stats['engaged_7d'] ?? 0 ) > 0 || ( $stats['engaged_30d'] ?? 0 ) > 0 ) : ?>
+							<p style="margin: 4px 0 0; font-size: 12px; color: #646970;">
+								<?php
+								printf(
+									/* translators: 1: engaged in 7 days count, 2: engaged in 30 days count */
+									esc_html__( 'Engaged (viewed/clicked): %1$s in last 7 days · %2$s in last 30 days', 'pressnative' ),
+									esc_html( number_format_i18n( $stats['engaged_7d'] ?? 0 ) ),
+									esc_html( number_format_i18n( $stats['engaged_30d'] ?? 0 ) )
+								);
+								?>
+							</p>
+						<?php endif; ?>
+					<?php endif; ?>
+				</div>
+			<?php endif; ?>
 
 			<?php if ( $sent > 0 ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php echo esc_html( sprintf( __( 'Push sent successfully to %d device(s).', 'pressnative' ), $sent ) ); ?></p></div>
@@ -1250,6 +1593,37 @@ class PressNative_Admin {
 					<input type="hidden" name="action" value="pressnative_send_push" />
 					<?php wp_nonce_field( 'pressnative_send_push', 'pressnative_push_nonce' ); ?>
 					<table class="form-table">
+						<tr>
+							<th scope="row"><label for="pressnative-push-device-type"><?php esc_html_e( 'Deliver to', 'pressnative' ); ?></label></th>
+							<td>
+								<fieldset id="pressnative-push-device-type" style="margin: 0; padding: 0; border: none;">
+									<label style="margin-right: 16px;">
+										<input type="radio" name="device_type" value="all" checked />
+										<?php esc_html_e( 'All devices', 'pressnative' ); ?>
+									</label>
+									<label style="margin-right: 16px;">
+										<input type="radio" name="device_type" value="android" />
+										<?php esc_html_e( 'Android only', 'pressnative' ); ?>
+									</label>
+									<label>
+										<input type="radio" name="device_type" value="ios" />
+										<?php esc_html_e( 'iOS only', 'pressnative' ); ?>
+									</label>
+								</fieldset>
+								<p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Filter which devices receive this notification.', 'pressnative' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="pressnative-push-engaged"><?php esc_html_e( 'Engagement filter', 'pressnative' ); ?></label></th>
+							<td>
+								<select id="pressnative-push-engaged" name="engaged_since_days" style="min-width: 200px;">
+									<option value=""><?php esc_html_e( 'All subscribers', 'pressnative' ); ?></option>
+									<option value="7"><?php esc_html_e( 'Viewed or clicked in last 7 days', 'pressnative' ); ?></option>
+									<option value="30"><?php esc_html_e( 'Viewed or clicked in last 30 days', 'pressnative' ); ?></option>
+								</select>
+								<p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Target only subscribers who have opened the app and viewed content recently.', 'pressnative' ); ?></p>
+							</td>
+						</tr>
 						<tr>
 							<th scope="row"><label for="pressnative-push-title"><?php esc_html_e( 'Title', 'pressnative' ); ?></label></th>
 							<td><input type="text" id="pressnative-push-title" name="title" class="regular-text" required maxlength="100" placeholder="<?php esc_attr_e( 'e.g. Breaking News', 'pressnative' ); ?>" /></td>
@@ -1300,11 +1674,18 @@ class PressNative_Admin {
 			</div>
 
 			<div class="pressnative-analytics-kpis" id="pressnative-analytics-kpis">
+				<div class="pressnative-kpi-card pressnative-kpi-highlight"><span class="pressnative-kpi-value" data-kpi="favorites">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Downloads', 'pressnative' ); ?></span></div>
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="total">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Total Views', 'pressnative' ); ?></span></div>
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="post">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Post Views', 'pressnative' ); ?></span></div>
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="page">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Page Views', 'pressnative' ); ?></span></div>
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="category">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Category Views', 'pressnative' ); ?></span></div>
 			</div>
+			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Downloads = users who have favorited your site in the app.', 'pressnative' ); ?></p>
+			<div class="pressnative-analytics-push-kpis">
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_received">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Received', 'pressnative' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_clicked">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Clicks', 'pressnative' ); ?></span></div>
+			</div>
+			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Push Received = notifications delivered to devices. Push Clicks = users who tapped a notification.', 'pressnative' ); ?></p>
 
 			<div class="pressnative-analytics-charts">
 				<div class="pressnative-chart-container">
@@ -1317,6 +1698,7 @@ class PressNative_Admin {
 				</div>
 				<div class="pressnative-chart-container">
 					<h3><?php esc_html_e( 'Device breakdown', 'pressnative' ); ?></h3>
+					<p class="pressnative-chart-description"><?php esc_html_e( 'Views by device. "Other" may include emulators or requests without a standard User-Agent. Emulator traffic is now detected as Android.', 'pressnative' ); ?></p>
 					<canvas id="pressnative-chart-device" aria-label="<?php esc_attr_e( 'Device breakdown', 'pressnative' ); ?>"></canvas>
 				</div>
 			</div>
@@ -1339,6 +1721,300 @@ class PressNative_Admin {
 					<div id="pressnative-table-top-searches" class="pressnative-table-wrapper"></div>
 				</div>
 			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Fetches push subscriber stats (total, ios, android) from the Registry.
+	 *
+	 * @return array{total:int,ios:int,android:int}|null Stats or null on failure.
+	 */
+	public static function fetch_push_subscriber_stats() {
+		$registry_url = self::get_registry_url();
+		$api_key      = get_option( self::OPTION_API_KEY, '' );
+		if ( empty( $registry_url ) || empty( $api_key ) ) {
+			return null;
+		}
+		$url      = rtrim( $registry_url, '/' ) . '/api/v1/push/subscriber-stats';
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout' => 10,
+				'headers' => array(
+					'Accept'               => 'application/json',
+					'X-PressNative-API-Key' => $api_key,
+				),
+			)
+		);
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+		$code = wp_remote_retrieve_response_code( $response );
+		if ( 200 !== $code ) {
+			return null;
+		}
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+		if ( ! is_array( $data ) ) {
+			return null;
+		}
+		return array(
+			'total'      => isset( $data['total'] ) ? (int) $data['total'] : 0,
+			'ios'        => isset( $data['ios'] ) ? (int) $data['ios'] : 0,
+			'android'    => isset( $data['android'] ) ? (int) $data['android'] : 0,
+			'engaged_7d' => isset( $data['engaged_7d'] ) ? (int) $data['engaged_7d'] : 0,
+			'engaged_30d' => isset( $data['engaged_30d'] ) ? (int) $data['engaged_30d'] : 0,
+		);
+	}
+
+	/**
+	 * Fetches pitch / growth data from the Registry.
+	 *
+	 * @return array|null Pitch data or null on failure.
+	 */
+	public static function fetch_pitch_data() {
+		$registry_url = self::get_registry_url();
+		if ( empty( $registry_url ) ) {
+			return null;
+		}
+
+		$url      = rtrim( $registry_url, '/' ) . '/api/v1/pitch';
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout' => 10,
+				'headers' => array(
+					'Accept' => 'application/json',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+		$code = wp_remote_retrieve_response_code( $response );
+		if ( 200 !== $code ) {
+			return null;
+		}
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+		return is_array( $data ) ? $data : null;
+	}
+
+	/**
+	 * Renders the Growth / Pitch page showing business metrics to site owners.
+	 *
+	 * @return void
+	 */
+	public static function render_growth_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$pitch      = self::fetch_pitch_data();
+		$sub_status = self::fetch_subscription_status();
+		$is_pro     = $sub_status && in_array( $sub_status['plan'] ?? '', array( 'pro', 'native_pro', 'enterprise' ), true );
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Get Started — Why Go Native?', 'pressnative' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'Business metrics and insights that show the value of a native mobile app for your WordPress site.', 'pressnative' ); ?></p>
+
+			<?php if ( ! $pitch ) : ?>
+				<div class="notice notice-warning" style="max-width:700px;margin-top:20px;">
+					<p><?php esc_html_e( 'Could not load pitch data from the PressNative Registry. Ensure the Registry is running.', 'pressnative' ); ?></p>
+				</div>
+			<?php else : ?>
+
+			<style>
+				.pressnative-growth-grid {
+					display: grid;
+					grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+					gap: 20px;
+					margin-top: 24px;
+					max-width: 900px;
+				}
+				.pressnative-growth-card {
+					background: #fff;
+					border: 1px solid #c3c4c7;
+					border-radius: 8px;
+					padding: 24px;
+					position: relative;
+					overflow: hidden;
+				}
+				.pressnative-growth-card::before {
+					content: '';
+					position: absolute;
+					top: 0;
+					left: 0;
+					right: 0;
+					height: 4px;
+					background: linear-gradient(90deg, #6366f1, #06b6d4);
+				}
+				.pressnative-growth-card .tag {
+					display: inline-block;
+					padding: 2px 8px;
+					border-radius: 4px;
+					font-size: 11px;
+					font-weight: 700;
+					text-transform: uppercase;
+					letter-spacing: 0.05em;
+					color: #6366f1;
+					background: rgba(99, 102, 241, 0.1);
+					margin-bottom: 12px;
+				}
+				.pressnative-growth-card h3 {
+					margin: 0 0 8px;
+					font-size: 1em;
+					line-height: 1.4;
+				}
+				.pressnative-growth-card .stat {
+					font-size: 2.5em;
+					font-weight: 800;
+					background: linear-gradient(135deg, #6366f1, #06b6d4);
+					-webkit-background-clip: text;
+					-webkit-text-fill-color: transparent;
+					background-clip: text;
+					line-height: 1;
+					margin-bottom: 4px;
+				}
+				.pressnative-growth-card .stat-label {
+					font-size: 13px;
+					color: #50575e;
+				}
+				.pressnative-growth-card p {
+					color: #50575e;
+					font-size: 13px;
+					line-height: 1.5;
+				}
+				.pressnative-benefit-grid {
+					display: grid;
+					grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+					gap: 16px;
+					margin-top: 24px;
+					max-width: 900px;
+				}
+				.pressnative-benefit-card {
+					background: #fff;
+					border: 1px solid #c3c4c7;
+					border-radius: 8px;
+					padding: 20px;
+				}
+				.pressnative-benefit-card h4 {
+					margin: 0 0 6px;
+					font-size: 0.95em;
+				}
+				.pressnative-benefit-card p {
+					margin: 0;
+					color: #50575e;
+					font-size: 13px;
+				}
+				.pressnative-benefit-icon {
+					width: 36px;
+					height: 36px;
+					border-radius: 8px;
+					background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(6,182,212,0.15));
+					display: flex;
+					align-items: center;
+					justify-content: center;
+					margin-bottom: 12px;
+					font-size: 18px;
+				}
+				.pressnative-cta-banner {
+					margin-top: 32px;
+					max-width: 900px;
+					background: linear-gradient(135deg, #6366f1, #06b6d4);
+					border-radius: 8px;
+					padding: 24px 28px;
+					display: flex;
+					align-items: center;
+					justify-content: space-between;
+					flex-wrap: wrap;
+					gap: 16px;
+				}
+				.pressnative-cta-banner h3 {
+					margin: 0;
+					color: #fff;
+					font-size: 1.1em;
+				}
+				.pressnative-cta-banner p {
+					margin: 4px 0 0;
+					color: rgba(255,255,255,0.85);
+					font-size: 13px;
+				}
+				.pressnative-cta-banner .button {
+					background: #fff;
+					color: #6366f1;
+					border: none;
+					font-weight: 600;
+					padding: 8px 20px;
+					border-radius: 6px;
+					text-decoration: none;
+				}
+				.pressnative-cta-banner .button:hover {
+					opacity: 0.9;
+				}
+			</style>
+
+			<?php if ( ! empty( $pitch['headline'] ) ) : ?>
+				<h2 style="margin-top:28px;"><?php echo esc_html( $pitch['headline'] ); ?></h2>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $pitch['slides'] ) && is_array( $pitch['slides'] ) ) : ?>
+				<div class="pressnative-growth-grid">
+					<?php foreach ( $pitch['slides'] as $slide ) : ?>
+						<div class="pressnative-growth-card">
+							<?php if ( ! empty( $slide['tag'] ) ) : ?>
+								<span class="tag"><?php echo esc_html( $slide['tag'] ); ?></span>
+							<?php endif; ?>
+							<?php if ( ! empty( $slide['stat'] ) ) : ?>
+								<div class="stat"><?php echo esc_html( $slide['stat'] ); ?></div>
+								<?php if ( ! empty( $slide['stat_label'] ) ) : ?>
+									<div class="stat-label"><?php echo esc_html( $slide['stat_label'] ); ?></div>
+								<?php endif; ?>
+							<?php endif; ?>
+							<h3><?php echo esc_html( $slide['headline'] ?? '' ); ?></h3>
+							<p><?php echo esc_html( $slide['description'] ?? '' ); ?></p>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $pitch['benefits'] ) && is_array( $pitch['benefits'] ) ) : ?>
+				<h2 style="margin-top:32px;"><?php esc_html_e( 'Native Advantages', 'pressnative' ); ?></h2>
+				<div class="pressnative-benefit-grid">
+					<?php
+					$icon_map = array(
+						'bolt'        => '&#9889;',
+						'fingerprint' => '&#128274;',
+						'wifi'        => '&#128246;',
+						'palette'     => '&#127912;',
+					);
+					foreach ( $pitch['benefits'] as $benefit ) :
+						$icon_char = isset( $icon_map[ $benefit['icon'] ?? '' ] ) ? $icon_map[ $benefit['icon'] ] : '&#9733;';
+						?>
+						<div class="pressnative-benefit-card">
+							<div class="pressnative-benefit-icon"><?php echo $icon_char; ?></div>
+							<h4><?php echo esc_html( $benefit['title'] ?? '' ); ?></h4>
+							<p><?php echo esc_html( $benefit['description'] ?? '' ); ?></p>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! $is_pro && ! empty( $pitch['cta'] ) ) : ?>
+				<div class="pressnative-cta-banner">
+					<div>
+						<h3><?php echo esc_html( $pitch['cta']['label'] ?? __( 'Upgrade to Native Pro', 'pressnative' ) ); ?></h3>
+						<p><?php echo esc_html( $pitch['cta']['description'] ?? '' ); ?></p>
+					</div>
+					<a href="<?php echo esc_url( $pitch['cta']['url'] ?? 'https://pressnative.app/#pricing' ); ?>" class="button" target="_blank" rel="noopener noreferrer">
+						<?php esc_html_e( 'Learn More', 'pressnative' ); ?>
+					</a>
+				</div>
+			<?php endif; ?>
+
+			<?php endif; ?>
 		</div>
 		<?php
 	}
@@ -1436,22 +2112,67 @@ class PressNative_Admin {
 	/**
 	 * Triggers site verification when the API key is saved/updated.
 	 *
-	 * Generates a one-time nonce, stores it as a transient, then calls the
-	 * Registry's /api/verify-site endpoint. The Registry calls back to
-	 * /wp-json/pressnative/v1/verify-ownership to confirm the nonce,
-	 * proving this WordPress site has wp-admin access for the given API key.
-	 *
 	 * @param string $old_value Previous API key.
 	 * @param string $new_value New API key.
 	 * @return bool True if verification succeeded.
 	 */
 	public static function trigger_site_verification( $old_value, $new_value ) {
-		$api_key = sanitize_text_field( $new_value );
+		return self::attempt_site_verification( sanitize_text_field( $new_value ) );
+	}
+
+	/**
+	 * Triggers site verification when the API key is first added (not just updated).
+	 *
+	 * @param string $option Option name.
+	 * @param string $value  Option value.
+	 * @return bool True if verification succeeded.
+	 */
+	public static function trigger_site_verification_on_add( $option, $value ) {
+		return self::attempt_site_verification( sanitize_text_field( $value ) );
+	}
+
+	/**
+	 * Admin action handler: manual "Verify Now" button.
+	 *
+	 * @return void
+	 */
+	public static function handle_verify_site() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative' ) );
+		}
+		check_admin_referer( 'pressnative_verify_site' );
+
+		$api_key = get_option( self::OPTION_API_KEY, '' );
+		$result  = self::attempt_site_verification( $api_key );
+
+		if ( ! $result ) {
+			$error = get_transient( 'pressnative_verify_error' );
+			if ( empty( $error ) ) {
+				set_transient( 'pressnative_verify_error', 'Unknown error during verification.', 60 );
+			}
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=pressnative' ) );
+		exit;
+	}
+
+	/**
+	 * Attempts site verification with the Registry.
+	 *
+	 * Generates a one-time nonce, stores it as a transient, then calls the
+	 * Registry's /api/verify-site endpoint. The Registry calls back to
+	 * /wp-json/pressnative/v1/verify-ownership to confirm the nonce,
+	 * proving this WordPress site has wp-admin access for the given API key.
+	 *
+	 * @param string $api_key The API key to verify with.
+	 * @return bool True if verification succeeded.
+	 */
+	public static function attempt_site_verification( $api_key ) {
 		if ( empty( $api_key ) ) {
+			set_transient( 'pressnative_verify_error', 'No API key provided.', 5 * MINUTE_IN_SECONDS );
 			return false;
 		}
 
-		// Generate a one-time verification nonce and store it for 5 minutes
 		$nonce = wp_generate_password( 48, false );
 		set_transient( 'pressnative_verify_nonce', $nonce, 5 * MINUTE_IN_SECONDS );
 
@@ -1477,6 +2198,11 @@ class PressNative_Admin {
 		);
 
 		if ( is_wp_error( $response ) ) {
+			set_transient(
+				'pressnative_verify_error',
+				sprintf( 'Could not reach Registry at %s: %s', $registry_url, $response->get_error_message() ),
+				5 * MINUTE_IN_SECONDS
+			);
 			return false;
 		}
 
@@ -1485,9 +2211,18 @@ class PressNative_Admin {
 		$data = json_decode( $body, true );
 
 		if ( $code >= 200 && $code < 300 && ! empty( $data['ok'] ) ) {
+			delete_transient( 'pressnative_verify_error' );
 			update_option( 'pressnative_site_verified', current_time( 'mysql' ) );
 			return true;
 		}
+
+		$error_detail = ! empty( $data['error'] ) ? $data['error'] : '';
+		$hint         = ! empty( $data['hint'] ) ? ' ' . $data['hint'] : '';
+		set_transient(
+			'pressnative_verify_error',
+			sprintf( 'Registry returned HTTP %d: %s%s', $code, $error_detail, $hint ),
+			5 * MINUTE_IN_SECONDS
+		);
 
 		return false;
 	}

@@ -197,10 +197,11 @@
 		var colors = styles.colors || {};
 		var pad = styles.padding || {};
 		var content = component.content || {};
-		var label = content.provider || 'Ad';
+		var provider = (content.provider || 'admob').toUpperCase();
+		var format = content.format || 'banner';
 
 		var html = '<div class="pressnative-preview-component pressnative-ad" style="--pn-card-bg:' + escapeHtml(colors.background || '#f6f7f9') + ';--pn-card-text:' + escapeHtml(colors.text || '#111') + ';padding:' + (pad.vertical || 16) + 'px ' + (pad.horizontal || 16) + 'px;">';
-		html += '<div class="pressnative-ad-banner">' + escapeHtml(label) + '</div>';
+		html += '<div class="pressnative-ad-banner">' + escapeHtml(provider) + ' ' + escapeHtml(format) + ' ad</div>';
 		html += '</div>';
 		return html;
 	}

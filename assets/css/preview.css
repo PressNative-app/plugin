@@ -140,6 +140,12 @@
 	max-height: 640px;
 	overflow-y: auto;
 	-webkit-overflow-scrolling: touch;
+	scrollbar-width: none;          /* Firefox */
+	-ms-overflow-style: none;       /* IE / Edge */
+}
+
+.pressnative-preview-viewport::-webkit-scrollbar {
+	display: none;                  /* Chrome, Safari, Opera */
 }
 
 /* Header extends to top; only bottom safe area for home bar (iPhone) */
