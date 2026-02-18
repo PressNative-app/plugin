@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  php-syntax:
+    name: PHP Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Check PHP syntax
+        run: |
+          echo "Checking PHP syntax..."
+          errors=0
+          while IFS= read -r file; do
+            if ! php -l "$file" > /dev/null 2>&1; then
+              php -l "$file"
+              errors=$((errors + 1))
+            fi
+          done < <(find . -name '*.php' -not -path './.git/*')
+          if [ "$errors" -gt 0 ]; then
+            echo "::error::Found $errors file(s) with syntax errors"
+            exit 1
+          fi
+          echo "All PHP files passed syntax check"
+
+  build:
+    name: Build Plugin Zip
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build plugin zip
+        run: bash scripts/build.sh
+
+      - name: Verify and stage zip
+        run: |
+          ZIP_PATH="$(cd .. && pwd)/pressnative.zip"
+          if [ ! -f "$ZIP_PATH" ]; then
+            echo "::error::Plugin zip was not created at $ZIP_PATH"
+            exit 1
+          fi
+          echo "Plugin zip created successfully"
+          ls -lh "$ZIP_PATH"
+          cp "$ZIP_PATH" "$GITHUB_WORKSPACE/pressnative.zip"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pressnative-plugin
+          path: pressnative.zip
+          retention-days: 7
