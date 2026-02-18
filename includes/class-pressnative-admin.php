@@ -231,6 +231,15 @@ class PressNative_Admin {
 		);
 		register_setting(
 			'pressnative_app_settings',
+			PressNative_Options::OPTION_TILE_BACKGROUND,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'default'           => 0,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
 			PressNative_Options::OPTION_TEXT_COLOR,
 			array(
 				'type'              => 'string',
@@ -1078,6 +1087,48 @@ class PressNative_Admin {
 								   value="<?php echo esc_attr( $bg_color ); ?>"
 								   class="pressnative-color-picker"/>
 							<p class="description"><?php esc_html_e( 'Main app background.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label><?php esc_html_e( 'Tile Background', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$tile_bg_id  = (int) get_option( PressNative_Options::OPTION_TILE_BACKGROUND, 0 );
+							$tile_bg_url = $tile_bg_id ? wp_get_attachment_image_url( $tile_bg_id, 'thumbnail' ) : '';
+							?>
+							<input type="hidden"
+								   id="pressnative_tile_background"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_TILE_BACKGROUND ); ?>"
+								   value="<?php echo esc_attr( $tile_bg_id ); ?>"/>
+							<div style="display:flex;align-items:center;gap:8px;">
+								<?php if ( $tile_bg_url ) : ?>
+									<img id="pressnative-tile-bg-preview"
+										 src="<?php echo esc_url( $tile_bg_url ); ?>"
+										 style="max-width:80px;max-height:80px;border:1px solid #ccc;border-radius:4px;"/>
+								<?php else : ?>
+									<img id="pressnative-tile-bg-preview"
+										 src=""
+										 style="max-width:80px;max-height:80px;border:1px solid #ccc;border-radius:4px;display:none;"/>
+								<?php endif; ?>
+								<button type="button"
+										class="button pressnative-media-upload"
+										data-target="#pressnative_tile_background"
+										data-preview="#pressnative-tile-bg-preview"
+										data-title="<?php esc_attr_e( 'Select tile background', 'pressnative' ); ?>"
+										data-button="<?php esc_attr_e( 'Use image', 'pressnative' ); ?>">
+									<?php esc_html_e( 'Select or upload image', 'pressnative' ); ?>
+								</button>
+								<button type="button"
+										class="button pressnative-media-remove"
+										data-target="#pressnative_tile_background"
+										data-preview="#pressnative-tile-bg-preview"
+										<?php echo $tile_bg_id ? '' : 'style="display:none;"'; ?>>
+									<?php esc_html_e( 'Remove', 'pressnative' ); ?>
+								</button>
+							</div>
+							<p class="description"><?php esc_html_e( 'Optional tiled/pattern image for the app background. Overrides solid background color when set.', 'pressnative' ); ?></p>
 						</td>
 					</tr>
 					<tr>

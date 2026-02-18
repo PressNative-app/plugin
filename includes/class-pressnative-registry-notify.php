@@ -21,6 +21,7 @@ class PressNative_Registry_Notify {
 		PressNative_Options::OPTION_LOGO_ATTACHMENT,
 		PressNative_Options::OPTION_BACKGROUND_COLOR,
 		PressNative_Options::OPTION_TEXT_COLOR,
+		PressNative_Options::OPTION_TILE_BACKGROUND,
 		PressNative_Options::OPTION_FONT_FAMILY,
 		PressNative_Options::OPTION_BASE_FONT_SIZE,
 		PressNative_Options::OPTION_APP_CATEGORIES,

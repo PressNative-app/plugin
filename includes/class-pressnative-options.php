@@ -20,6 +20,7 @@ class PressNative_Options {
 	const OPTION_LOGO_ATTACHMENT   = 'pressnative_logo_attachment_id';
 	const OPTION_BACKGROUND_COLOR  = 'pressnative_background_color';
 	const OPTION_TEXT_COLOR        = 'pressnative_text_color';
+	const OPTION_TILE_BACKGROUND   = 'pressnative_tile_background_attachment_id';
 	const OPTION_FONT_FAMILY       = 'pressnative_font_family';
 	const OPTION_BASE_FONT_SIZE    = 'pressnative_base_font_size';
 	const OPTION_APP_CATEGORIES    = 'pressnative_app_categories';
@@ -53,15 +54,25 @@ class PressNative_Options {
 			}
 		}
 
+		$tile_bg_url = '';
+		$tile_bg_id  = (int) get_option( self::OPTION_TILE_BACKGROUND, 0 );
+		if ( $tile_bg_id > 0 ) {
+			$tile_bg_url = wp_get_attachment_image_url( $tile_bg_id, 'full' );
+			if ( ! is_string( $tile_bg_url ) ) {
+				$tile_bg_url = '';
+			}
+		}
+
 		$branding = array(
 			'app_name'   => (string) get_option( self::OPTION_APP_NAME, self::DEFAULT_APP_NAME ),
 			'logo_url'   => $logo_url,
 			'app_categories' => self::get_app_categories(),
 			'theme'      => array(
-				'primary_color'    => self::sanitize_hex( get_option( self::OPTION_PRIMARY_COLOR, self::DEFAULT_PRIMARY_COLOR ) ),
-				'accent_color'     => self::sanitize_hex( get_option( self::OPTION_ACCENT_COLOR, self::DEFAULT_ACCENT_COLOR ) ),
-				'background_color' => self::sanitize_hex( get_option( self::OPTION_BACKGROUND_COLOR, self::DEFAULT_BACKGROUND_COLOR ) ),
-				'text_color'       => self::sanitize_hex( get_option( self::OPTION_TEXT_COLOR, self::DEFAULT_TEXT_COLOR ) ),
+				'primary_color'       => self::sanitize_hex( get_option( self::OPTION_PRIMARY_COLOR, self::DEFAULT_PRIMARY_COLOR ) ),
+				'accent_color'        => self::sanitize_hex( get_option( self::OPTION_ACCENT_COLOR, self::DEFAULT_ACCENT_COLOR ) ),
+				'background_color'    => self::sanitize_hex( get_option( self::OPTION_BACKGROUND_COLOR, self::DEFAULT_BACKGROUND_COLOR ) ),
+				'text_color'          => self::sanitize_hex( get_option( self::OPTION_TEXT_COLOR, self::DEFAULT_TEXT_COLOR ) ),
+				'tile_background_url' => $tile_bg_url,
 			),
 			'typography' => array(
 				'font_family'     => (string) get_option( self::OPTION_FONT_FAMILY, self::DEFAULT_FONT_FAMILY ),
