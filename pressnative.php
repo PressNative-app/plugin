@@ -553,6 +553,105 @@ PressNative_QR::init();
 PressNative_Registry_Notify::init();
 
 /**
+ * Handle app-initiated checkout with cart transfer.
+ */
+add_action( 'template_redirect', function () {
+	if ( ! isset( $_GET['pressnative_checkout'] ) ) {
+		return;
+	}
+	if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'WC' ) ) {
+		return;
+	}
+	
+	$raw = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout'] ) );
+	wc_load_cart();
+	WC()->cart->empty_cart();
+	
+	if ( ! empty( $raw ) ) {
+		$pairs = explode( ',', $raw );
+		foreach ( $pairs as $pair ) {
+			$parts      = explode( ':', $pair );
+			$product_id = isset( $parts[0] ) ? absint( $parts[0] ) : 0;
+			$quantity   = isset( $parts[1] ) ? absint( $parts[1] ) : 1;
+			if ( $product_id > 0 && $quantity > 0 ) {
+				WC()->cart->add_to_cart( $product_id, $quantity );
+			}
+		}
+	}
+	
+	wp_safe_redirect( wc_get_checkout_url() );
+	exit;
+}, 1 );
+
+/**
+ * Handle checkout completion and return to app.
+ */
+add_action( 'woocommerce_thankyou', function ( $order_id ) {
+	if ( ! $order_id ) {
+		return;
+	}
+	
+	// Check if this checkout was initiated from the app
+	$referer = wp_get_referer();
+	$is_app_checkout = isset( $_GET['pressnative_checkout'] ) || 
+	                   ( $referer && strpos( $referer, 'pressnative_checkout=' ) !== false );
+	
+	if ( ! $is_app_checkout ) {
+		return;
+	}
+	
+	// Add JavaScript to redirect to app after a short delay
+	?>
+	<script type="text/javascript">
+		// Add a "Return to App" button
+		setTimeout(function() {
+			var returnButton = document.createElement('button');
+			returnButton.innerHTML = 'Return to App';
+			returnButton.style.cssText = 'background: #0073aa; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-size: 16px; margin: 20px 0; cursor: pointer;';
+			returnButton.onclick = function() {
+				window.location.href = 'com.pressnative.app://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
+			};
+			
+			// Find a good place to insert the button
+			var orderDetails = document.querySelector('.woocommerce-order');
+			if (orderDetails) {
+				orderDetails.appendChild(returnButton);
+			} else {
+				document.body.appendChild(returnButton);
+			}
+		}, 1000);
+		
+		// Auto-redirect after 10 seconds
+		setTimeout(function() {
+			window.location.href = 'com.pressnative.app://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
+		}, 10000);
+	</script>
+	<?php
+}, 10, 1 );
+
+/**
+ * Add return to app link on cart page when accessed from app.
+ */
+add_action( 'woocommerce_after_cart', function () {
+	$referer = wp_get_referer();
+	$is_app_context = isset( $_GET['pressnative_checkout'] ) || 
+	                  ( $referer && strpos( $referer, 'pressnative_checkout=' ) !== false );
+	
+	if ( ! $is_app_context ) {
+		return;
+	}
+	
+	?>
+	<div style="text-align: center; margin: 20px 0;">
+		<a href="com.pressnative.app://home" 
+		   style="background: #0073aa; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+			Return to App
+		</a>
+	</div>
+	<?php
+} );
+
+/**
  * Initialize WooCommerce integration.
  */
 PressNative_WooCommerce::init();
