@@ -777,6 +777,11 @@ class PressNative_Layout {
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $post->post_content );
 		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $post->post_content );
 
+		// Extract product_page shortcodes and replace with native ProductCardCompact (avoids broken WebView images).
+		$styles = $this->get_component_styles();
+		$product_components = $this->extract_product_shortcode_components( $stripped_content, $styles, 'post-' . $post_id );
+		$stripped_content   = $this->strip_product_page_shortcodes( $stripped_content );
+
 		// Ensure full content is returned even when posts contain <!--more--> or <!--nextpage--> tags.
 		// Use $GLOBALS directly to avoid accidental shadowing of any local variable.
 		$saved_more  = $GLOBALS['more'] ?? 0;
@@ -790,7 +795,6 @@ class PressNative_Layout {
 		$GLOBALS['more'] = $saved_more;
 		$GLOBALS['page'] = $saved_paged;
 
-		$styles = $this->get_component_styles();
 		$post_detail = array(
 			'id'      => 'post-detail-' . $post_id,
 			'type'    => 'PostDetail',
@@ -808,6 +812,7 @@ class PressNative_Layout {
 
 		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
 		$components[] = $post_detail;
+		$components = array_merge( $components, $product_components );
 
 		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
@@ -839,6 +844,11 @@ class PressNative_Layout {
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $page->post_content );
 		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $page->post_content );
 
+		// Extract product_page shortcodes and replace with native ProductCardCompact.
+		$page_styles = $this->get_component_styles();
+		$product_components = $this->extract_product_shortcode_components( $stripped_content, $page_styles, 'page-' . $page->ID );
+		$stripped_content   = $this->strip_product_page_shortcodes( $stripped_content );
+
 		// Ensure full content is returned even when pages contain <!--more--> or <!--nextpage--> tags.
 		// Use $GLOBALS directly to avoid shadowing the local $page (WP_Post) variable.
 		$saved_more  = $GLOBALS['more'] ?? 0;
@@ -863,7 +873,7 @@ class PressNative_Layout {
 			) );
 		}
 
-		$styles    = $this->get_component_styles();
+		$styles = $page_styles;
 		$post_detail = array(
 			'id'      => 'page-detail-' . $page->ID,
 			'type'    => 'PostDetail',
@@ -882,6 +892,7 @@ class PressNative_Layout {
 
 		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
 		$components[] = $post_detail;
+		$components = array_merge( $components, $product_components );
 
 		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
@@ -893,6 +904,68 @@ class PressNative_Layout {
 			'components' => $components,
 		);
 		return $this->inject_shop_config( $layout );
+	}
+
+	/**
+	 * Extracts [product_page id="X"] shortcodes and builds native ProductCardCompact components.
+	 *
+	 * @param string $content Raw post content.
+	 * @param array  $styles Component styles.
+	 * @param string $prefix Component ID prefix.
+	 * @return array List of ProductCardCompact component arrays.
+	 */
+	private function extract_product_shortcode_components( $content, $styles, $prefix ) {
+		$components = array();
+		if ( ! PressNative_WooCommerce::is_active() || empty( $content ) ) {
+			return $components;
+		}
+		if ( ! preg_match_all( '/\[product_page\s+id=["\']?(\d+)["\']?[^\]]*\]/i', $content, $matches, PREG_SET_ORDER ) ) {
+			return $components;
+		}
+		$products = array();
+		$seen    = array();
+		foreach ( $matches as $m ) {
+			$pid = (int) $m[1];
+			if ( $pid > 0 && ! isset( $seen[ $pid ] ) ) {
+				$seen[ $pid ] = true;
+				$p = PressNative_WooCommerce::get_product( $pid );
+				if ( $p ) {
+					$products[] = array(
+						'product_id'         => $p['product_id'],
+						'title'              => $p['title'],
+						'price'              => $p['price'],
+						'image_url'          => $p['image_url'],
+						'action'             => array(
+							'type'    => 'open_product',
+							'payload' => array( 'product_id' => $p['product_id'] ),
+						),
+						'add_to_cart_action' => $p['add_to_cart_action'],
+					);
+				}
+			}
+		}
+		if ( ! empty( $products ) ) {
+			$components[] = array(
+				'id'      => $prefix . '-products',
+				'type'    => 'ProductCardCompact',
+				'styles'  => $styles,
+				'content' => array(
+					'title'    => __( 'Shop these products', 'pressnative' ),
+					'products' => $products,
+				),
+			);
+		}
+		return $components;
+	}
+
+	/**
+	 * Strips [product_page ...] shortcodes from content.
+	 *
+	 * @param string $content Raw content.
+	 * @return string Content with product_page shortcodes removed.
+	 */
+	private function strip_product_page_shortcodes( $content ) {
+		return preg_replace( '/\[product_page[^\]]*\]/i', '', $content );
 	}
 
 	/**
@@ -1115,13 +1188,47 @@ class PressNative_Layout {
 				'add_to_cart_action'  => $product['add_to_cart_action'],
 			),
 		);
+
+		// Related products (native UI — proper images, Add to Cart buttons)
+		$related_ids = function_exists( 'wc_get_related_products' ) ? wc_get_related_products( $product_id, 6 ) : array();
+		$related_products = array();
+		foreach ( $related_ids as $rid ) {
+			$rp = PressNative_WooCommerce::get_product( (int) $rid );
+			if ( $rp ) {
+				$related_products[] = array(
+					'product_id'         => $rp['product_id'],
+					'title'              => $rp['title'],
+					'price'              => $rp['price'],
+					'image_url'          => $rp['image_url'],
+					'action'             => array(
+						'type'    => 'open_product',
+						'payload' => array( 'product_id' => $rp['product_id'] ),
+					),
+					'add_to_cart_action' => $rp['add_to_cart_action'],
+				);
+			}
+		}
+
+		$components = array( $detail );
+		if ( ! empty( $related_products ) ) {
+			$components[] = array(
+				'id'      => 'product-related-' . $product_id,
+				'type'    => 'ProductCardCompact',
+				'styles'  => $styles,
+				'content' => array(
+					'title'    => __( 'Related products', 'pressnative' ),
+					'products' => $related_products,
+				),
+			);
+		}
+
 		$layout = array(
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
 				'id'    => 'product-' . $product_id,
 				'title' => $product['title'],
 			),
-			'components' => array( $detail ),
+			'components' => $components,
 		);
 		return $this->inject_shop_config( $layout );
 	}

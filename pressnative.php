@@ -524,6 +524,74 @@ add_action( 'rest_api_init', function () {
 		);
 		register_rest_route(
 			'pressnative/v1',
+			'/cart/update',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => function ( $request ) {
+					$product_id = (int) $request->get_param( 'product_id' );
+					$quantity   = (int) $request->get_param( 'quantity' );
+					if ( $product_id <= 0 ) {
+						return new WP_Error( 'invalid_product', 'Invalid product ID', array( 'status' => 400 ) );
+					}
+					if ( $quantity < 0 ) {
+						return new WP_Error( 'invalid_quantity', 'Quantity must be 0 or greater', array( 'status' => 400 ) );
+					}
+					if ( ! function_exists( 'WC' ) ) {
+						return new WP_Error( 'woocommerce_unavailable', 'WooCommerce not available', array( 'status' => 503 ) );
+					}
+					if ( ! WC()->cart ) {
+						wc_load_cart();
+						if ( method_exists( WC()->cart, 'get_cart_from_session' ) ) {
+							WC()->cart->get_cart_from_session();
+						}
+					}
+					if ( ! WC()->cart ) {
+						return new WP_Error( 'woocommerce_unavailable', 'Cart not available', array( 'status' => 503 ) );
+					}
+					
+					// Find and update the cart item
+					$updated = false;
+					foreach ( WC()->cart->get_cart() as $cart_item_key => $cart_item ) {
+						if ( (int) $cart_item['product_id'] === $product_id ) {
+							if ( $quantity === 0 ) {
+								// Remove item if quantity is 0
+								WC()->cart->remove_cart_item( $cart_item_key );
+							} else {
+								// Update quantity
+								WC()->cart->set_quantity( $cart_item_key, $quantity );
+							}
+							$updated = true;
+							break; // Update only the first match
+						}
+					}
+					
+					if ( ! $updated ) {
+						return new WP_Error( 'item_not_found', 'Item not found in cart', array( 'status' => 404 ) );
+					}
+					
+					$count = WC()->cart->get_cart_contents_count();
+					return rest_ensure_response( array(
+						'ok'          => true,
+						'cart_count'  => $count,
+					) );
+				},
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'product_id' => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
+					),
+					'quantity'   => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+		register_rest_route(
+			'pressnative/v1',
 			'/cart/count',
 			array(
 				'methods'             => WP_REST_Server::READABLE,
