@@ -182,7 +182,7 @@ class PressNative_WooCommerce {
 	public static function product_to_contract_item( $product ) {
 		$id    = $product->get_id();
 		$title = $product->get_name();
-		$price = $product->get_price_html();
+		$price = self::strip_price_html( $product->get_price_html() );
 		$image = '';
 		if ( $product->get_image_id() ) {
 			$image = wp_get_attachment_image_url( $product->get_image_id(), 'medium' );
@@ -287,7 +287,7 @@ class PressNative_WooCommerce {
 		return array(
 			'product_id'         => (string) $id,
 			'title'               => $product->get_name(),
-			'price'               => $product->get_price_html(),
+			'price'               => self::strip_price_html( $product->get_price_html() ),
 			'price_raw'           => $product->get_price(),
 			'description'        => $desc,
 			'image_url'           => $image,
@@ -297,6 +297,18 @@ class PressNative_WooCommerce {
 			),
 			'variations'          => $variations,
 		);
+	}
+
+	/**
+	 * Convert WooCommerce price HTML to plain text (e.g. "$44.00").
+	 *
+	 * @param string $html Price HTML from get_price_html().
+	 * @return string Plain text price.
+	 */
+	private static function strip_price_html( $html ) {
+		$text = wp_strip_all_tags( $html );
+		$text = html_entity_decode( $text, ENT_QUOTES, 'UTF-8' );
+		return trim( $text );
 	}
 
 	/**
