@@ -231,6 +231,24 @@ class PressNative_Admin {
 		);
 		register_setting(
 			'pressnative_app_settings',
+			PressNative_Options::OPTION_BACKGROUND_IMAGE,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'default'           => 0,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_TILE_BACKGROUND_COLOR,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_hex' ),
+				'default'           => PressNative_Options::DEFAULT_TILE_BACKGROUND_COLOR,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
 			PressNative_Options::OPTION_TILE_BACKGROUND,
 			array(
 				'type'              => 'integer',
@@ -245,6 +263,15 @@ class PressNative_Admin {
 				'type'              => 'string',
 				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_text_color' ),
 				'default'           => PressNative_Options::DEFAULT_TEXT_COLOR,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_TILE_TEXT_COLOR,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_hex' ),
+				'default'           => PressNative_Options::DEFAULT_TILE_TEXT_COLOR,
 			)
 		);
 		register_setting(
@@ -765,7 +792,7 @@ class PressNative_Admin {
 			);
 			wp_add_inline_script(
 				'wp-color-picker',
-				self::get_logo_upload_script() . "\n" . self::get_theme_card_script() . "\n" . self::get_app_categories_script(),
+				self::get_logo_upload_script() . "\n" . self::get_media_upload_script() . "\n" . self::get_theme_card_script() . "\n" . self::get_app_categories_script(),
 				'after'
 			);
 		}
@@ -836,6 +863,68 @@ class PressNative_Admin {
 				$('#pressnative_logo_attachment_id').val('');
 				$('#pressnative_logo_preview').html('');
 				if (typeof window.pressnativePreviewRefresh === 'function') { window.pressnativePreviewRefresh(); }
+			});
+		});
+		";
+	}
+
+	/**
+	 * Inline script for generic media upload buttons (background image, tile background).
+	 *
+	 * @return string
+	 */
+	private static function get_media_upload_script() {
+		return "
+		jQuery(function($){
+			var frames = {};
+			$('.pressnative-media-upload').on('click', function(e){
+				e.preventDefault();
+				var \$btn = $(this);
+				var target = \$btn.attr('data-target');
+				var preview = \$btn.attr('data-preview');
+				var title = \$btn.attr('data-title') || 'Select or upload image';
+				var buttonText = \$btn.attr('data-button') || 'Use this image';
+				
+				if (frames[target]) { 
+					frames[target].open(); 
+					return; 
+				}
+				
+				frames[target] = wp.media({
+					title: title,
+					library: { type: 'image' },
+					button: { text: buttonText },
+					multiple: false
+				});
+				
+				frames[target].on('select', function(){
+					var att = frames[target].state().get('selection').first().toJSON();
+					$(target).val(att.id);
+					if (preview) {
+						$(preview).attr('src', att.url).show();
+						\$btn.siblings('.pressnative-media-remove').show();
+					}
+					if (typeof window.pressnativePreviewRefresh === 'function') { 
+						window.pressnativePreviewRefresh(); 
+					}
+				});
+				
+				frames[target].open();
+			});
+			
+			$('.pressnative-media-remove').on('click', function(e){
+				e.preventDefault();
+				var \$btn = $(this);
+				var target = \$btn.attr('data-target');
+				var preview = \$btn.attr('data-preview');
+				
+				if (target) $(target).val('');
+				if (preview) $(preview).attr('src', '').hide();
+				\$btn.hide();
+				
+				if (typeof window.pressnativePreviewRefresh === 'function') { 
+					window.pressnativePreviewRefresh(); 
+				}
 			});
 		});
 		";
@@ -1075,7 +1164,7 @@ class PressNative_Admin {
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_background_color"><?php esc_html_e( 'Background Color', 'pressnative' ); ?></label>
+							<label for="pressnative_background_color"><?php esc_html_e( 'App Background Color', 'pressnative' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1086,12 +1175,70 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Options::OPTION_BACKGROUND_COLOR ); ?>"
 								   value="<?php echo esc_attr( $bg_color ); ?>"
 								   class="pressnative-color-picker"/>
-							<p class="description"><?php esc_html_e( 'Main app background.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Main app background color. Used when no background image is set.', 'pressnative' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label><?php esc_html_e( 'Tile Background', 'pressnative' ); ?></label>
+							<label><?php esc_html_e( 'App Background Image', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$bg_image_id  = (int) get_option( PressNative_Options::OPTION_BACKGROUND_IMAGE, 0 );
+							$bg_image_url = $bg_image_id ? wp_get_attachment_image_url( $bg_image_id, 'thumbnail' ) : '';
+							?>
+							<input type="hidden"
+								   id="pressnative_background_image"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_BACKGROUND_IMAGE ); ?>"
+								   value="<?php echo esc_attr( $bg_image_id ); ?>"/>
+							<div style="display:flex;align-items:center;gap:8px;">
+								<?php if ( $bg_image_url ) : ?>
+									<img id="pressnative-bg-image-preview"
+										 src="<?php echo esc_url( $bg_image_url ); ?>"
+										 style="max-width:80px;max-height:80px;border:1px solid #ccc;border-radius:4px;"/>
+								<?php else : ?>
+									<img id="pressnative-bg-image-preview"
+										 src=""
+										 style="max-width:80px;max-height:80px;border:1px solid #ccc;border-radius:4px;display:none;"/>
+								<?php endif; ?>
+								<button type="button"
+										class="button pressnative-media-upload"
+										data-target="#pressnative_background_image"
+										data-preview="#pressnative-bg-image-preview"
+										data-title="<?php esc_attr_e( 'Select app background image', 'pressnative' ); ?>"
+										data-button="<?php esc_attr_e( 'Use image', 'pressnative' ); ?>">
+									<?php esc_html_e( 'Select or upload image', 'pressnative' ); ?>
+								</button>
+								<button type="button"
+										class="button pressnative-media-remove"
+										data-target="#pressnative_background_image"
+										data-preview="#pressnative-bg-image-preview"
+										<?php echo $bg_image_id ? '' : 'style="display:none;"'; ?>>
+									<?php esc_html_e( 'Remove', 'pressnative' ); ?>
+								</button>
+							</div>
+							<p class="description"><?php esc_html_e( 'Optional background image for the app. Overrides background color when set.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="pressnative_tile_background_color"><?php esc_html_e( 'Tile Background Color', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$tile_bg_color = get_option( PressNative_Options::OPTION_TILE_BACKGROUND_COLOR, PressNative_Options::DEFAULT_TILE_BACKGROUND_COLOR );
+							?>
+							<input type="text"
+								   id="pressnative_tile_background_color"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_TILE_BACKGROUND_COLOR ); ?>"
+								   value="<?php echo esc_attr( $tile_bg_color ); ?>"
+								   class="pressnative-color-picker"/>
+							<p class="description"><?php esc_html_e( 'Background color for content tiles/cards. Used when no tile background image is set.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label><?php esc_html_e( 'Tile Background Image', 'pressnative' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1116,7 +1263,7 @@ class PressNative_Admin {
 										class="button pressnative-media-upload"
 										data-target="#pressnative_tile_background"
 										data-preview="#pressnative-tile-bg-preview"
-										data-title="<?php esc_attr_e( 'Select tile background', 'pressnative' ); ?>"
+										data-title="<?php esc_attr_e( 'Select tile background image', 'pressnative' ); ?>"
 										data-button="<?php esc_attr_e( 'Use image', 'pressnative' ); ?>">
 									<?php esc_html_e( 'Select or upload image', 'pressnative' ); ?>
 								</button>
@@ -1128,7 +1275,23 @@ class PressNative_Admin {
 									<?php esc_html_e( 'Remove', 'pressnative' ); ?>
 								</button>
 							</div>
-							<p class="description"><?php esc_html_e( 'Optional tiled/pattern image for the app background. Overrides solid background color when set.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Optional background image for content tiles/cards. Overrides tile background color when set.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="pressnative_tile_text_color"><?php esc_html_e( 'Tile Text Color', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$tile_text_color = get_option( PressNative_Options::OPTION_TILE_TEXT_COLOR, PressNative_Options::DEFAULT_TILE_TEXT_COLOR );
+							?>
+							<input type="text"
+								   id="pressnative_tile_text_color"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_TILE_TEXT_COLOR ); ?>"
+								   value="<?php echo esc_attr( $tile_text_color ); ?>"
+								   class="pressnative-color-picker"/>
+							<p class="description"><?php esc_html_e( 'Text color for content on tiles/cards.', 'pressnative' ); ?></p>
 						</td>
 					</tr>
 					<tr>

@@ -660,10 +660,19 @@ class PressNative_Layout {
 
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $post->post_content );
 		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $post->post_content );
+
+		// Ensure full content is returned even when posts contain <!--more--> or <!--nextpage--> tags.
+		// Use $GLOBALS directly to avoid accidental shadowing of any local variable.
+		$saved_more  = $GLOBALS['more'] ?? 0;
+		$saved_paged = $GLOBALS['page'] ?? 0;
+		$GLOBALS['more'] = 1;
+		$GLOBALS['page'] = 1;
 		$processed_content = $this->wrap_content_with_assets(
 			apply_filters( 'the_content', $stripped_content ),
 			$post
 		);
+		$GLOBALS['more'] = $saved_more;
+		$GLOBALS['page'] = $saved_paged;
 
 		$styles = $this->get_component_styles();
 		$post_detail = array(
@@ -713,10 +722,19 @@ class PressNative_Layout {
 
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $page->post_content );
 		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $page->post_content );
+
+		// Ensure full content is returned even when pages contain <!--more--> or <!--nextpage--> tags.
+		// Use $GLOBALS directly to avoid shadowing the local $page (WP_Post) variable.
+		$saved_more  = $GLOBALS['more'] ?? 0;
+		$saved_paged = $GLOBALS['page'] ?? 0;
+		$GLOBALS['more'] = 1;
+		$GLOBALS['page'] = 1;
 		$processed_content = $this->wrap_content_with_assets(
 			apply_filters( 'the_content', $stripped_content ),
 			$page
 		);
+		$GLOBALS['more'] = $saved_more;
+		$GLOBALS['page'] = $saved_paged;
 
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 			$content_len = is_string( $processed_content ) ? strlen( $processed_content ) : 0;

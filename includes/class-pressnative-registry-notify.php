@@ -96,6 +96,11 @@ class PressNative_Registry_Notify {
 		if ( $new_status !== 'publish' || ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
 			return;
 		}
+
+		// Don't send push notifications for WooCommerce system pages
+		if ( self::is_woocommerce_system_page( $post ) ) {
+			return;
+		}
 		$registry_url = PressNative_Admin::get_registry_url();
 		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/content-changed';
 		$site_url     = home_url( '/' );
@@ -132,5 +137,41 @@ class PressNative_Registry_Notify {
 				'body'       => wp_json_encode( $body ),
 			)
 		);
+	}
+
+	/**
+	 * Check if a post is a WooCommerce system page that shouldn't trigger push notifications.
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return bool
+	 */
+	private static function is_woocommerce_system_page( $post ) {
+		// Skip if WooCommerce isn't active
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return false;
+		}
+
+		// Get WooCommerce page IDs
+		$wc_pages = array(
+			'shop'      => wc_get_page_id( 'shop' ),
+			'cart'      => wc_get_page_id( 'cart' ),
+			'checkout'  => wc_get_page_id( 'checkout' ),
+			'myaccount' => wc_get_page_id( 'myaccount' ),
+		);
+
+		// Check if this post is any of the WooCommerce system pages
+		foreach ( $wc_pages as $page_id ) {
+			if ( $page_id > 0 && $post->ID === $page_id ) {
+				return true;
+			}
+		}
+
+		// Also check for common WooCommerce page slugs in case IDs don't match
+		$wc_slugs = array( 'shop', 'cart', 'checkout', 'my-account', 'woocommerce' );
+		if ( in_array( $post->post_name, $wc_slugs, true ) ) {
+			return true;
+		}
+
+		return false;
 	}
 }
