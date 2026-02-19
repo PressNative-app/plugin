@@ -474,6 +474,45 @@ add_action( 'rest_api_init', function () {
 				'permission_callback' => '__return_true',
 			)
 		);
+
+		// Checkout redirect: returns a URL the WebView should load.
+		// Uses the same WC session as the REST API (cookies forwarded) so the
+		// checkout page sees the exact cart that was built natively.
+		register_rest_route(
+			'pressnative/v1',
+			'/cart/checkout-url',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => function () {
+					if ( ! function_exists( 'WC' ) ) {
+						return new WP_Error( 'woocommerce_unavailable', 'WooCommerce not available', array( 'status' => 503 ) );
+					}
+					if ( ! WC()->cart ) {
+						wc_load_cart();
+						if ( method_exists( WC()->cart, 'get_cart_from_session' ) ) {
+							WC()->cart->get_cart_from_session();
+						}
+					}
+					$checkout_url = PressNative_WooCommerce::get_checkout_url();
+					$cart_items   = array();
+					if ( WC()->cart ) {
+						foreach ( WC()->cart->get_cart() as $key => $item ) {
+							$cart_items[] = array(
+								'product_id' => $item['product_id'],
+								'quantity'   => $item['quantity'],
+								'variation_id' => isset( $item['variation_id'] ) ? $item['variation_id'] : 0,
+							);
+						}
+					}
+					return rest_ensure_response( array(
+						'checkout_url' => $checkout_url,
+						'cart_items'   => $cart_items,
+						'cart_count'   => WC()->cart ? WC()->cart->get_cart_contents_count() : 0,
+					) );
+				},
+				'permission_callback' => '__return_true',
+			)
+		);
 	}
 
 	PressNative_Devices::register_rest_route();

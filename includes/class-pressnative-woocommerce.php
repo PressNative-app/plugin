@@ -20,6 +20,40 @@ class PressNative_WooCommerce {
 	 */
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'bypass_coming_soon_for_app_checkout' ), 1 );
+	}
+
+	/**
+	 * Allow the native app to reach the checkout page even when WooCommerce
+	 * "coming soon" / "store only" mode is enabled.
+	 *
+	 * The native app appends ?pressnative_checkout=1 to the checkout URL.
+	 * When detected, we remove WC's coming-soon redirect so the real
+	 * checkout page loads inside the WebView.
+	 */
+	public static function bypass_coming_soon_for_app_checkout() {
+		if ( empty( $_GET['pressnative_checkout'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			return;
+		}
+		if ( ! self::is_active() ) {
+			return;
+		}
+		$checkout_page_id = wc_get_page_id( 'checkout' );
+		$cart_page_id     = wc_get_page_id( 'cart' );
+		$is_app_page      = ( $checkout_page_id > 0 && is_page( $checkout_page_id ) )
+			|| ( $cart_page_id > 0 && is_page( $cart_page_id ) );
+		if ( ! $is_app_page ) {
+			return;
+		}
+		// Remove WooCommerce's coming-soon redirect (added in WC 9.1+).
+		remove_all_actions( 'woocommerce_coming_soon_redirect' );
+		// Also remove any template_redirect hooks from WC that enforce coming-soon.
+		if ( class_exists( '\Automattic\WooCommerce\Admin\Features\LaunchYourStore' ) ) {
+			$instance = \Automattic\WooCommerce\Admin\Features\LaunchYourStore::instance();
+			if ( $instance && method_exists( $instance, 'redirect_to_coming_soon' ) ) {
+				remove_action( 'template_redirect', array( $instance, 'redirect_to_coming_soon' ) );
+			}
+		}
 	}
 
 	/**
@@ -98,10 +132,8 @@ class PressNative_WooCommerce {
 			return '';
 		}
 		$page_id = wc_get_page_id( 'cart' );
-		if ( $page_id > 0 ) {
-			return (string) get_permalink( $page_id );
-		}
-		return trailingslashit( home_url( 'cart' ) );
+		$url     = $page_id > 0 ? (string) get_permalink( $page_id ) : trailingslashit( home_url( 'cart' ) );
+		return add_query_arg( 'pressnative_checkout', '1', $url );
 	}
 
 	/**
@@ -114,10 +146,8 @@ class PressNative_WooCommerce {
 			return '';
 		}
 		$page_id = wc_get_page_id( 'checkout' );
-		if ( $page_id > 0 ) {
-			return (string) get_permalink( $page_id );
-		}
-		return trailingslashit( home_url( 'checkout' ) );
+		$url     = $page_id > 0 ? (string) get_permalink( $page_id ) : trailingslashit( home_url( 'checkout' ) );
+		return add_query_arg( 'pressnative_checkout', '1', $url );
 	}
 
 	/**
