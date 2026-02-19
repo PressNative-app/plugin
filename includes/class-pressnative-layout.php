@@ -780,6 +780,7 @@ class PressNative_Layout {
 		// Extract product_page shortcodes and replace with native ProductCardCompact (avoids broken WebView images).
 		$styles = $this->get_component_styles();
 		$product_components = $this->extract_product_shortcode_components( $stripped_content, $styles, 'post-' . $post_id );
+		$extracted_product_ids = $this->collect_product_ids_from_content( $stripped_content );
 		$stripped_content   = $this->strip_product_page_shortcodes( $stripped_content );
 
 		// Ensure full content is returned even when posts contain <!--more--> or <!--nextpage--> tags.
@@ -794,6 +795,11 @@ class PressNative_Layout {
 		);
 		$GLOBALS['more'] = $saved_more;
 		$GLOBALS['page'] = $saved_paged;
+
+		// Strip any WooCommerce product HTML that leaked through the_content filters.
+		if ( ! empty( $extracted_product_ids ) ) {
+			$processed_content = $this->strip_wc_product_html( $processed_content, $extracted_product_ids );
+		}
 
 		$post_detail = array(
 			'id'      => 'post-detail-' . $post_id,
@@ -847,6 +853,7 @@ class PressNative_Layout {
 		// Extract product_page shortcodes and replace with native ProductCardCompact.
 		$page_styles = $this->get_component_styles();
 		$product_components = $this->extract_product_shortcode_components( $stripped_content, $page_styles, 'page-' . $page->ID );
+		$extracted_product_ids = $this->collect_product_ids_from_content( $stripped_content );
 		$stripped_content   = $this->strip_product_page_shortcodes( $stripped_content );
 
 		// Ensure full content is returned even when pages contain <!--more--> or <!--nextpage--> tags.
@@ -861,6 +868,11 @@ class PressNative_Layout {
 		);
 		$GLOBALS['more'] = $saved_more;
 		$GLOBALS['page'] = $saved_paged;
+
+		// Strip any WooCommerce product HTML that leaked through the_content filters.
+		if ( ! empty( $extracted_product_ids ) ) {
+			$processed_content = $this->strip_wc_product_html( $processed_content, $extracted_product_ids );
+		}
 
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 			$content_len = is_string( $processed_content ) ? strlen( $processed_content ) : 0;
@@ -907,6 +919,32 @@ class PressNative_Layout {
 	}
 
 	/**
+	 * Collects product IDs from WooCommerce shortcodes in content.
+	 *
+	 * @param string $content Raw post content.
+	 * @return array List of product IDs found.
+	 */
+	private function collect_product_ids_from_content( $content ) {
+		$ids = array();
+		if ( empty( $content ) ) {
+			return $ids;
+		}
+		$patterns = array(
+			'/\[product_page\s+id=["\']?(\d+)["\']?/i',
+			'/\[product\s+id=["\']?(\d+)["\']?/i',
+			'/\[add_to_cart\s+id=["\']?(\d+)["\']?/i',
+		);
+		foreach ( $patterns as $pattern ) {
+			if ( preg_match_all( $pattern, $content, $matches ) ) {
+				foreach ( $matches[1] as $pid ) {
+					$ids[] = (int) $pid;
+				}
+			}
+		}
+		return array_unique( $ids );
+	}
+
+	/**
 	 * Extracts [product_page id="X"] shortcodes and builds native ProductCardCompact components.
 	 *
 	 * @param string $content Raw post content.
@@ -919,7 +957,10 @@ class PressNative_Layout {
 		if ( ! PressNative_WooCommerce::is_active() || empty( $content ) ) {
 			return $components;
 		}
-		if ( ! preg_match_all( '/\[product_page\s+id=["\']?(\d+)["\']?[^\]]*\]/i', $content, $matches, PREG_SET_ORDER ) ) {
+
+		// Match multiple WooCommerce shortcode variants.
+		$combined_pattern = '/\[(?:product_page|product|add_to_cart)\s+id=["\']?(\d+)["\']?[^\]]*\]/i';
+		if ( ! preg_match_all( $combined_pattern, $content, $matches, PREG_SET_ORDER ) ) {
 			return $components;
 		}
 		$products = array();
@@ -935,6 +976,7 @@ class PressNative_Layout {
 						'title'              => $p['title'],
 						'price'              => $p['price'],
 						'image_url'          => $p['image_url'],
+						'categories'         => isset( $p['categories'] ) ? $p['categories'] : array(),
 						'action'             => array(
 							'type'    => 'open_product',
 							'payload' => array( 'product_id' => $p['product_id'] ),
@@ -965,7 +1007,56 @@ class PressNative_Layout {
 	 * @return string Content with product_page shortcodes removed.
 	 */
 	private function strip_product_page_shortcodes( $content ) {
-		return preg_replace( '/\[product_page[^\]]*\]/i', '', $content );
+		// Strip all WooCommerce product shortcode variants.
+		$patterns = array(
+			'/\[product_page[^\]]*\]/i',
+			'/\[product\s[^\]]*\]/i',
+			'/\[add_to_cart[^\]]*\]/i',
+			'/\[add_to_cart_url[^\]]*\]/i',
+		);
+		$content = preg_replace( $patterns, '', $content );
+
+		return $content;
+	}
+
+	/**
+	 * Strips WooCommerce product HTML that may have been rendered by the_content filters.
+	 * Applied after apply_filters('the_content') to catch any expanded shortcode output.
+	 *
+	 * @param string $html Processed HTML content.
+	 * @param array  $product_ids Array of product IDs that have been extracted as native components.
+	 * @return string Cleaned HTML content.
+	 */
+	private function strip_wc_product_html( $html, $product_ids ) {
+		if ( empty( $product_ids ) || empty( $html ) ) {
+			return $html;
+		}
+
+		// Remove WooCommerce product containers that were rendered from shortcodes.
+		// These have classes like .product, .woocommerce, .single-product.
+		foreach ( $product_ids as $pid ) {
+			// Remove product wrapper divs that match the product ID.
+			$html = preg_replace(
+				'/<div[^>]*class="[^"]*(?:product|woocommerce)[^"]*"[^>]*>.*?<\/div>\s*<\/div>/is',
+				'',
+				$html,
+				1
+			);
+		}
+
+		// Inject CSS to hide any remaining WooCommerce product elements that leak through.
+		$hide_css = '<style>'
+			. '.woocommerce .product, .woocommerce-page .product,'
+			. '.product .summary, .product .cart,'
+			. '.product .woocommerce-product-details__short-description,'
+			. '.product .product_meta, .product .woocommerce-tabs,'
+			. '.single-product .product .quantity,'
+			. '.single-product .product .single_add_to_cart_button,'
+			. 'form.cart, .woocommerce div.product { display: none !important; }'
+			. '</style>';
+
+		// Prepend the CSS if any product IDs were extracted.
+		return $hide_css . $html;
 	}
 
 	/**

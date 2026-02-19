@@ -31,6 +31,9 @@ class PressNative_Options {
 	// AdMob monetization settings.
 	const OPTION_ADMOB_BANNER_UNIT_ID = 'pressnative_admob_banner_unit_id';
 
+	// Push notification preferences.
+	const OPTION_NOTIFICATION_PREFERENCES = 'pressnative_notification_preferences';
+
 	const DEFAULT_APP_NAME              = 'PressNative';
 	const DEFAULT_APP_CATEGORIES        = array();
 	const APP_CATEGORIES_MAX            = 5;
@@ -43,6 +46,28 @@ class PressNative_Options {
 	const DEFAULT_FONT_FAMILY           = 'sans-serif';
 	const DEFAULT_BASE_FONT_SIZE        = 16;
 	const DEFAULT_ADMOB_BANNER_UNIT_ID  = '';
+
+	const DEFAULT_NOTIFICATION_PREFERENCES = array(
+		'enabled' => true,
+		'types'   => array(
+			'new_posts'        => array( 'enabled' => true, 'title' => 'New Posts', 'description' => 'Get notified when new blog posts are published' ),
+			'new_pages'        => array( 'enabled' => true, 'title' => 'New Pages', 'description' => 'Get notified when new pages are created' ),
+			'new_products'     => array( 'enabled' => true, 'title' => 'New Products', 'description' => 'Get notified when new products are added to the store' ),
+			'product_updates'  => array( 'enabled' => false, 'title' => 'Product Updates', 'description' => 'Get notified when existing products are updated' ),
+			'sales_promotions' => array( 'enabled' => false, 'title' => 'Sales & Promotions', 'description' => 'Get notified about special offers and discounts' ),
+			'order_updates'    => array( 'enabled' => true, 'title' => 'Order Updates', 'description' => 'Get notified about your order status changes' ),
+		),
+		'categories' => array(
+			'all_categories'      => true,
+			'selected_categories' => array(),
+		),
+		'quiet_hours' => array(
+			'enabled'    => false,
+			'start_time' => '22:00',
+			'end_time'   => '08:00',
+			'timezone'   => 'auto',
+		),
+	);
 
 	/**
 	 * Returns the full branding object for the REST API (contract structure).
@@ -95,6 +120,7 @@ class PressNative_Options {
 				'font_family'     => (string) get_option( self::OPTION_FONT_FAMILY, self::DEFAULT_FONT_FAMILY ),
 				'base_font_size'  => (int) get_option( self::OPTION_BASE_FONT_SIZE, self::DEFAULT_BASE_FONT_SIZE ),
 			),
+			'notification_preferences' => self::get_notification_preferences(),
 		);
 		return PressNative_Themes::apply_theme_to_branding( $branding );
 	}
@@ -303,5 +329,85 @@ class PressNative_Options {
 		$hex = self::sanitize_hex( $value );
 		$bg  = get_option( self::OPTION_BACKGROUND_COLOR, self::DEFAULT_BACKGROUND_COLOR );
 		return self::ensure_contrast( $hex, $bg );
+	}
+
+	/**
+	 * Get notification preferences.
+	 *
+	 * @return array
+	 */
+	public static function get_notification_preferences() {
+		$preferences = get_option( self::OPTION_NOTIFICATION_PREFERENCES, self::DEFAULT_NOTIFICATION_PREFERENCES );
+		
+		// Ensure all default keys exist in case of partial data
+		return wp_parse_args( $preferences, self::DEFAULT_NOTIFICATION_PREFERENCES );
+	}
+
+	/**
+	 * Sanitize notification preferences.
+	 *
+	 * @param array $preferences Raw preferences data.
+	 * @return array
+	 */
+	public static function sanitize_notification_preferences( $preferences ) {
+		if ( ! is_array( $preferences ) ) {
+			return self::DEFAULT_NOTIFICATION_PREFERENCES;
+		}
+
+		$sanitized = array();
+
+		// Sanitize main enabled flag
+		$sanitized['enabled'] = ! empty( $preferences['enabled'] );
+
+		// Sanitize notification types
+		$sanitized['types'] = array();
+		if ( isset( $preferences['types'] ) && is_array( $preferences['types'] ) ) {
+			foreach ( self::DEFAULT_NOTIFICATION_PREFERENCES['types'] as $type => $default_config ) {
+				$sanitized['types'][ $type ] = array(
+					'enabled'     => isset( $preferences['types'][ $type ]['enabled'] ) ? (bool) $preferences['types'][ $type ]['enabled'] : $default_config['enabled'],
+					'title'       => $default_config['title'],
+					'description' => $default_config['description'],
+				);
+			}
+		} else {
+			$sanitized['types'] = self::DEFAULT_NOTIFICATION_PREFERENCES['types'];
+		}
+
+		// Sanitize categories
+		$sanitized['categories'] = array();
+		if ( isset( $preferences['categories'] ) && is_array( $preferences['categories'] ) ) {
+			$sanitized['categories']['all_categories'] = ! empty( $preferences['categories']['all_categories'] );
+			$sanitized['categories']['selected_categories'] = array();
+			
+			if ( isset( $preferences['categories']['selected_categories'] ) && is_array( $preferences['categories']['selected_categories'] ) ) {
+				foreach ( $preferences['categories']['selected_categories'] as $cat_id ) {
+					if ( is_numeric( $cat_id ) ) {
+						$sanitized['categories']['selected_categories'][] = (int) $cat_id;
+					}
+				}
+			}
+		} else {
+			$sanitized['categories'] = self::DEFAULT_NOTIFICATION_PREFERENCES['categories'];
+		}
+
+		// Sanitize quiet hours
+		$sanitized['quiet_hours'] = array();
+		if ( isset( $preferences['quiet_hours'] ) && is_array( $preferences['quiet_hours'] ) ) {
+			$sanitized['quiet_hours']['enabled'] = ! empty( $preferences['quiet_hours']['enabled'] );
+			
+			// Validate time format (HH:MM)
+			$start_time = isset( $preferences['quiet_hours']['start_time'] ) ? sanitize_text_field( $preferences['quiet_hours']['start_time'] ) : '22:00';
+			$end_time = isset( $preferences['quiet_hours']['end_time'] ) ? sanitize_text_field( $preferences['quiet_hours']['end_time'] ) : '08:00';
+			
+			$sanitized['quiet_hours']['start_time'] = preg_match( '/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $start_time ) ? $start_time : '22:00';
+			$sanitized['quiet_hours']['end_time'] = preg_match( '/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $end_time ) ? $end_time : '08:00';
+			
+			$timezone = isset( $preferences['quiet_hours']['timezone'] ) ? sanitize_text_field( $preferences['quiet_hours']['timezone'] ) : 'auto';
+			$sanitized['quiet_hours']['timezone'] = in_array( $timezone, array( 'auto', 'UTC' ), true ) ? $timezone : 'auto';
+		} else {
+			$sanitized['quiet_hours'] = self::DEFAULT_NOTIFICATION_PREFERENCES['quiet_hours'];
+		}
+
+		return $sanitized;
 	}
 }

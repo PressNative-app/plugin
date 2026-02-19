@@ -317,6 +317,15 @@ class PressNative_Admin {
 				'default'           => PressNative_Options::DEFAULT_ADMOB_BANNER_UNIT_ID,
 			)
 		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_NOTIFICATION_PREFERENCES,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_notification_preferences' ),
+				'default'           => PressNative_Options::DEFAULT_NOTIFICATION_PREFERENCES,
+			)
+		);
 
 		// Layout Settings
 		register_setting(
@@ -1864,7 +1873,109 @@ class PressNative_Admin {
 						<button type="submit" class="button button-primary"><?php esc_html_e( 'Send Push Notification', 'pressnative' ); ?></button>
 					</p>
 				</form>
+
+				<!-- Notification Preferences Section -->
+				<?php self::render_notification_preferences_section(); ?>
+
 			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders the notification preferences section.
+	 *
+	 * @return void
+	 */
+	private static function render_notification_preferences_section() {
+		$preferences = PressNative_Options::get_notification_preferences();
+		?>
+		<div style="margin-top: 40px; padding: 20px; background: #fff; border: 1px solid #c3c4c7; max-width: 600px;">
+			<h2 style="margin-top: 0;"><?php esc_html_e( 'Default Notification Preferences', 'pressnative' ); ?></h2>
+			<p class="description" style="margin-bottom: 20px;">
+				<?php esc_html_e( 'Configure the default notification preferences for new app users. Users can customize these settings in their mobile app.', 'pressnative' ); ?>
+			</p>
+
+			<form method="post" action="options.php">
+				<?php settings_fields( 'pressnative_app_settings' ); ?>
+				
+				<table class="form-table" style="margin-top: 0;">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Enable Notifications', 'pressnative' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[enabled]" value="1" <?php checked( $preferences['enabled'] ); ?> />
+								<?php esc_html_e( 'Enable push notifications by default', 'pressnative' ); ?>
+							</label>
+						</td>
+					</tr>
+				</table>
+
+				<h3><?php esc_html_e( 'Notification Types', 'pressnative' ); ?></h3>
+				<table class="form-table">
+					<?php foreach ( $preferences['types'] as $type => $config ) : ?>
+						<tr>
+							<th scope="row"><?php echo esc_html( $config['title'] ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[types][<?php echo esc_attr( $type ); ?>][enabled]" value="1" <?php checked( $config['enabled'] ); ?> />
+									<?php echo esc_html( $config['description'] ); ?>
+								</label>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</table>
+
+				<h3><?php esc_html_e( 'Category Filtering', 'pressnative' ); ?></h3>
+				<table class="form-table">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Categories', 'pressnative' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[categories][all_categories]" value="1" <?php checked( $preferences['categories']['all_categories'] ); ?> />
+								<?php esc_html_e( 'Notify for all categories by default', 'pressnative' ); ?>
+							</label>
+							<p class="description"><?php esc_html_e( 'When disabled, users can select specific categories in the mobile app.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+				</table>
+
+				<h3><?php esc_html_e( 'Quiet Hours', 'pressnative' ); ?></h3>
+				<table class="form-table">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Enable Quiet Hours', 'pressnative' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[quiet_hours][enabled]" value="1" <?php checked( $preferences['quiet_hours']['enabled'] ); ?> />
+								<?php esc_html_e( 'Enable quiet hours by default', 'pressnative' ); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Start Time', 'pressnative' ); ?></th>
+						<td>
+							<input type="time" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[quiet_hours][start_time]" value="<?php echo esc_attr( $preferences['quiet_hours']['start_time'] ); ?>" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'End Time', 'pressnative' ); ?></th>
+						<td>
+							<input type="time" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[quiet_hours][end_time]" value="<?php echo esc_attr( $preferences['quiet_hours']['end_time'] ); ?>" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Timezone', 'pressnative' ); ?></th>
+						<td>
+							<select name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[quiet_hours][timezone]">
+								<option value="auto" <?php selected( $preferences['quiet_hours']['timezone'], 'auto' ); ?>><?php esc_html_e( 'Auto (User\'s timezone)', 'pressnative' ); ?></option>
+								<option value="UTC" <?php selected( $preferences['quiet_hours']['timezone'], 'UTC' ); ?>><?php esc_html_e( 'UTC', 'pressnative' ); ?></option>
+							</select>
+						</td>
+					</tr>
+				</table>
+
+				<?php submit_button( __( 'Save Notification Preferences', 'pressnative' ) ); ?>
+			</form>
 		</div>
 		<?php
 	}

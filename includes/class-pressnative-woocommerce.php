@@ -317,6 +317,15 @@ class PressNative_WooCommerce {
 		if ( $product->is_type( 'variable' ) && method_exists( $product, 'get_available_variations' ) ) {
 			$variations = $product->get_available_variations();
 		}
+		// Collect category names.
+		$category_names = array();
+		$terms = get_the_terms( $id, 'product_cat' );
+		if ( ! empty( $terms ) && ! is_wp_error( $terms ) ) {
+			foreach ( $terms as $term ) {
+				$category_names[] = $term->name;
+			}
+		}
+
 		return array(
 			'product_id'         => (string) $id,
 			'title'               => $product->get_name(),
@@ -324,6 +333,7 @@ class PressNative_WooCommerce {
 			'price_raw'           => $product->get_price(),
 			'description'        => $desc,
 			'image_url'           => $image,
+			'categories'          => $category_names,
 			'add_to_cart_action'   => array(
 				'type'    => 'add_to_cart',
 				'payload' => array( 'product_id' => (string) $id ),
