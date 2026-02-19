@@ -2,13 +2,14 @@
 
 **Role in PressNative.app:** The WordPress Data Provider.
 
-This plugin exposes REST endpoints that serve page layouts and content to the PressNative Android and iOS apps. All responses **must** conform to the schema defined in `www/contract.json`.
+This plugin exposes REST endpoints that serve page layouts, content, and WooCommerce products to the PressNative Android and iOS apps. All responses **must** conform to the schema defined in `www/contract.json`.
 
 ## Responsibilities
 
-- **REST API:** Provides `/wp-json/pressnative/v1/*` endpoints that return screen layouts (e.g., home, category, post detail)
+- **REST API:** Provides `/wp-json/pressnative/v1/*` endpoints that return screen layouts (e.g., home, category, post detail, product detail)
+- **WooCommerce Integration:** Native cart management, product grids, secure checkout via Chrome Custom Tabs
 - **Schema alignment:** Response payloads are validated against the canonical contract from the www service
-- **WordPress integration:** Maps WordPress posts, categories, and media to the PressNative component format
+- **WordPress integration:** Maps WordPress posts, categories, WooCommerce products, and media to the PressNative component format
 
 ## Installation
 

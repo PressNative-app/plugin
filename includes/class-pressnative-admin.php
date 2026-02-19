@@ -734,6 +734,7 @@ class PressNative_Admin {
 				array(
 					'restUrl' => rest_url(),
 					'nonce'   => wp_create_nonce( 'wp_rest' ),
+					'woocommerceActive' => class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active(),
 				)
 			);
 		}

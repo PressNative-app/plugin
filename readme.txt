@@ -1,25 +1,29 @@
 === PressNative ===
 Contributors: pressnative
-Tags: mobile app, native app, rest api, push notifications, app
+Tags: mobile app, native app, rest api, push notifications, woocommerce, ecommerce, app
 Requires at least: 5.0
 Tested up to: 6.9
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Turn your WordPress site into a native mobile app. Serves layout, content, and branding via REST API to PressNative Android and iOS apps.
+Turn your WordPress site into a native mobile app with WooCommerce support. Serves layout, content, products, and branding via REST API to PressNative Android and iOS apps.
 
 == Description ==
 
-PressNative is the WordPress data provider for native mobile apps built on the PressNative platform. Install this plugin to expose your posts, pages, categories, and site branding through a contract-driven REST API that the PressNative Android and iOS app shells consume.
+PressNative is the WordPress data provider for native mobile apps built on the PressNative platform. Install this plugin to expose your posts, pages, categories, WooCommerce products, and site branding through a contract-driven REST API that the PressNative Android and iOS app shells consume.
 
 **Core Features:**
 
-* **REST API** — Endpoints for home layout, posts, pages, categories, and search
+* **REST API** — Endpoints for home layout, posts, pages, categories, products, and search
+* **WooCommerce Integration** — Native product grids, product details, cart management, and secure checkout via Chrome Custom Tabs
+* **Native Shopping Cart** — Add to cart from embedded products in blog posts with real-time cart badge updates
+* **Secure Checkout** — Seamless handoff to Chrome Custom Tabs for trusted payment processing
+* **Shoppable Content** — Embed WooCommerce products directly within blog posts and pages
 * **App Branding** — Configure app name, logo, theme colors, and typography directly from the WordPress admin
 * **Theme Presets** — Five built-in themes (Editorial, Midnight, Citrus, Ocean, Minimal) or go fully custom
-* **Layout Builder** — Customize the home screen: hero carousel, post grid, category list, page list, and ad placement
+* **Layout Builder** — Customize the home screen: hero carousel, post grid, category list, page list, product grids, and ad placement
 * **Component Ordering** — Drag-and-drop component ordering with enable/disable toggles
 * **Push Notifications** — Register devices via FCM and send ad-hoc push notifications from the admin dashboard
 * **Analytics Dashboard** — Track app views, popular posts, search queries, and device breakdown (requires PressNative subscription)
@@ -40,6 +44,7 @@ PressNative is the WordPress data provider for native mobile apps built on the P
 * WordPress 5.0 or later
 * PHP 7.4 or later
 * PressNative Android or iOS app to display the content
+* Optional: WooCommerce 3.0+ for ecommerce features
 * Optional: PressNative Registry service for analytics, push notifications, and schema verification
 
 == Installation ==
@@ -76,6 +81,18 @@ Yes. The plugin registers FCM device tokens from the mobile app and provides an 
 
 Deactivating the plugin removes all REST API endpoints but preserves your settings. Deleting the plugin via the WordPress admin removes all saved options and the custom database table. Your WordPress content (posts, pages, media) is never affected.
 
+= Does the plugin work with WooCommerce? =
+
+Yes. When WooCommerce is installed, the plugin automatically adds native ecommerce features: product grids, product detail pages, native cart management, and secure checkout via Chrome Custom Tabs. Products can also be embedded within blog posts for shoppable content.
+
+= How does the native shopping cart work? =
+
+The plugin provides REST API endpoints for adding items to cart and retrieving cart counts. The native app displays a cart badge that updates in real-time. When users proceed to checkout, the app opens Chrome Custom Tabs with a secure, one-time URL that rebuilds the cart in the browser session.
+
+= Is checkout secure in the mobile app? =
+
+Yes. Checkout opens in Chrome Custom Tabs, which provides the full browser security experience: HTTPS lock icon, address bar, autofill, and saved payment methods. Users never enter payment details within the app itself.
+
 = Does the plugin send data to external services? =
 
 Yes. When configured with a Registry URL and API Key, the plugin communicates with the PressNative Registry service for: analytics event forwarding, push notification delivery, schema verification on activation, and cache invalidation notifications when you update settings or publish content. See the Privacy section below for details.
@@ -90,6 +107,15 @@ Yes. When configured with a Registry URL and API Key, the plugin communicates wi
 
 == Changelog ==
 
+= 1.1.0 =
+* **WooCommerce Integration:** Native product grids, product details, and shopping cart
+* **Secure Checkout:** Chrome Custom Tabs integration for trusted payment processing
+* **Shoppable Content:** Embed products within blog posts with native add-to-cart buttons
+* **Cart Transfer:** One-time token system for seamless app-to-browser cart handoff
+* **Demo Data API:** Endpoint to populate WooCommerce with sample products for testing
+* **System Page Filtering:** Prevents push notifications for WooCommerce system pages
+* **Real-time Cart Updates:** JavaScript bridge for cart badge updates from embedded products
+
 = 1.0.0 =
 * Initial release
 * REST API: home layout, post detail, page detail, category archive, search
@@ -101,6 +127,9 @@ Yes. When configured with a Registry URL and API Key, the plugin communicates wi
 * Shortcode-to-native component mapping
 
 == Upgrade Notice ==
+
+= 1.1.0 =
+Major WooCommerce integration: native shopping cart, product grids, secure checkout via Chrome Custom Tabs, and shoppable content within blog posts.
 
 = 1.0.0 =
 Initial release of PressNative.

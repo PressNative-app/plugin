@@ -1049,4 +1049,150 @@ class PressNative_Layout {
 		);
 		return $this->inject_shop_config( $layout );
 	}
+
+	/**
+	 * Documentation layout: returns the documentation screen layout.
+	 *
+	 * @return array Documentation layout with all recent updates.
+	 */
+	public function get_documentation_layout() {
+		$documentation = array(
+			'id'      => 'documentation',
+			'type'    => 'Documentation',
+			'styles'  => array(
+				'colors' => array(
+					'background' => '#ffffff',
+					'text'       => '#111111',
+					'accent'     => '#1A73E8',
+				),
+				'padding' => array(
+					'horizontal' => 16,
+					'vertical'   => 16,
+				),
+			),
+			'content' => array(
+				'title'    => 'PressNative Documentation',
+				'sections' => array(
+					array(
+						'id'      => 'overview',
+						'title'   => 'What is PressNative?',
+						'icon'    => 'info',
+						'content' => 'PressNative transforms WordPress sites into beautiful native mobile apps with award-winning UX and seamless content management.' . "\n\n" .
+									'Built with modern native technologies (Jetpack Compose for Android, SwiftUI for iOS), PressNative delivers a premium app experience that rivals the best mobile apps in the App Store and Google Play.',
+					),
+					array(
+						'id'      => 'features',
+						'title'   => 'Key Features',
+						'icon'    => 'star',
+						'content' => '• Native iOS & Android apps with 60fps performance' . "\n" .
+									'• Real-time content synchronization' . "\n" .
+									'• Complete WooCommerce e-commerce integration' . "\n" .
+									'• Push notifications for new content' . "\n" .
+									'• Offline reading capabilities' . "\n" .
+									'• Custom branding and theming' . "\n" .
+									'• Deep linking and universal links' . "\n" .
+									'• Analytics and user engagement tracking' . "\n" .
+									'• Multi-site support with favorites' . "\n" .
+									'• Search functionality' . "\n" .
+									'• Category and tag filtering',
+					),
+					array(
+						'id'      => 'woocommerce',
+						'title'   => 'WooCommerce Support',
+						'icon'    => 'shopping_cart',
+						'content' => 'Award-winning e-commerce experience with:' . "\n\n" .
+									'• Native product browsing with ProductGrid and ProductCarousel components' . "\n" .
+									'• Instant "Quick Add" buttons with real-time cart badge updates' . "\n" .
+									'• Native cart management with persistent storage' . "\n" .
+									'• Seamless checkout via WebView with session cookie injection' . "\n" .
+									'• Shoppable content - embed products directly in blog posts' . "\n" .
+									'• Product categories and filtering' . "\n" .
+									'• Product detail screens with image galleries' . "\n" .
+									'• Speculative loading for instant checkout experience' . "\n" .
+									'• Support for product variations and inventory' . "\n" .
+									'• Cart abandonment recovery' . "\n" .
+									'• Revenue analytics and conversion tracking',
+					),
+					array(
+						'id'      => 'architecture',
+						'title'   => 'Technical Architecture',
+						'icon'    => 'settings',
+						'content' => 'PressNative follows a modern, scalable architecture:' . "\n\n" .
+									'• Contract-driven development with schema validation' . "\n" .
+									'• WordPress Plugin as data provider' . "\n" .
+									'• Core Registry Service for coordination' . "\n" .
+									'• Native mobile shells (Android/iOS)' . "\n" .
+									'• RESTful API with JSON schema validation' . "\n" .
+									'• Offline-first data persistence' . "\n" .
+									'• Real-time push notifications via Firebase' . "\n" .
+									'• Custom update system for premium features' . "\n" .
+									'• Freemium distribution model',
+					),
+					array(
+						'id'      => 'setup',
+						'title'   => 'Getting Started',
+						'icon'    => 'settings',
+						'content' => 'Quick setup in 5 steps:' . "\n\n" .
+									'1. Install the PressNative WordPress plugin' . "\n" .
+									'2. Configure your app branding and colors' . "\n" .
+									'3. Set up home screen layout components' . "\n" .
+									'4. Enable WooCommerce integration (optional)' . "\n" .
+									'5. Download and configure the mobile apps' . "\n\n" .
+									'For WooCommerce sites:' . "\n" .
+									'• Ensure WooCommerce Store API is enabled' . "\n" .
+									'• Configure product categories and featured products' . "\n" .
+									'• Set up payment gateways (Stripe, PayPal, etc.)' . "\n" .
+									'• Test the cart and checkout flow',
+					),
+					array(
+						'id'      => 'distribution',
+						'title'   => 'Plugin Distribution',
+						'icon'    => 'info',
+						'content' => 'PressNative uses a hybrid distribution strategy:' . "\n\n" .
+									'• Lite version available on WordPress.org (GPL licensed)' . "\n" .
+									'• Premium version with full features via custom update system' . "\n" .
+									'• License key validation for premium features' . "\n" .
+									'• Automatic updates for premium users' . "\n" .
+									'• Revenue generation through premium subscriptions' . "\n" .
+									'• Maximum reach while protecting business logic',
+					),
+					array(
+						'id'      => 'support',
+						'title'   => 'Support & Resources',
+						'icon'    => 'help',
+						'content' => 'Get help and stay updated:' . "\n\n" .
+									'• Documentation: pressnative.app/docs' . "\n" .
+									'• Video tutorials: pressnative.app/tutorials' . "\n" .
+									'• Community support: pressnative.app/community' . "\n" .
+									'• Feature requests: pressnative.app/feedback' . "\n" .
+									'• GitHub repository: github.com/pressnative' . "\n" .
+									'• Email support: support@pressnative.app' . "\n\n" .
+									'For developers:' . "\n" .
+									'• API documentation' . "\n" .
+									'• Component reference' . "\n" .
+									'• Schema validation tools' . "\n" .
+									'• Custom component examples',
+					),
+				),
+				'version'      => '2.0.0',
+				'last_updated' => gmdate( 'Y-m-d' ),
+			),
+		);
+
+		$layout = array(
+			'branding'   => PressNative_Options::get_branding(),
+			'screen'     => array(
+				'id'    => 'documentation',
+				'title' => 'Documentation',
+			),
+			'components' => array( $documentation ),
+		);
+
+		// Include shop config if WooCommerce is active.
+		if ( PressNative_WooCommerce::is_active() ) {
+			return $this->inject_shop_config( $layout );
+		}
+
+		return $layout;
+	}
 }

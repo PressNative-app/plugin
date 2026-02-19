@@ -20,6 +20,43 @@ class PressNative_WooCommerce {
 	 */
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'handle_app_checkout' ), 1 );
+	}
+
+	/**
+	 * Handle checkout from the native app.
+	 *
+	 * The app opens: https://site.com/?pressnative_checkout=PID:QTY,PID:QTY
+	 * This hook parses the items, adds them to a fresh WC cart, and redirects
+	 * to the real checkout page. No sessions or tokens required.
+	 */
+	public static function handle_app_checkout() {
+		if ( ! isset( $_GET['pressnative_checkout'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			return;
+		}
+		if ( ! self::is_active() ) {
+			return;
+		}
+
+		$raw = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+
+		wc_load_cart();
+		WC()->cart->empty_cart();
+
+		if ( ! empty( $raw ) ) {
+			$pairs = explode( ',', $raw );
+			foreach ( $pairs as $pair ) {
+				$parts      = explode( ':', $pair );
+				$product_id = isset( $parts[0] ) ? absint( $parts[0] ) : 0;
+				$quantity   = isset( $parts[1] ) ? absint( $parts[1] ) : 1;
+				if ( $product_id > 0 && $quantity > 0 ) {
+					WC()->cart->add_to_cart( $product_id, $quantity );
+				}
+			}
+		}
+
+		wp_safe_redirect( wc_get_checkout_url() );
+		exit;
 	}
 
 	/**
@@ -98,10 +135,8 @@ class PressNative_WooCommerce {
 			return '';
 		}
 		$page_id = wc_get_page_id( 'cart' );
-		if ( $page_id > 0 ) {
-			return (string) get_permalink( $page_id );
-		}
-		return trailingslashit( home_url( 'cart' ) );
+		$url     = $page_id > 0 ? (string) get_permalink( $page_id ) : trailingslashit( home_url( 'cart' ) );
+		return add_query_arg( 'pressnative_checkout', '1', $url );
 	}
 
 	/**
@@ -114,10 +149,8 @@ class PressNative_WooCommerce {
 			return '';
 		}
 		$page_id = wc_get_page_id( 'checkout' );
-		if ( $page_id > 0 ) {
-			return (string) get_permalink( $page_id );
-		}
-		return trailingslashit( home_url( 'checkout' ) );
+		$url     = $page_id > 0 ? (string) get_permalink( $page_id ) : trailingslashit( home_url( 'checkout' ) );
+		return add_query_arg( 'pressnative_checkout', '1', $url );
 	}
 
 	/**
