@@ -467,8 +467,20 @@ add_action( 'rest_api_init', function () {
 					if ( ! WC()->cart ) {
 						return rest_ensure_response( array( 'cart_count' => 0 ) );
 					}
+					$cart_items = array();
+					foreach ( WC()->cart->get_cart() as $key => $item ) {
+						$product_details = PressNative_WooCommerce::get_product( (int) $item['product_id'] );
+						$cart_items[] = array(
+							'product_id' => (int) $item['product_id'],
+							'quantity'   => (int) $item['quantity'],
+							'name'       => $product_details['name'] ?? '',
+							'price'      => $product_details['price'] ?? '',
+							'image'      => $product_details['image'] ?? '',
+						);
+					}
 					return rest_ensure_response( array(
 						'cart_count' => WC()->cart->get_cart_contents_count(),
+						'cart_items' => $cart_items,
 					) );
 				},
 				'permission_callback' => '__return_true',
