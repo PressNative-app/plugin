@@ -1869,8 +1869,6 @@ class PressNative_Admin {
 		<?php
 	}
 
-	}
-
 	/**
 	 * Renders the Analytics dashboard page.
 	 *
