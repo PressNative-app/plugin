@@ -551,3 +551,8 @@ PressNative_QR::init();
  * Notify Registry when branding/layout options are saved (invalidates site branding cache).
  */
 PressNative_Registry_Notify::init();
+
+/**
+ * Initialize WooCommerce integration.
+ */
+PressNative_WooCommerce::init();

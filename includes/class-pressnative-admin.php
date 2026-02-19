@@ -33,6 +33,7 @@ class PressNative_Admin {
 		add_action( 'add_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification_on_add' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'clear_subscription_cache' ), 10 );
 		add_action( 'admin_post_pressnative_verify_site', array( __CLASS__, 'handle_verify_site' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'show_woocommerce_seed_notice' ) );
 	}
 
 	/**
@@ -2442,5 +2443,79 @@ class PressNative_Admin {
 		);
 
 		return false;
+	}
+
+	/**
+	 * Show admin notice with WooCommerce seed demo button.
+	 */
+	public static function show_woocommerce_seed_notice() {
+		// Only show on PressNative admin pages
+		$screen = get_current_screen();
+		if ( ! $screen || strpos( $screen->id, 'pressnative' ) === false ) {
+			return;
+		}
+
+		// Only show if WooCommerce is active and user can manage it
+		if ( ! class_exists( 'WooCommerce' ) || ! current_user_can( 'manage_woocommerce' ) ) {
+			return;
+		}
+
+		// Check if we already have products (don't show if store already has content)
+		$product_count = wp_count_posts( 'product' );
+		if ( $product_count && $product_count->publish > 5 ) {
+			return;
+		}
+
+		?>
+		<div class="notice notice-info is-dismissible" id="pressnative-woocommerce-seed-notice">
+			<p>
+				<strong><?php esc_html_e( 'WooCommerce Demo Data', 'pressnative' ); ?></strong><br>
+				<?php esc_html_e( 'Populate your WooCommerce store with demo products and shoppable blog posts to test the native app integration.', 'pressnative' ); ?>
+			</p>
+			<p>
+				<button type="button" class="button button-primary" id="pressnative-seed-woocommerce" data-loading-text="<?php esc_attr_e( 'Creating demo data...', 'pressnative' ); ?>">
+					<?php esc_html_e( 'Create Demo Data', 'pressnative' ); ?>
+				</button>
+				<button type="button" class="notice-dismiss" onclick="document.getElementById('pressnative-woocommerce-seed-notice').style.display='none';">
+					<span class="screen-reader-text"><?php esc_html_e( 'Dismiss this notice.', 'pressnative' ); ?></span>
+				</button>
+			</p>
+		</div>
+		<script>
+		jQuery(document).ready(function($) {
+			$('#pressnative-seed-woocommerce').on('click', function() {
+				var $btn = $(this);
+				var originalText = $btn.text();
+				var loadingText = $btn.data('loading-text');
+				
+				$btn.prop('disabled', true).text(loadingText);
+				
+				$.ajax({
+					url: '<?php echo esc_url( rest_url( 'pressnative/v1/woocommerce/seed-demo' ) ); ?>',
+					method: 'POST',
+					beforeSend: function(xhr) {
+						xhr.setRequestHeader('X-WP-Nonce', '<?php echo esc_js( wp_create_nonce( 'wp_rest' ) ); ?>');
+					},
+					success: function(response) {
+						var message = 'Demo data created successfully!';
+						if (response.categories_created || response.products_created || response.posts_created) {
+							message += ' Created: ' + response.categories_created + ' categories, ' + 
+								response.products_created + ' products, ' + response.posts_created + ' posts.';
+						}
+						if (response.errors && response.errors.length > 0) {
+							message += ' Some errors occurred: ' + response.errors.join(', ');
+						}
+						alert(message);
+						$('#pressnative-woocommerce-seed-notice').fadeOut();
+					},
+					error: function(xhr, status, error) {
+						alert('Error creating demo data: ' + (xhr.responseJSON ? xhr.responseJSON.message : error));
+						$btn.prop('disabled', false).text(originalText);
+					}
+				});
+			});
+		});
+		</script>
+		<?php
 	}
 }

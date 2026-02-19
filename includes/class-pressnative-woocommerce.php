@@ -16,6 +16,35 @@ defined( 'ABSPATH' ) || exit;
 class PressNative_WooCommerce {
 
 	/**
+	 * Initialize WooCommerce integration hooks.
+	 */
+	public static function init() {
+		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
+	}
+
+	/**
+	 * Register WooCommerce REST API routes.
+	 */
+	public static function register_rest_routes() {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return;
+		}
+
+		// Seed demo data endpoint
+		register_rest_route(
+			'pressnative/v1',
+			'/woocommerce/seed-demo',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'seed_demo_data' ),
+				'permission_callback' => function () {
+					return current_user_can( 'manage_woocommerce' );
+				},
+			)
+		);
+	}
+
+	/**
 	 * Whether WooCommerce is active.
 	 *
 	 * @return bool
@@ -268,6 +297,213 @@ class PressNative_WooCommerce {
 			),
 			'variations'          => $variations,
 		);
+	}
+
+	/**
+	 * Seed WooCommerce with demo data via REST API.
+	 *
+	 * @param WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function seed_demo_data( $request ) {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return new WP_Error( 'woocommerce_not_active', 'WooCommerce must be active', array( 'status' => 400 ) );
+		}
+
+		$results = array(
+			'categories_created' => 0,
+			'products_created'   => 0,
+			'posts_created'      => 0,
+			'errors'             => array(),
+		);
+
+		// Product categories
+		$product_categories = array(
+			array( 'name' => 'Electronics',       'slug' => 'electronics',       'description' => 'Smartphones, laptops, accessories' ),
+			array( 'name' => 'Fashion',           'slug' => 'fashion',            'description' => 'Clothing, shoes, jewelry' ),
+			array( 'name' => 'Home & Garden',     'slug' => 'home-garden',       'description' => 'Furniture, decor, tools' ),
+			array( 'name' => 'Sports & Outdoors', 'slug' => 'sports-outdoors',  'description' => 'Fitness, camping, sports gear' ),
+			array( 'name' => 'Books & Media',     'slug' => 'books-media',      'description' => 'Books, games, movies' ),
+		);
+
+		// Demo products
+		$demo_products = array(
+			// Electronics
+			array( 'name' => 'iPhone 15 Pro',           'price' => 999,  'category' => 'electronics', 'featured' => true ),
+			array( 'name' => 'MacBook Air M3',           'price' => 1299, 'category' => 'electronics', 'featured' => true ),
+			array( 'name' => 'AirPods Pro',             'price' => 249,  'category' => 'electronics' ),
+			array( 'name' => 'iPad Pro 12.9"',          'price' => 1099, 'category' => 'electronics' ),
+			array( 'name' => 'Apple Watch Ultra',       'price' => 799,  'category' => 'electronics' ),
+			array( 'name' => 'Wireless Keyboard',       'price' => 99,   'category' => 'electronics' ),
+			array( 'name' => 'USB-C Hub 7-in-1',        'price' => 59,   'category' => 'electronics' ),
+			// Fashion
+			array( 'name' => 'Premium Wool Sweater',    'price' => 89,   'category' => 'fashion', 'featured' => true ),
+			array( 'name' => 'Designer Jeans',          'price' => 129,  'category' => 'fashion' ),
+			array( 'name' => 'Leather Boots',           'price' => 199,  'category' => 'fashion' ),
+			array( 'name' => 'Silk Scarf',              'price' => 45,   'category' => 'fashion' ),
+			array( 'name' => 'Classic Blazer',          'price' => 179,  'category' => 'fashion' ),
+			array( 'name' => 'Cotton T-Shirt Pack',     'price' => 39,   'category' => 'fashion' ),
+			array( 'name' => 'Running Jacket',          'price' => 119,  'category' => 'fashion' ),
+			// Home & Garden
+			array( 'name' => 'Smart Coffee Maker',      'price' => 179,  'category' => 'home-garden', 'featured' => true ),
+			array( 'name' => 'Ergonomic Office Chair',  'price' => 299,  'category' => 'home-garden' ),
+			array( 'name' => 'Indoor Plant Collection', 'price' => 49,   'category' => 'home-garden' ),
+			array( 'name' => 'Desk Lamp LED',           'price' => 69,   'category' => 'home-garden' ),
+			array( 'name' => 'Throw Pillow Set',        'price' => 34,   'category' => 'home-garden' ),
+			array( 'name' => 'Garden Tool Set',         'price' => 79,   'category' => 'home-garden' ),
+			array( 'name' => 'Bluetooth Speaker',       'price' => 89,   'category' => 'home-garden' ),
+			// Sports & Outdoors
+			array( 'name' => 'Yoga Mat Pro',            'price' => 79,   'category' => 'sports-outdoors' ),
+			array( 'name' => 'Running Shoes',           'price' => 159,  'category' => 'sports-outdoors' ),
+			array( 'name' => 'Camping Tent 4-Person',   'price' => 249,  'category' => 'sports-outdoors' ),
+			array( 'name' => 'Water Bottle 32oz',       'price' => 29,   'category' => 'sports-outdoors' ),
+			array( 'name' => 'Dumbbell Set',            'price' => 129,  'category' => 'sports-outdoors' ),
+			array( 'name' => 'Cycling Helmet',          'price' => 59,   'category' => 'sports-outdoors' ),
+			array( 'name' => 'Resistance Bands',        'price' => 24,   'category' => 'sports-outdoors' ),
+			// Books & Media
+			array( 'name' => 'Bestseller Novel',        'price' => 16,   'category' => 'books-media' ),
+			array( 'name' => 'Programming Guide',       'price' => 44,   'category' => 'books-media' ),
+			array( 'name' => 'Board Game Classic',      'price' => 35,   'category' => 'books-media' ),
+			array( 'name' => 'Wireless Earbuds',        'price' => 79,   'category' => 'books-media' ),
+			array( 'name' => 'Streaming Stick',         'price' => 49,   'category' => 'books-media' ),
+		);
+
+		// Shoppable posts
+		$shoppable_posts = array(
+			array(
+				'title'   => 'Best Tech Gadgets 2026',
+				'excerpt' => 'Our top picks for smartphones, laptops, and accessories this year.',
+				'slugs'   => array( 'iphone-15-pro', 'macbook-air-m3', 'airpods-pro' ),
+			),
+			array(
+				'title'   => 'Spring Fashion Trends',
+				'excerpt' => 'Refresh your wardrobe with these seasonal essentials.',
+				'slugs'   => array( 'premium-wool-sweater', 'designer-jeans', 'silk-scarf' ),
+			),
+			array(
+				'title'   => 'Home Office Setup Guide',
+				'excerpt' => 'Create a productive workspace with these must-have items.',
+				'slugs'   => array( 'smart-coffee-maker', 'ergonomic-office-chair', 'indoor-plant-collection' ),
+			),
+			array(
+				'title'   => 'Fitness Journey Essentials',
+				'excerpt' => 'Gear that keeps you motivated and comfortable.',
+				'slugs'   => array( 'yoga-mat-pro', 'running-shoes', 'water-bottle-32oz' ),
+			),
+		);
+
+		$term_ids_by_slug    = array();
+		$product_ids_by_slug = array();
+		$default_description = 'Quality product with great reviews. Perfect for everyday use.';
+
+		// Create categories
+		foreach ( $product_categories as $cat ) {
+			$existing = get_term_by( 'slug', $cat['slug'], 'product_cat' );
+			if ( $existing ) {
+				$term_ids_by_slug[ $cat['slug'] ] = (int) $existing->term_id;
+				continue;
+			}
+
+			$term_result = wp_insert_term( $cat['name'], 'product_cat', array(
+				'slug'        => $cat['slug'],
+				'description' => $cat['description'],
+			) );
+
+			if ( is_wp_error( $term_result ) ) {
+				$results['errors'][] = 'Failed to create category: ' . $cat['name'] . ' - ' . $term_result->get_error_message();
+				continue;
+			}
+
+			$term_ids_by_slug[ $cat['slug'] ] = (int) $term_result['term_id'];
+			$results['categories_created']++;
+		}
+
+		// Create products
+		foreach ( $demo_products as $product_data ) {
+			$slug = sanitize_title( $product_data['name'] );
+
+			// Check if product already exists
+			$existing_product = get_page_by_path( $slug, OBJECT, 'product' );
+			if ( $existing_product ) {
+				$product_ids_by_slug[ $slug ] = (int) $existing_product->ID;
+				continue;
+			}
+
+			$post_id = wp_insert_post( array(
+				'post_title'   => $product_data['name'],
+				'post_name'    => $slug,
+				'post_status'  => 'publish',
+				'post_type'    => 'product',
+				'post_content' => $default_description,
+			) );
+
+			if ( ! $post_id || is_wp_error( $post_id ) ) {
+				$results['errors'][] = 'Failed to create product: ' . $product_data['name'];
+				continue;
+			}
+
+			$product = wc_get_product( $post_id );
+			if ( ! $product ) {
+				$results['errors'][] = 'Failed to get product object: ' . $product_data['name'];
+				continue;
+			}
+
+			// Set product properties
+			$product->set_regular_price( (string) $product_data['price'] );
+			$product->set_price( (string) $product_data['price'] );
+			$product->set_stock_status( 'instock' );
+			$product->set_catalog_visibility( 'visible' );
+
+			if ( ! empty( $product_data['featured'] ) ) {
+				$product->set_featured( true );
+			}
+
+			$product->save();
+
+			// Assign to category
+			if ( isset( $term_ids_by_slug[ $product_data['category'] ] ) ) {
+				wp_set_object_terms( $post_id, array( $term_ids_by_slug[ $product_data['category'] ] ), 'product_cat' );
+			}
+
+			$product_ids_by_slug[ $slug ] = (int) $post_id;
+			$results['products_created']++;
+		}
+
+		// Create shoppable posts
+		foreach ( $shoppable_posts as $post_data ) {
+			// Check if post already exists
+			$existing_post = get_page_by_title( $post_data['title'], OBJECT, 'post' );
+			if ( $existing_post ) {
+				continue;
+			}
+
+			$shortcodes = array();
+			foreach ( $post_data['slugs'] as $pslug ) {
+				if ( isset( $product_ids_by_slug[ $pslug ] ) ) {
+					$shortcodes[] = '[product_page id="' . $product_ids_by_slug[ $pslug ] . '"]';
+				}
+			}
+
+			$content = '<p>' . esc_html( $post_data['excerpt'] ) . '</p>' . "\n\n"
+				. implode( "\n\n", $shortcodes ) . "\n\n"
+				. '<p>Shop these picks and more in our store.</p>';
+
+			$post_id = wp_insert_post( array(
+				'post_title'   => $post_data['title'],
+				'post_status'  => 'publish',
+				'post_type'    => 'post',
+				'post_content' => $content,
+				'post_excerpt' => $post_data['excerpt'],
+			) );
+
+			if ( $post_id && ! is_wp_error( $post_id ) ) {
+				$results['posts_created']++;
+			} else {
+				$results['errors'][] = 'Failed to create post: ' . $post_data['title'];
+			}
+		}
+
+		return rest_ensure_response( $results );
 	}
 
 }
