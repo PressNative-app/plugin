@@ -388,6 +388,27 @@ add_action( 'rest_api_init', function () {
 		)
 	);
 
+	// Documentation endpoint: returns documentation layout for the mobile apps.
+	register_rest_route(
+		'pressnative/v1',
+		'/layout/documentation',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
+				$data = $layout->get_documentation_layout();
+				$response = rest_ensure_response( $data );
+				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+				$response->header( 'Last-Updated', gmdate( 'c' ) );
+				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+					$device_id = $request->get_param( 'device_id' );
+					PressNative_Analytics::forward_event_to_registry( 'documentation', 'documentation', 'PressNative Documentation', null, $device_id );
+				}
+				return $response;
+			},
+			'permission_callback' => '__return_true',
+		)
+	);
+
 	// WooCommerce: native add-to-cart and cart count (Store API proxy).
 	if ( PressNative_WooCommerce::is_active() ) {
 		register_rest_route(

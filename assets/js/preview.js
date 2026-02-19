@@ -62,7 +62,35 @@
 			if (gridPer) overrides.post_grid_per_page = parseInt(gridPer, 10);
 			var orderEl = getEl('pressnative-component-order-value');
 			if (orderEl && orderEl.value) {
-				overrides.enabled_components = orderEl.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+				var components = orderEl.value.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+				
+				// If WooCommerce is active, ensure WooCommerce components are included in preview
+				if (window.pressnativePreview && window.pressnativePreview.woocommerceActive) {
+					var wooComponents = ['product-grid', 'product-category-list', 'product-carousel'];
+					wooComponents.forEach(function(comp) {
+						if (components.indexOf(comp) === -1) {
+							// Insert WooCommerce components in logical positions
+							if (comp === 'product-grid' && components.indexOf('post-grid') !== -1) {
+								// Insert product-grid after post-grid
+								var postGridIndex = components.indexOf('post-grid');
+								components.splice(postGridIndex + 1, 0, comp);
+							} else if (comp === 'product-category-list' && components.indexOf('category-list') !== -1) {
+								// Insert product-category-list after category-list
+								var catListIndex = components.indexOf('category-list');
+								components.splice(catListIndex + 1, 0, comp);
+							} else if (comp === 'product-carousel' && components.indexOf('hero-carousel') !== -1) {
+								// Insert product-carousel after hero-carousel
+								var heroIndex = components.indexOf('hero-carousel');
+								components.splice(heroIndex + 1, 0, comp);
+							} else {
+								// Fallback: add at the end
+								components.push(comp);
+							}
+						}
+					});
+				}
+				
+				overrides.enabled_components = components;
 			}
 			var catCheckboxes = document.querySelectorAll('input[name="pressnative_enabled_categories[]"]:checked');
 			if (catCheckboxes && catCheckboxes.length) {
