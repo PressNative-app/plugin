@@ -20,44 +20,38 @@ class PressNative_WooCommerce {
 	 */
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
-		add_action( 'template_redirect', array( __CLASS__, 'handle_cart_token_redirect' ), 1 );
+		add_action( 'template_redirect', array( __CLASS__, 'handle_app_checkout' ), 1 );
 	}
 
 	/**
-	 * Handle the one-time cart transfer token.
+	 * Handle checkout from the native app.
 	 *
-	 * When the native app opens a Chrome Custom Tab with ?pressnative_cart_token=<token>,
-	 * this hook rebuilds the WC cart from the stored items, deletes the token,
-	 * and redirects to the real checkout page.
+	 * The app opens: https://site.com/?pressnative_checkout=PID:QTY,PID:QTY
+	 * This hook parses the items, adds them to a fresh WC cart, and redirects
+	 * to the real checkout page. No sessions or tokens required.
 	 */
-	public static function handle_cart_token_redirect() {
-		if ( empty( $_GET['pressnative_cart_token'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+	public static function handle_app_checkout() {
+		if ( ! isset( $_GET['pressnative_checkout'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			return;
 		}
 		if ( ! self::is_active() ) {
 			return;
 		}
 
-		$token      = sanitize_text_field( wp_unslash( $_GET['pressnative_cart_token'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
-		$cart_items = get_transient( 'pressnative_cart_' . $token );
-
-		if ( empty( $cart_items ) || ! is_array( $cart_items ) ) {
-			wp_safe_redirect( wc_get_checkout_url() );
-			exit;
-		}
-
-		// Token is single-use.
-		delete_transient( 'pressnative_cart_' . $token );
+		$raw = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 
 		wc_load_cart();
 		WC()->cart->empty_cart();
 
-		foreach ( $cart_items as $item ) {
-			$product_id   = isset( $item['product_id'] ) ? (int) $item['product_id'] : 0;
-			$quantity     = isset( $item['quantity'] ) ? (int) $item['quantity'] : 1;
-			$variation_id = isset( $item['variation_id'] ) ? (int) $item['variation_id'] : 0;
-			if ( $product_id > 0 ) {
-				WC()->cart->add_to_cart( $product_id, $quantity, $variation_id );
+		if ( ! empty( $raw ) ) {
+			$pairs = explode( ',', $raw );
+			foreach ( $pairs as $pair ) {
+				$parts      = explode( ':', $pair );
+				$product_id = isset( $parts[0] ) ? absint( $parts[0] ) : 0;
+				$quantity   = isset( $parts[1] ) ? absint( $parts[1] ) : 1;
+				if ( $product_id > 0 && $quantity > 0 ) {
+					WC()->cart->add_to_cart( $product_id, $quantity );
+				}
 			}
 		}
 
