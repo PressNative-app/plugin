@@ -114,6 +114,116 @@ class PressNative_Layout {
 	}
 
 	/**
+	 * Strips assets that are unnecessary or harmful for WebView rendering.
+	 *
+	 * The app's native WebView already applies its own body styling (font, size,
+	 * line-height, color). WordPress theme global styles and custom font-face
+	 * declarations override those, causing font-loading-induced text reflow that
+	 * breaks height measurement on Android. Block-specific CSS for unused blocks,
+	 * emoji scripts, and speculation rules are also pure bloat.
+	 *
+	 * On non-product post types WooCommerce tracking scripts are stripped as well
+	 * since the WebView doesn't need order attribution or sourcebuster logic.
+	 *
+	 * @param string  $tags Concatenated script/style/link tags.
+	 * @param WP_Post $post The post being rendered.
+	 * @return string Filtered tags.
+	 */
+	private function filter_assets_for_webview( $tags, $post ) {
+		if ( empty( $tags ) ) {
+			return $tags;
+		}
+
+		$needs_wc = ( $post->post_type === 'product' );
+
+		// ── Remove @font-face declarations ──────────────────────────────────
+		// Prevents custom fonts from loading in the WebView, which eliminates
+		// font-loading reflow that breaks Android height measurement.
+		$tags = preg_replace(
+			'/<style[^>]*class=["\']wp-fonts-local["\'][^>]*>.*?<\/style>/si',
+			'',
+			$tags
+		);
+
+		// ── Remove global-styles-inline-css ─────────────────────────────────
+		// This massive block redefines body font-family, font-size, and
+		// line-height, overriding the app's own styling and causing reflow.
+		$tags = preg_replace(
+			'/<style[^>]*id=["\']global-styles-inline-css["\'][^>]*>.*?<\/style>/si',
+			'',
+			$tags
+		);
+
+		// ── Remove emoji scripts and styles ─────────────────────────────────
+		$tags = preg_replace(
+			'/<script[^>]*id=["\']wp-emoji-settings["\'][^>]*>.*?<\/script>/si',
+			'',
+			$tags
+		);
+		$tags = preg_replace(
+			'/<script[^>]*type=["\']module["\'][^>]*>[^<]*wpEmojiSettingsSupports[^<]*<\/script>/si',
+			'',
+			$tags
+		);
+		$tags = preg_replace(
+			'/<style[^>]*id=["\']wp-emoji-styles-inline-css["\'][^>]*>.*?<\/style>/si',
+			'',
+			$tags
+		);
+
+		// ── Remove speculationrules ─────────────────────────────────────────
+		$tags = preg_replace(
+			'/<script[^>]*type=["\']speculationrules["\'][^>]*>.*?<\/script>/si',
+			'',
+			$tags
+		);
+
+		// ── Remove inline block CSS for blocks the article doesn't use ──────
+		// Keep wp-block-library (base formatting) and woocommerce-* on product pages.
+		// Strip all wp-block-*-inline-css except block-library's.
+		$tags = preg_replace(
+			'/<style[^>]*id=["\']wp-block-(?!library-inline-css)[a-z0-9-]+-inline-css["\'][^>]*>.*?<\/style>/si',
+			'',
+			$tags
+		);
+
+		// ── Remove auto-sizes contain CSS ───────────────────────────────────
+		$tags = preg_replace(
+			'/<style[^>]*id=["\']wp-img-auto-sizes-contain-inline-css["\'][^>]*>.*?<\/style>/si',
+			'',
+			$tags
+		);
+
+		if ( ! $needs_wc ) {
+			// ── Strip WooCommerce tracking/attribution on non-product pages ─
+			$tags = preg_replace(
+				'/<script[^>]*id=["\']sourcebuster[^"\']*["\'][^>]*>.*?<\/script>/si',
+				'',
+				$tags
+			);
+			$tags = preg_replace(
+				'/<script[^>]*id=["\']wc-order-attribution[^"\']*["\'][^>]*>.*?<\/script>/si',
+				'',
+				$tags
+			);
+
+			// ── Strip WooCommerce stylesheet links on non-product pages ─────
+			$tags = preg_replace(
+				'/<link[^>]+id=["\']wc-blocks-style-[^"\']*-css["\'][^>]*\/?>/si',
+				'',
+				$tags
+			);
+			$tags = preg_replace(
+				'/<link[^>]+id=["\']woocommerce-[^"\']*-css["\'][^>]*\/?>/si',
+				'',
+				$tags
+			);
+		}
+
+		return $tags;
+	}
+
+	/**
 	 * Builds a complete injectable script/style block for WebView rendering.
 	 * Includes WordPress globals (ajaxurl, nonces) plus all scripts/styles
 	 * that plugins enqueue for the given post.
@@ -139,9 +249,15 @@ class PressNative_Layout {
 
 		$assets = $this->capture_enqueued_assets( $post );
 
+		$head_tags   = $this->extract_script_style_tags( $assets['head'] );
+		$footer_tags = $this->extract_script_style_tags( $assets['footer'] );
+
+		$head_tags   = $this->filter_assets_for_webview( $head_tags, $post );
+		$footer_tags = $this->filter_assets_for_webview( $footer_tags, $post );
+
 		return array(
-			'head_scripts'   => $globals . "\n" . $this->extract_script_style_tags( $assets['head'] ),
-			'footer_scripts' => $this->extract_script_style_tags( $assets['footer'] ),
+			'head_scripts'   => $globals . "\n" . $head_tags,
+			'footer_scripts' => $footer_tags,
 		);
 	}
 
