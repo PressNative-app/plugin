@@ -20,40 +20,49 @@ class PressNative_WooCommerce {
 	 */
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
-		add_action( 'template_redirect', array( __CLASS__, 'bypass_coming_soon_for_app_checkout' ), 1 );
+		add_action( 'template_redirect', array( __CLASS__, 'handle_cart_token_redirect' ), 1 );
 	}
 
 	/**
-	 * Allow the native app to reach the checkout page even when WooCommerce
-	 * "coming soon" / "store only" mode is enabled.
+	 * Handle the one-time cart transfer token.
 	 *
-	 * The native app appends ?pressnative_checkout=1 to the checkout URL.
-	 * When detected, we remove WC's coming-soon redirect so the real
-	 * checkout page loads inside the WebView.
+	 * When the native app opens a Chrome Custom Tab with ?pressnative_cart_token=<token>,
+	 * this hook rebuilds the WC cart from the stored items, deletes the token,
+	 * and redirects to the real checkout page.
 	 */
-	public static function bypass_coming_soon_for_app_checkout() {
-		if ( empty( $_GET['pressnative_checkout'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+	public static function handle_cart_token_redirect() {
+		if ( empty( $_GET['pressnative_cart_token'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
 			return;
 		}
 		if ( ! self::is_active() ) {
 			return;
 		}
-		$checkout_page_id = wc_get_page_id( 'checkout' );
-		$cart_page_id     = wc_get_page_id( 'cart' );
-		$is_app_page      = ( $checkout_page_id > 0 && is_page( $checkout_page_id ) )
-			|| ( $cart_page_id > 0 && is_page( $cart_page_id ) );
-		if ( ! $is_app_page ) {
-			return;
+
+		$token      = sanitize_text_field( wp_unslash( $_GET['pressnative_cart_token'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$cart_items = get_transient( 'pressnative_cart_' . $token );
+
+		if ( empty( $cart_items ) || ! is_array( $cart_items ) ) {
+			wp_safe_redirect( wc_get_checkout_url() );
+			exit;
 		}
-		// Remove WooCommerce's coming-soon redirect (added in WC 9.1+).
-		remove_all_actions( 'woocommerce_coming_soon_redirect' );
-		// Also remove any template_redirect hooks from WC that enforce coming-soon.
-		if ( class_exists( '\Automattic\WooCommerce\Admin\Features\LaunchYourStore' ) ) {
-			$instance = \Automattic\WooCommerce\Admin\Features\LaunchYourStore::instance();
-			if ( $instance && method_exists( $instance, 'redirect_to_coming_soon' ) ) {
-				remove_action( 'template_redirect', array( $instance, 'redirect_to_coming_soon' ) );
+
+		// Token is single-use.
+		delete_transient( 'pressnative_cart_' . $token );
+
+		wc_load_cart();
+		WC()->cart->empty_cart();
+
+		foreach ( $cart_items as $item ) {
+			$product_id   = isset( $item['product_id'] ) ? (int) $item['product_id'] : 0;
+			$quantity     = isset( $item['quantity'] ) ? (int) $item['quantity'] : 1;
+			$variation_id = isset( $item['variation_id'] ) ? (int) $item['variation_id'] : 0;
+			if ( $product_id > 0 ) {
+				WC()->cart->add_to_cart( $product_id, $quantity, $variation_id );
 			}
 		}
+
+		wp_safe_redirect( wc_get_checkout_url() );
+		exit;
 	}
 
 	/**

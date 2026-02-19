@@ -475,40 +475,50 @@ add_action( 'rest_api_init', function () {
 			)
 		);
 
-		// Checkout redirect: returns a URL the WebView should load.
-		// Uses the same WC session as the REST API (cookies forwarded) so the
-		// checkout page sees the exact cart that was built natively.
+		// Cart transfer: app POSTs its cart items, server stores a one-time
+		// token in a transient, returns a URL the browser can open.
+		// When the browser hits that URL, the plugin rebuilds the cart and
+		// redirects to checkout — no shared cookies required.
 		register_rest_route(
 			'pressnative/v1',
 			'/cart/checkout-url',
 			array(
-				'methods'             => WP_REST_Server::READABLE,
-				'callback'            => function () {
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => function ( WP_REST_Request $request ) {
 					if ( ! function_exists( 'WC' ) ) {
 						return new WP_Error( 'woocommerce_unavailable', 'WooCommerce not available', array( 'status' => 503 ) );
 					}
+
+					// Collect cart items from the app's session.
 					if ( ! WC()->cart ) {
 						wc_load_cart();
 						if ( method_exists( WC()->cart, 'get_cart_from_session' ) ) {
 							WC()->cart->get_cart_from_session();
 						}
 					}
-					$checkout_url = PressNative_WooCommerce::get_checkout_url();
-					$cart_items   = array();
+					$cart_items = array();
 					if ( WC()->cart ) {
 						foreach ( WC()->cart->get_cart() as $key => $item ) {
 							$cart_items[] = array(
-								'product_id' => $item['product_id'],
-								'quantity'   => $item['quantity'],
-								'variation_id' => isset( $item['variation_id'] ) ? $item['variation_id'] : 0,
+								'product_id'   => (int) $item['product_id'],
+								'quantity'     => (int) $item['quantity'],
+								'variation_id' => isset( $item['variation_id'] ) ? (int) $item['variation_id'] : 0,
 							);
 						}
 					}
-					return rest_ensure_response( array(
-						'checkout_url' => $checkout_url,
-						'cart_items'   => $cart_items,
-						'cart_count'   => WC()->cart ? WC()->cart->get_cart_contents_count() : 0,
-					) );
+					if ( empty( $cart_items ) ) {
+						return new WP_Error( 'empty_cart', 'Cart is empty', array( 'status' => 400 ) );
+					}
+
+					$token = wp_generate_password( 32, false );
+					set_transient( 'pressnative_cart_' . $token, $cart_items, 10 * MINUTE_IN_SECONDS );
+
+					$checkout_url = add_query_arg(
+						'pressnative_cart_token',
+						$token,
+						home_url( '/' )
+					);
+					return rest_ensure_response( array( 'checkout_url' => $checkout_url ) );
 				},
 				'permission_callback' => '__return_true',
 			)
