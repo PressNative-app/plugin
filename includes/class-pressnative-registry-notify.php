@@ -15,6 +15,7 @@ class PressNative_Registry_Notify {
 
 	/** Option names that trigger a config-changed notification. */
 	const TRACKED_OPTIONS = array(
+		// Branding options
 		PressNative_Options::OPTION_APP_NAME,
 		PressNative_Options::OPTION_PRIMARY_COLOR,
 		PressNative_Options::OPTION_ACCENT_COLOR,
@@ -26,12 +27,18 @@ class PressNative_Registry_Notify {
 		PressNative_Options::OPTION_BASE_FONT_SIZE,
 		PressNative_Options::OPTION_APP_CATEGORIES,
 		PressNative_Themes::OPTION_THEME_ID,
+		// Layout options
 		PressNative_Layout_Options::OPTION_HERO_CATEGORY_SLUG,
 		PressNative_Layout_Options::OPTION_HERO_MAX_ITEMS,
 		PressNative_Layout_Options::OPTION_POST_GRID_COLUMNS,
 		PressNative_Layout_Options::OPTION_POST_GRID_PER_PAGE,
 		PressNative_Layout_Options::OPTION_ENABLED_CATEGORIES,
 		PressNative_Layout_Options::OPTION_ENABLED_COMPONENTS,
+		// Notification preferences
+		PressNative_Options::OPTION_NOTIFICATION_PREFERENCES,
+		// WooCommerce product display settings
+		'pressnative_product_in_post_style',
+		'pressnative_product_grid_style',
 	);
 
 	/**
@@ -57,6 +64,21 @@ class PressNative_Registry_Notify {
 			return;
 		}
 
+		// Debug logging for WooCommerce settings
+		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) ) {
+			error_log( "PressNative: WooCommerce setting updated - {$option}: {$old_value} -> {$value}" );
+			// Set a transient to show admin notice
+			set_transient( 'pressnative_cache_invalidated', array(
+				'option' => $option,
+				'old_value' => $old_value,
+				'new_value' => $value,
+				'timestamp' => time()
+			), 30 );
+		}
+
+		// Increment settings version for cache invalidation
+		$settings_version = PressNative_Options::increment_settings_version();
+
 		$registry_url = PressNative_Admin::get_registry_url();
 		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/config-changed';
 		$site_url     = home_url( '/' );
@@ -68,6 +90,23 @@ class PressNative_Registry_Notify {
 			'tags'     => $tags,
 			'branding' => $branding,
 		);
+
+		// Include shop_config if WooCommerce is active and the updated option affects it
+		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
+			$wc_related_options = array(
+				'pressnative_product_in_post_style',
+				'pressnative_product_grid_style',
+			);
+			if ( in_array( $option, $wc_related_options, true ) ) {
+				$body['shop_config'] = PressNative_WooCommerce::get_shop_config();
+			}
+		}
+
+		// Debug logging for WooCommerce settings
+		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) ) {
+			error_log( "PressNative: Sending cache invalidation notification for {$option} to {$url}" );
+			error_log( "PressNative: Settings version incremented to {$settings_version}" );
+		}
 
 		wp_remote_post(
 			$url,

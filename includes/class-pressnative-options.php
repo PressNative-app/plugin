@@ -34,6 +34,9 @@ class PressNative_Options {
 	// Push notification preferences.
 	const OPTION_NOTIFICATION_PREFERENCES = 'pressnative_notification_preferences';
 
+	// Settings version tracking for cache invalidation.
+	const OPTION_SETTINGS_VERSION = 'pressnative_settings_version';
+
 	const DEFAULT_APP_NAME              = 'PressNative';
 	const DEFAULT_APP_CATEGORIES        = array();
 	const APP_CATEGORIES_MAX            = 5;
@@ -121,6 +124,7 @@ class PressNative_Options {
 				'base_font_size'  => (int) get_option( self::OPTION_BASE_FONT_SIZE, self::DEFAULT_BASE_FONT_SIZE ),
 			),
 			'notification_preferences' => self::get_notification_preferences(),
+			'settings_version' => self::get_settings_version(),
 		);
 		return PressNative_Themes::apply_theme_to_branding( $branding );
 	}
@@ -409,5 +413,25 @@ class PressNative_Options {
 		}
 
 		return $sanitized;
+	}
+
+	/**
+	 * Get the current settings version (timestamp of last settings update).
+	 *
+	 * @return int
+	 */
+	public static function get_settings_version() {
+		return (int) get_option( self::OPTION_SETTINGS_VERSION, 0 );
+	}
+
+	/**
+	 * Increment the settings version (called when any tracked setting is updated).
+	 *
+	 * @return int New version number.
+	 */
+	public static function increment_settings_version() {
+		$version = time();
+		update_option( self::OPTION_SETTINGS_VERSION, $version );
+		return $version;
 	}
 }

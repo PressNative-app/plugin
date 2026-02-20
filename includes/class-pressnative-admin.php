@@ -34,6 +34,7 @@ class PressNative_Admin {
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'clear_subscription_cache' ), 10 );
 		add_action( 'admin_post_pressnative_verify_site', array( __CLASS__, 'handle_verify_site' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'show_woocommerce_seed_notice' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'show_cache_invalidation_notice' ) );
 	}
 
 	/**
@@ -2626,6 +2627,52 @@ class PressNative_Admin {
 		);
 
 		return false;
+	}
+
+	/**
+	 * Show cache invalidation notice when settings are updated.
+	 *
+	 * @return void
+	 */
+	public static function show_cache_invalidation_notice() {
+		$cache_data = get_transient( 'pressnative_cache_invalidated' );
+		if ( ! $cache_data ) {
+			return;
+		}
+
+		// Only show on PressNative admin pages
+		$screen = get_current_screen();
+		if ( ! $screen || strpos( $screen->id, 'pressnative' ) === false ) {
+			return;
+		}
+
+		$option = $cache_data['option'];
+		$old_value = $cache_data['old_value'];
+		$new_value = $cache_data['new_value'];
+		
+		// Make the option name more user-friendly
+		$option_display = str_replace( array( 'pressnative_product_', '_' ), array( '', ' ' ), $option );
+		$option_display = ucwords( $option_display );
+
+		?>
+		<div class="notice notice-success is-dismissible">
+			<p>
+				<strong><?php esc_html_e( 'Cache Invalidated!', 'pressnative' ); ?></strong>
+				<?php
+				printf(
+					/* translators: 1: setting name, 2: old value, 3: new value */
+					esc_html__( '%1$s updated from "%2$s" to "%3$s". Mobile app cache has been invalidated and will refresh automatically.', 'pressnative' ),
+					esc_html( $option_display ),
+					esc_html( $old_value ),
+					esc_html( $new_value )
+				);
+				?>
+			</p>
+		</div>
+		<?php
+
+		// Delete the transient so notice only shows once
+		delete_transient( 'pressnative_cache_invalidated' );
 	}
 
 	/**
