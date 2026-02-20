@@ -839,13 +839,14 @@ class PressNative_Layout {
 					$pid = (int) $segment['product_id'];
 					$p   = PressNative_WooCommerce::get_product( $pid );
 					if ( $p ) {
+						$in_post_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
 						$components[] = array(
 							'id'      => 'post-' . $post_id . '-product-' . $pid . '-' . $seg_idx,
 							'type'    => 'ProductCardCompact',
 							'styles'  => $styles,
 							'content' => array(
-								'title'    => '',
-								'products' => array(
+								'title'         => '',
+								'products'      => array(
 									array(
 										'product_id'         => $p['product_id'],
 										'title'              => $p['title'],
@@ -859,6 +860,7 @@ class PressNative_Layout {
 										'add_to_cart_action' => $p['add_to_cart_action'],
 									),
 								),
+								'display_style' => $in_post_style,
 							),
 						);
 					}
@@ -984,13 +986,14 @@ class PressNative_Layout {
 					$pid = (int) $segment['product_id'];
 					$p   = PressNative_WooCommerce::get_product( $pid );
 					if ( $p ) {
+						$in_post_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
 						$components[] = array(
 							'id'      => 'page-' . $page->ID . '-product-' . $pid . '-' . $seg_idx,
 							'type'    => 'ProductCardCompact',
 							'styles'  => $styles,
 							'content' => array(
-								'title'    => '',
-								'products' => array(
+								'title'         => '',
+								'products'      => array(
 									array(
 										'product_id'         => $p['product_id'],
 										'title'              => $p['title'],
@@ -1004,6 +1007,7 @@ class PressNative_Layout {
 										'add_to_cart_action' => $p['add_to_cart_action'],
 									),
 								),
+								'display_style' => $in_post_style,
 							),
 						);
 					}
@@ -1381,18 +1385,20 @@ class PressNative_Layout {
 	 */
 	private function build_product_grid() {
 		if ( ! PressNative_WooCommerce::is_active() ) {
-			return array( 'id' => 'product-grid', 'type' => 'ProductGrid', 'styles' => $this->get_component_styles(), 'content' => array( 'columns' => 2, 'products' => array() ) );
+			return array( 'id' => 'product-grid', 'type' => 'ProductGrid', 'styles' => $this->get_component_styles(), 'content' => array( 'columns' => 2, 'products' => array(), 'display_style' => 'card' ) );
 		}
 		$cols = PressNative_Layout_Options::get_product_grid_columns();
 		$per  = PressNative_Layout_Options::get_product_grid_per_page();
 		$products = PressNative_WooCommerce::get_products( array( 'limit' => $per ) );
+		$grid_style = get_option( 'pressnative_product_grid_style', 'card' );
 		return array(
 			'id'      => 'product-grid',
 			'type'    => 'ProductGrid',
 			'styles'  => $this->get_component_styles(),
 			'content' => array(
-				'columns'   => $cols,
-				'products'  => $products,
+				'columns'       => $cols,
+				'products'      => $products,
+				'display_style' => $grid_style,
 			),
 		);
 	}
@@ -1572,13 +1578,15 @@ class PressNative_Layout {
 			'limit'    => $per,
 			'category' => array( $term->slug ),
 		) );
+		$grid_style = get_option( 'pressnative_product_grid_style', 'card' );
 		$grid = array(
 			'id'      => 'product-category-grid',
 			'type'    => 'ProductGrid',
 			'styles'  => $this->get_component_styles(),
 			'content' => array(
-				'columns'  => $cols,
-				'products' => $products,
+				'columns'       => $cols,
+				'products'      => $products,
+				'display_style' => $grid_style,
 			),
 		);
 		$layout = array(

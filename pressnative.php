@@ -810,3 +810,45 @@ add_action( 'woocommerce_after_cart', function () {
  * Initialize WooCommerce integration.
  */
 PressNative_WooCommerce::init();
+
+/**
+ * Register app download shortcodes.
+ */
+add_action( 'init', function () {
+	add_shortcode( 'pressnative_download', function ( $atts ) {
+		$atts = shortcode_atts( array(
+			'style'     => 'both',     // 'ios', 'android', 'both'
+			'size'      => 'medium',   // 'small', 'medium', 'large'
+			'text'      => '',         // Custom text override
+			'ios_url'   => '',         // Custom iOS URL
+			'android_url' => '',       // Custom Android URL
+		), $atts, 'pressnative_download' );
+
+		$app_name = get_option( PressNative_Options::OPTION_APP_NAME, get_bloginfo( 'name' ) );
+		$default_text = $atts['text'] ?: "Download {$app_name}";
+		
+		// Generate fallback HTML for web browsers
+		$html = '<div class="pressnative-download-buttons" style="text-align: center; margin: 20px 0;">';
+		
+		if ( $atts['style'] === 'ios' || $atts['style'] === 'both' ) {
+			$ios_url = $atts['ios_url'] ?: 'https://apps.apple.com/app/pressnative/id0000000000';
+			$html .= '<a href="' . esc_url( $ios_url ) . '" class="pressnative-ios-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #000; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">📱 Download for iOS</a>';
+		}
+		
+		if ( $atts['style'] === 'android' || $atts['style'] === 'both' ) {
+			$android_url = $atts['android_url'] ?: 'https://play.google.com/store/apps/details?id=com.pressnative.app';
+			$html .= '<a href="' . esc_url( $android_url ) . '" class="pressnative-android-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #34A853; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">🤖 Download for Android</a>';
+		}
+		
+		$html .= '</div>';
+		
+		return $html;
+	} );
+
+	// Alias shortcode for convenience
+	add_shortcode( 'app_download', function ( $atts ) {
+		return do_shortcode( '[pressnative_download ' . implode( ' ', array_map( function ( $k, $v ) {
+			return $k . '="' . esc_attr( $v ) . '"';
+		}, array_keys( $atts ), $atts ) ) . ']' );
+	} );
+} );
