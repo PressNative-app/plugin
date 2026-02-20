@@ -171,6 +171,36 @@ class PressNative_WooCommerce {
 			'session_token'     => self::get_session_token(),
 			'currency'          => $currency,
 			'currency_symbol'   => $symbol,
+			'product_display_preferences' => self::get_product_display_preferences(),
+		);
+	}
+
+	/**
+	 * Get product display preferences for different contexts.
+	 *
+	 * @return array
+	 */
+	public static function get_product_display_preferences() {
+		$in_post_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
+		$grid_style = get_option( 'pressnative_product_grid_style', 'card' );
+		
+		return array(
+			'in_post_style' => $in_post_style,
+			'grid_style'    => $grid_style,
+			'available_styles' => array(
+				'compact_row' => array(
+					'name'        => __( 'Compact Row', 'pressnative' ),
+					'description' => __( 'Image on left, details on right - perfect for in-post products', 'pressnative' ),
+				),
+				'card' => array(
+					'name'        => __( 'Card', 'pressnative' ),
+					'description' => __( 'Full-width card with large image - great for product grids', 'pressnative' ),
+				),
+				'mini_card' => array(
+					'name'        => __( 'Mini Card', 'pressnative' ),
+					'description' => __( 'Smaller card with centered image - subtle in-post display', 'pressnative' ),
+				),
+			),
 		);
 	}
 

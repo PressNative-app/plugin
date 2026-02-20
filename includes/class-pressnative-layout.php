@@ -765,6 +765,15 @@ class PressNative_Layout {
 	/**
 	 * Post detail layout (full article view).
 	 *
+	 * When the post contains WooCommerce product shortcodes and WooCommerce is
+	 * active, content is split at each shortcode boundary and returned as an
+	 * ordered series of PostContentBlock + ProductCardCompact components so that
+	 * product cards appear inline — exactly where the shortcodes were placed by
+	 * the editor. This matches the desktop reading experience.
+	 *
+	 * For posts without product shortcodes, the original single-PostDetail
+	 * behaviour is preserved.
+	 *
 	 * @param int $post_id Post ID.
 	 * @return array|null Layout data or null if not found.
 	 */
@@ -776,49 +785,121 @@ class PressNative_Layout {
 
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $post->post_content );
 		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $post->post_content );
+		$styles           = $this->get_component_styles();
 
-		// Extract product_page shortcodes and replace with native ProductCardCompact (avoids broken WebView images).
-		$styles = $this->get_component_styles();
-		$product_components = $this->extract_product_shortcode_components( $stripped_content, $styles, 'post-' . $post_id );
-		$extracted_product_ids = $this->collect_product_ids_from_content( $stripped_content );
-		$stripped_content   = $this->strip_product_page_shortcodes( $stripped_content );
-
-		// Ensure full content is returned even when posts contain <!--more--> or <!--nextpage--> tags.
-		// Use $GLOBALS directly to avoid accidental shadowing of any local variable.
 		$saved_more  = $GLOBALS['more'] ?? 0;
 		$saved_paged = $GLOBALS['page'] ?? 0;
 		$GLOBALS['more'] = 1;
 		$GLOBALS['page'] = 1;
-		$processed_content = $this->wrap_content_with_assets(
-			apply_filters( 'the_content', $stripped_content ),
-			$post
-		);
-		$GLOBALS['more'] = $saved_more;
-		$GLOBALS['page'] = $saved_paged;
 
-		// Strip any WooCommerce product HTML that leaked through the_content filters.
-		if ( ! empty( $extracted_product_ids ) ) {
-			$processed_content = $this->strip_wc_product_html( $processed_content, $extracted_product_ids );
+		if ( PressNative_WooCommerce::is_active() && $this->has_product_shortcodes( $stripped_content ) ) {
+			// ── Inline mode: split content at each product shortcode ────────
+			$marked = $this->replace_product_shortcodes_with_markers( $stripped_content );
+			$processed_html = $this->wrap_content_with_assets(
+				apply_filters( 'the_content', $marked ),
+				$post
+			);
+			$GLOBALS['more'] = $saved_more;
+			$GLOBALS['page'] = $saved_paged;
+
+			$segments = $this->split_html_at_product_markers( $processed_html );
+
+			// PostDetail header — no inline HTML; content is delivered as segments.
+			$post_detail = array(
+				'id'      => 'post-detail-' . $post_id,
+				'type'    => 'PostDetail',
+				'styles'  => $styles,
+				'content' => array(
+					'post_id'   => (string) $post_id,
+					'title'     => get_the_title( $post ),
+					'excerpt'   => '',
+					'content'   => '',
+					'image_url' => $this->get_post_image_url( $post_id, 'large', $post->post_content ),
+					'date'      => get_the_date( 'c', $post ),
+					'author'    => get_the_author_meta( 'display_name', $post->post_author ),
+				),
+			);
+
+			$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
+			$components[] = $post_detail;
+
+			foreach ( $segments as $seg_idx => $segment ) {
+				if ( 'html' === $segment['type'] ) {
+					$html = trim( $segment['content'] );
+					if ( '' === strip_tags( $html ) ) {
+						continue; // Skip whitespace-only blocks.
+					}
+					$components[] = array(
+						'id'      => 'post-' . $post_id . '-block-' . $seg_idx,
+						'type'    => 'PostContentBlock',
+						'styles'  => $styles,
+						'content' => array( 'html' => $html ),
+					);
+				} elseif ( 'product' === $segment['type'] ) {
+					$pid = (int) $segment['product_id'];
+					$p   = PressNative_WooCommerce::get_product( $pid );
+					if ( $p ) {
+						$components[] = array(
+							'id'      => 'post-' . $post_id . '-product-' . $pid . '-' . $seg_idx,
+							'type'    => 'ProductCardCompact',
+							'styles'  => $styles,
+							'content' => array(
+								'title'    => '',
+								'products' => array(
+									array(
+										'product_id'         => $p['product_id'],
+										'title'              => $p['title'],
+										'price'              => $p['price'],
+										'image_url'          => $p['image_url'],
+										'categories'         => isset( $p['categories'] ) ? $p['categories'] : array(),
+										'action'             => array(
+											'type'    => 'open_product',
+											'payload' => array( 'product_id' => $p['product_id'] ),
+										),
+										'add_to_cart_action' => $p['add_to_cart_action'],
+									),
+								),
+							),
+						);
+					}
+				}
+			}
+		} else {
+			// ── Standard mode: single PostDetail with full HTML content ─────
+			$extracted_product_ids = $this->collect_product_ids_from_content( $stripped_content );
+			$stripped_content      = $this->strip_product_page_shortcodes( $stripped_content );
+
+			$processed_content = $this->wrap_content_with_assets(
+				apply_filters( 'the_content', $stripped_content ),
+				$post
+			);
+			$GLOBALS['more'] = $saved_more;
+			$GLOBALS['page'] = $saved_paged;
+
+			if ( ! empty( $extracted_product_ids ) ) {
+				$processed_content = $this->strip_wc_product_html( $processed_content, $extracted_product_ids );
+			}
+
+			$post_detail = array(
+				'id'      => 'post-detail-' . $post_id,
+				'type'    => 'PostDetail',
+				'styles'  => $styles,
+				'content' => array(
+					'post_id'   => (string) $post_id,
+					'title'     => get_the_title( $post ),
+					'excerpt'   => trim( wp_strip_all_tags( get_the_excerpt( $post ) ) ) ?: '',
+					'content'   => $processed_content,
+					'image_url' => $this->get_post_image_url( $post_id, 'large', $post->post_content ),
+					'date'      => get_the_date( 'c', $post ),
+					'author'    => get_the_author_meta( 'display_name', $post->post_author ),
+				),
+			);
+
+			$product_components = $this->extract_product_shortcode_components( $stripped_content, $styles, 'post-' . $post_id );
+			$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
+			$components[] = $post_detail;
+			$components = array_merge( $components, $product_components );
 		}
-
-		$post_detail = array(
-			'id'      => 'post-detail-' . $post_id,
-			'type'    => 'PostDetail',
-			'styles'  => $styles,
-			'content' => array(
-				'post_id'       => (string) $post_id,
-				'title'         => get_the_title( $post ),
-				'excerpt'       => trim( wp_strip_all_tags( get_the_excerpt( $post ) ) ) ?: '',
-				'content'       => $processed_content,
-				'image_url'     => $this->get_post_image_url( $post_id, 'large', $post->post_content ),
-				'date'          => get_the_date( 'c', $post ),
-				'author'        => get_the_author_meta( 'display_name', $post->post_author ),
-			),
-		);
-
-		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
-		$components[] = $post_detail;
-		$components = array_merge( $components, $product_components );
 
 		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
@@ -849,62 +930,129 @@ class PressNative_Layout {
 
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $page->post_content );
 		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $page->post_content );
+		$styles           = $this->get_component_styles();
 
-		// Extract product_page shortcodes and replace with native ProductCardCompact.
-		$page_styles = $this->get_component_styles();
-		$product_components = $this->extract_product_shortcode_components( $stripped_content, $page_styles, 'page-' . $page->ID );
-		$extracted_product_ids = $this->collect_product_ids_from_content( $stripped_content );
-		$stripped_content   = $this->strip_product_page_shortcodes( $stripped_content );
-
-		// Ensure full content is returned even when pages contain <!--more--> or <!--nextpage--> tags.
-		// Use $GLOBALS directly to avoid shadowing the local $page (WP_Post) variable.
 		$saved_more  = $GLOBALS['more'] ?? 0;
 		$saved_paged = $GLOBALS['page'] ?? 0;
 		$GLOBALS['more'] = 1;
 		$GLOBALS['page'] = 1;
-		$processed_content = $this->wrap_content_with_assets(
-			apply_filters( 'the_content', $stripped_content ),
-			$page
-		);
-		$GLOBALS['more'] = $saved_more;
-		$GLOBALS['page'] = $saved_paged;
 
-		// Strip any WooCommerce product HTML that leaked through the_content filters.
-		if ( ! empty( $extracted_product_ids ) ) {
-			$processed_content = $this->strip_wc_product_html( $processed_content, $extracted_product_ids );
+		if ( PressNative_WooCommerce::is_active() && $this->has_product_shortcodes( $stripped_content ) ) {
+			// ── Inline mode ─────────────────────────────────────────────────
+			$marked = $this->replace_product_shortcodes_with_markers( $stripped_content );
+			$processed_html = $this->wrap_content_with_assets(
+				apply_filters( 'the_content', $marked ),
+				$page
+			);
+			$GLOBALS['more'] = $saved_more;
+			$GLOBALS['page'] = $saved_paged;
+
+			$segments = $this->split_html_at_product_markers( $processed_html );
+
+			$post_detail = array(
+				'id'      => 'page-detail-' . $page->ID,
+				'type'    => 'PostDetail',
+				'styles'  => $styles,
+				'content' => array(
+					'post_id'   => (string) $page->ID,
+					'title'     => get_the_title( $page ),
+					'excerpt'   => '',
+					'content'   => '',
+					'image_url' => $this->get_post_image_url( $page->ID, 'large', $page->post_content ),
+					'date'      => get_the_date( 'c', $page ),
+					'author'    => get_the_author_meta( 'display_name', $page->post_author ),
+					'page_slug' => $page->post_name,
+				),
+			);
+
+			$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
+			$components[] = $post_detail;
+
+			foreach ( $segments as $seg_idx => $segment ) {
+				if ( 'html' === $segment['type'] ) {
+					$html = trim( $segment['content'] );
+					if ( '' === strip_tags( $html ) ) {
+						continue;
+					}
+					$components[] = array(
+						'id'      => 'page-' . $page->ID . '-block-' . $seg_idx,
+						'type'    => 'PostContentBlock',
+						'styles'  => $styles,
+						'content' => array( 'html' => $html ),
+					);
+				} elseif ( 'product' === $segment['type'] ) {
+					$pid = (int) $segment['product_id'];
+					$p   = PressNative_WooCommerce::get_product( $pid );
+					if ( $p ) {
+						$components[] = array(
+							'id'      => 'page-' . $page->ID . '-product-' . $pid . '-' . $seg_idx,
+							'type'    => 'ProductCardCompact',
+							'styles'  => $styles,
+							'content' => array(
+								'title'    => '',
+								'products' => array(
+									array(
+										'product_id'         => $p['product_id'],
+										'title'              => $p['title'],
+										'price'              => $p['price'],
+										'image_url'          => $p['image_url'],
+										'categories'         => isset( $p['categories'] ) ? $p['categories'] : array(),
+										'action'             => array(
+											'type'    => 'open_product',
+											'payload' => array( 'product_id' => $p['product_id'] ),
+										),
+										'add_to_cart_action' => $p['add_to_cart_action'],
+									),
+								),
+							),
+						);
+					}
+				}
+			}
+		} else {
+			// ── Standard mode ───────────────────────────────────────────────
+			$extracted_product_ids = $this->collect_product_ids_from_content( $stripped_content );
+			$stripped_content      = $this->strip_product_page_shortcodes( $stripped_content );
+
+			$processed_content = $this->wrap_content_with_assets(
+				apply_filters( 'the_content', $stripped_content ),
+				$page
+			);
+			$GLOBALS['more'] = $saved_more;
+			$GLOBALS['page'] = $saved_paged;
+
+			if ( ! empty( $extracted_product_ids ) ) {
+				$processed_content = $this->strip_wc_product_html( $processed_content, $extracted_product_ids );
+			}
+
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				error_log( sprintf(
+					'[PressNative] get_page_layout: slug=%s, post_id=%d, content_len=%d, shortcode_blocks=%d',
+					$slug, $page->ID, strlen( $processed_content ), count( $shortcode_blocks )
+				) );
+			}
+
+			$post_detail = array(
+				'id'      => 'page-detail-' . $page->ID,
+				'type'    => 'PostDetail',
+				'styles'  => $styles,
+				'content' => array(
+					'post_id'   => (string) $page->ID,
+					'title'     => get_the_title( $page ),
+					'excerpt'   => trim( wp_strip_all_tags( get_the_excerpt( $page ) ) ) ?: '',
+					'content'   => $processed_content,
+					'image_url' => $this->get_post_image_url( $page->ID, 'large', $page->post_content ),
+					'date'      => get_the_date( 'c', $page ),
+					'author'    => get_the_author_meta( 'display_name', $page->post_author ),
+					'page_slug' => $page->post_name,
+				),
+			);
+
+			$product_components = $this->extract_product_shortcode_components( $stripped_content, $styles, 'page-' . $page->ID );
+			$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
+			$components[] = $post_detail;
+			$components = array_merge( $components, $product_components );
 		}
-
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-			$content_len = is_string( $processed_content ) ? strlen( $processed_content ) : 0;
-			error_log( sprintf(
-				'[PressNative] get_page_layout: slug=%s, post_id=%d, content_len=%d, shortcode_blocks=%d',
-				$slug,
-				$page->ID,
-				$content_len,
-				count( $shortcode_blocks )
-			) );
-		}
-
-		$styles = $page_styles;
-		$post_detail = array(
-			'id'      => 'page-detail-' . $page->ID,
-			'type'    => 'PostDetail',
-			'styles'  => $styles,
-			'content' => array(
-				'post_id'       => (string) $page->ID,
-				'title'         => get_the_title( $page ),
-				'excerpt'       => trim( wp_strip_all_tags( get_the_excerpt( $page ) ) ) ?: '',
-				'content'       => $processed_content,
-				'image_url'     => $this->get_post_image_url( $page->ID, 'large', $page->post_content ),
-				'date'          => get_the_date( 'c', $page ),
-				'author'        => get_the_author_meta( 'display_name', $page->post_author ),
-				'page_slug'     => $page->post_name,
-			),
-		);
-
-		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
-		$components[] = $post_detail;
-		$components = array_merge( $components, $product_components );
 
 		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
@@ -916,6 +1064,82 @@ class PressNative_Layout {
 			'components' => $components,
 		);
 		return $this->inject_shop_config( $layout );
+	}
+
+	/**
+	 * Returns true if the content contains any WooCommerce product shortcodes.
+	 *
+	 * @param string $content Raw post content.
+	 * @return bool
+	 */
+	private function has_product_shortcodes( $content ) {
+		if ( empty( $content ) ) {
+			return false;
+		}
+		return (bool) preg_match(
+			'/\[(?:product_page|product|add_to_cart)\s+id=["\']?\d+/i',
+			$content
+		);
+	}
+
+	/**
+	 * Replaces WooCommerce product shortcodes with unique HTML-comment markers
+	 * that survive the_content filters.
+	 *
+	 * e.g. [product_page id="76"] → <!--PRESSNATIVE_PRODUCT:76-->
+	 *
+	 * @param string $content Raw post content (after native shortcodes are stripped).
+	 * @return string Content with product shortcodes replaced by markers.
+	 */
+	private function replace_product_shortcodes_with_markers( $content ) {
+		return preg_replace_callback(
+			'/\[(?:product_page|product|add_to_cart)\s+id=["\']?(\d+)["\']?[^\]]*\]/i',
+			function( $m ) {
+				return '<!--PRESSNATIVE_PRODUCT:' . $m[1] . '-->';
+			},
+			$content
+		);
+	}
+
+	/**
+	 * Splits processed HTML at <!--PRESSNATIVE_PRODUCT:X--> comment markers,
+	 * returning an ordered array of segments.
+	 *
+	 * Each element is either:
+	 *   [ 'type' => 'html',    'content'    => '<p>...</p>' ]
+	 *   [ 'type' => 'product', 'product_id' => '76' ]
+	 *
+	 * @param string $html Fully processed HTML (after the_content + asset wrapping).
+	 * @return array Ordered segments.
+	 */
+	private function split_html_at_product_markers( $html ) {
+		$segments = array();
+		$marker_pattern = '/<!--PRESSNATIVE_PRODUCT:(\d+)-->/';
+
+		$parts = preg_split( $marker_pattern, $html, -1, PREG_SPLIT_DELIM_CAPTURE );
+
+		// preg_split with PREG_SPLIT_DELIM_CAPTURE interleaves:
+		// [ text, product_id, text, product_id, text, ... ]
+		for ( $i = 0; $i < count( $parts ); $i++ ) {
+			if ( $i % 2 === 0 ) {
+				// HTML segment
+				$html_chunk = $parts[ $i ];
+				if ( '' !== trim( strip_tags( $html_chunk ) ) ) {
+					$segments[] = array( 'type' => 'html', 'content' => $html_chunk );
+				} elseif ( '' !== trim( $html_chunk ) ) {
+					// Keep script/style tags even if no visible text (asset wrapping).
+					// Only add if it has <script> or <link> or <style> — skip pure whitespace.
+					if ( preg_match( '/<(script|link|style)/i', $html_chunk ) ) {
+						$segments[] = array( 'type' => 'html', 'content' => $html_chunk );
+					}
+				}
+			} else {
+				// Product ID captured group
+				$segments[] = array( 'type' => 'product', 'product_id' => $parts[ $i ] );
+			}
+		}
+
+		return $segments;
 	}
 
 	/**
@@ -987,13 +1211,17 @@ class PressNative_Layout {
 			}
 		}
 		if ( ! empty( $products ) ) {
+			// Get the display style preference for in-post products
+			$display_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
+			
 			$components[] = array(
 				'id'      => $prefix . '-products',
 				'type'    => 'ProductCardCompact',
 				'styles'  => $styles,
 				'content' => array(
-					'title'    => __( 'Shop these products', 'pressnative' ),
-					'products' => $products,
+					'title'        => __( 'Shop these products', 'pressnative' ),
+					'products'     => $products,
+					'display_style' => $display_style,
 				),
 			);
 		}

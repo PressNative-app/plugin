@@ -327,6 +327,32 @@ class PressNative_Admin {
 			)
 		);
 
+		// Product Display Settings (WooCommerce)
+		register_setting(
+			'pressnative_app_settings',
+			'pressnative_product_in_post_style',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => function ( $v ) {
+					$allowed = array( 'compact_row', 'card', 'mini_card' );
+					return in_array( $v, $allowed, true ) ? $v : 'compact_row';
+				},
+				'default'           => 'compact_row',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			'pressnative_product_grid_style',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => function ( $v ) {
+					$allowed = array( 'compact_row', 'card', 'mini_card' );
+					return in_array( $v, $allowed, true ) ? $v : 'card';
+				},
+				'default'           => 'card',
+			)
+		);
+
 		// Layout Settings
 		register_setting(
 			'pressnative_layout_settings',
@@ -1438,6 +1464,51 @@ class PressNative_Admin {
 						</td>
 					</tr>
 				</table>
+
+				<?php if ( class_exists( 'WooCommerce' ) ) : ?>
+				<h2 style="margin-top:2em;"><?php esc_html_e( 'WooCommerce Product Display', 'pressnative' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Configure how products appear in different contexts within your app.', 'pressnative' ); ?></p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">
+							<label for="pressnative_product_in_post_style"><?php esc_html_e( 'In-Post Product Style', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$in_post_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
+							$style_options = array(
+								'compact_row' => __( 'Compact Row - Image left, details right (recommended)', 'pressnative' ),
+								'mini_card'   => __( 'Mini Card - Small centered card, subtle display', 'pressnative' ),
+								'card'        => __( 'Full Card - Large card with prominent image', 'pressnative' ),
+							);
+							?>
+							<select id="pressnative_product_in_post_style" name="pressnative_product_in_post_style">
+								<?php foreach ( $style_options as $value => $label ) : ?>
+									<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $in_post_style, $value ); ?>><?php echo esc_html( $label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<p class="description"><?php esc_html_e( 'How products appear when embedded within blog post content using shortcodes.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="pressnative_product_grid_style"><?php esc_html_e( 'Product Grid Style', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$grid_style = get_option( 'pressnative_product_grid_style', 'card' );
+							?>
+							<select id="pressnative_product_grid_style" name="pressnative_product_grid_style">
+								<?php foreach ( $style_options as $value => $label ) : ?>
+									<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $grid_style, $value ); ?>><?php echo esc_html( $label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+							<p class="description"><?php esc_html_e( 'How products appear in dedicated product grid sections on your home screen.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+				</table>
+				<?php endif; ?>
+
 				<?php submit_button(); ?>
 			</form>
 				</div>
