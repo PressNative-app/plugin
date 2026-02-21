@@ -73,9 +73,12 @@ class PressNative_QR {
 		$svg = preg_replace( '/<svg /', sprintf( '<svg width="%d" height="%d" ', $size, $size ), $svg, 1 );
 
 		$html = '<div class="pressnative-qr" style="text-align:center;">';
+		$html .= '<a href="' . esc_url( $deep_link ) . '" target="_blank" rel="noopener">';
 		$html .= $svg;
+		$html .= '</a>';
 		if ( '' !== $label ) {
 			$html .= '<p class="pressnative-qr-label" style="margin:0.5em 0 0;font-size:0.9em;">' . esc_html( $label ) . '</p>';
+			$html .= '<p style="margin:0.25em 0 0;font-size:0.8em;color:#666;">Tap QR code or <a href="' . esc_url( $deep_link ) . '" target="_blank" rel="noopener">click here</a> to open in app</p>';
 		}
 		$html .= '</div>';
 

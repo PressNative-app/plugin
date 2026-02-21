@@ -24,6 +24,8 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-options.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-themes.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout-options.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-dom-parser.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-aot-compiler.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-shortcodes.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-search-api.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-devices.php';
@@ -90,15 +92,21 @@ add_action( 'rest_api_init', function () {
 		array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
-				$data = $layout->get_post_layout( (int) $request['id'] );
+				$post_id = (int) $request['id'];
+
+				// AOT cache: read pre-compiled SDUI blocks from post meta.
+				// Falls back to on-demand DOM parsing when the cache is empty.
+				$cached_blocks = PressNative_AOT_Compiler::get_cached_blocks( $post_id );
+
+				$data = $layout->get_post_layout( $post_id, $cached_blocks );
 				if ( ! $data ) {
 					return new WP_Error( 'not_found', 'Post not found', array( 'status' => 404 ) );
 				}
 				$response = rest_ensure_response( $data );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
-					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : get_the_title( (int) $request['id'] );
+					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : get_the_title( $post_id );
 					$device_id = $request->get_param( 'device_id' );
-					PressNative_Analytics::forward_event_to_registry( 'post', (string) $request['id'], $title, null, $device_id );
+					PressNative_Analytics::forward_event_to_registry( 'post', (string) $post_id, $title, null, $device_id );
 				}
 				return $response;
 			},
@@ -112,7 +120,8 @@ add_action( 'rest_api_init', function () {
 		array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
-				$data = $layout->get_page_layout( $request['slug'] );
+				$slug = $request['slug'];
+				$data = $layout->get_page_layout( $slug );
 				if ( ! $data ) {
 					return new WP_Error( 'not_found', 'Page not found', array( 'status' => 404 ) );
 				}
@@ -120,7 +129,7 @@ add_action( 'rest_api_init', function () {
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
 					$device_id = $request->get_param( 'device_id' );
-					PressNative_Analytics::forward_event_to_registry( 'page', $request['slug'], $title, null, $device_id );
+					PressNative_Analytics::forward_event_to_registry( 'page', $slug, $title, null, $device_id );
 				}
 				return $response;
 			},
@@ -234,6 +243,7 @@ add_action( 'rest_api_init', function () {
 				'accent_color'     => PressNative_Options::OPTION_ACCENT_COLOR,
 				'background_color' => PressNative_Options::OPTION_BACKGROUND_COLOR,
 				'text_color'       => PressNative_Options::OPTION_TEXT_COLOR,
+				'border_color'     => PressNative_Options::OPTION_BORDER_COLOR,
 				'font_family'      => PressNative_Options::OPTION_FONT_FAMILY,
 				'base_font_size'   => PressNative_Options::OPTION_BASE_FONT_SIZE,
 			);
@@ -253,7 +263,7 @@ add_action( 'rest_api_init', function () {
 			foreach ( $map as $key => $option_name ) {
 				if ( isset( $params[ $key ] ) ) {
 					$value = $params[ $key ];
-					if ( in_array( $key, array( 'primary_color', 'accent_color', 'background_color', 'text_color' ), true ) ) {
+					if ( in_array( $key, array( 'primary_color', 'accent_color', 'background_color', 'text_color', 'border_color' ), true ) ) {
 						$value = PressNative_Options::sanitize_hex( $value );
 					}
 					update_option( $option_name, $value );
@@ -703,6 +713,11 @@ PressNative_Admin::init();
 PressNative_QR::init();
 
 /**
+ * AOT compiler: pre-build SDUI JSON on every post/page/product save.
+ */
+PressNative_AOT_Compiler::init();
+
+/**
  * Notify Registry when branding/layout options are saved (invalidates site branding cache).
  */
 PressNative_Registry_Notify::init();
@@ -764,7 +779,7 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 			returnButton.innerHTML = 'Return to App';
 			returnButton.style.cssText = 'background: #0073aa; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-size: 16px; margin: 20px 0; cursor: pointer;';
 			returnButton.onclick = function() {
-				window.location.href = 'com.pressnative.app://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
+				window.location.href = 'app.pressnative.hub://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
 			};
 			
 			// Find a good place to insert the button
@@ -778,7 +793,7 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 		
 		// Auto-redirect after 10 seconds
 		setTimeout(function() {
-			window.location.href = 'com.pressnative.app://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
+			window.location.href = 'app.pressnative.hub://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
 		}, 10000);
 	</script>
 	<?php
@@ -798,7 +813,7 @@ add_action( 'woocommerce_after_cart', function () {
 	
 	?>
 	<div style="text-align: center; margin: 20px 0;">
-		<a href="com.pressnative.app://home" 
+		<a href="app.pressnative.hub://home" 
 		   style="background: #0073aa; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
 			Return to App
 		</a>
@@ -826,17 +841,20 @@ add_action( 'init', function () {
 
 		$app_name = get_option( PressNative_Options::OPTION_APP_NAME, get_bloginfo( 'name' ) );
 		$default_text = $atts['text'] ?: "Download {$app_name}";
+		$site_url = untrailingslashit( home_url() );
 		
-		// Generate fallback HTML for web browsers
+		// Generate fallback HTML for web browsers with deferred deep linking
 		$html = '<div class="pressnative-download-buttons" style="text-align: center; margin: 20px 0;">';
 		
 		if ( $atts['style'] === 'ios' || $atts['style'] === 'both' ) {
-			$ios_url = $atts['ios_url'] ?: 'https://apps.apple.com/app/pressnative/id0000000000';
+			$ios_base_url = $atts['ios_url'] ?: 'https://apps.apple.com/app/pressnative/id0000000000';
+			$ios_url = $ios_base_url . '?pt=pressnative&ct=' . urlencode( $site_url );
 			$html .= '<a href="' . esc_url( $ios_url ) . '" class="pressnative-ios-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #000; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">📱 Download for iOS</a>';
 		}
 		
 		if ( $atts['style'] === 'android' || $atts['style'] === 'both' ) {
-			$android_url = $atts['android_url'] ?: 'https://play.google.com/store/apps/details?id=com.pressnative.app';
+			$android_base_url = $atts['android_url'] ?: 'https://play.google.com/store/apps/details?id=app.pressnative.hub';
+			$android_url = $android_base_url . '&referrer=utm_source%3Dpressnative%26utm_content%3D' . urlencode( $site_url );
 			$html .= '<a href="' . esc_url( $android_url ) . '" class="pressnative-android-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #34A853; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">🤖 Download for Android</a>';
 		}
 		
@@ -850,5 +868,25 @@ add_action( 'init', function () {
 		return do_shortcode( '[pressnative_download ' . implode( ' ', array_map( function ( $k, $v ) {
 			return $k . '="' . esc_attr( $v ) . '"';
 		}, array_keys( $atts ), $atts ) ) . ']' );
+	} );
+
+	// Debug shortcode for testing deep links
+	add_shortcode( 'pressnative_debug_links', function ( $atts ) {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return ''; // Only show to admins
+		}
+		
+		$site_url = untrailingslashit( home_url() );
+		$deep_link_url = 'https://pressnative.app/open?site=' . rawurlencode( $site_url );
+		$custom_scheme_url = 'app.pressnative.hub://site?url=' . rawurlencode( $site_url );
+		
+		$html = '<div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">';
+		$html .= '<h3>🔧 PressNative Debug Links (Admin Only)</h3>';
+		$html .= '<p><strong>Deep Link (HTTPS):</strong><br><a href="' . esc_url( $deep_link_url ) . '" target="_blank">' . esc_html( $deep_link_url ) . '</a></p>';
+		$html .= '<p><strong>Custom Scheme:</strong><br><a href="' . esc_url( $custom_scheme_url ) . '" target="_blank">' . esc_html( $custom_scheme_url ) . '</a></p>';
+		$html .= '<p><em>Click these links on your mobile device to test deep linking.</em></p>';
+		$html .= '</div>';
+		
+		return $html;
 	} );
 } );

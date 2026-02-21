@@ -281,13 +281,20 @@ class PressNative_Layout {
 	/**
 	 * Returns component styles from branding theme (live from App Settings).
 	 *
+	 * @param string $surface 'base' (screen background) or 'tile' (card/tile surfaces).
 	 * @return array
 	 */
-	private function get_component_styles() {
+	private function get_component_styles( $surface = 'base' ) {
 		$branding = PressNative_Options::get_branding();
 		$theme   = $branding['theme'] ?? array();
-		$bg      = $theme['background_color'] ?? '#FFFFFF';
-		$text    = $theme['text_color'] ?? '#111111';
+		$surface = in_array( $surface, array( 'base', 'tile' ), true ) ? $surface : 'base';
+		if ( 'tile' === $surface ) {
+			$bg   = $theme['tile_background_color'] ?? '#F6F7F9';
+			$text = $theme['tile_text_color'] ?? '#111111';
+		} else {
+			$bg   = $theme['background_color'] ?? '#FFFFFF';
+			$text = $theme['text_color'] ?? '#111111';
+		}
 		$accent  = $theme['accent_color'] ?? '#34C759';
 		return array(
 			'colors'  => array(
@@ -526,7 +533,7 @@ class PressNative_Layout {
 		return array(
 			'id'      => 'post-grid',
 			'type'    => 'PostGrid',
-			'styles'  => $this->get_component_styles(),
+			'styles'  => $this->get_component_styles( 'tile' ),
 			'content' => array(
 				'columns' => $cols,
 				'posts'   => $posts,
@@ -654,7 +661,7 @@ class PressNative_Layout {
 		return array(
 			'id'      => 'ad-slot-1',
 			'type'    => 'AdPlacement',
-			'styles'  => $this->get_component_styles(),
+			'styles'  => $this->get_component_styles( 'tile' ),
 			'content' => array(
 				'ad_unit_id' => $unit_id,
 				'format'     => 'banner',
@@ -765,143 +772,48 @@ class PressNative_Layout {
 	/**
 	 * Post detail layout (full article view).
 	 *
-	 * When the post contains WooCommerce product shortcodes and WooCommerce is
-	 * active, content is split at each shortcode boundary and returned as an
-	 * ordered series of PostContentBlock + ProductCardCompact components so that
-	 * product cards appear inline — exactly where the shortcodes were placed by
-	 * the editor. This matches the desktop reading experience.
+	 * Content blocks are sourced from the AOT cache when available. When the
+	 * cache is empty the DOM parser compiles them on-the-fly and persists the
+	 * result so subsequent requests are instant.
 	 *
-	 * For posts without product shortcodes, the original single-PostDetail
-	 * behaviour is preserved.
-	 *
-	 * @param int $post_id Post ID.
+	 * @param int        $post_id        Post ID.
+	 * @param array|null $cached_blocks  Pre-compiled SDUI blocks from AOT cache (optional).
 	 * @return array|null Layout data or null if not found.
 	 */
-	public function get_post_layout( $post_id ) {
+	public function get_post_layout( $post_id, ?array $cached_blocks = null ) {
 		$post = get_post( $post_id );
 		if ( ! $post || $post->post_status !== 'publish' ) {
 			return null;
 		}
 
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $post->post_content );
-		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $post->post_content );
 		$styles           = $this->get_component_styles();
 
-		$saved_more  = $GLOBALS['more'] ?? 0;
-		$saved_paged = $GLOBALS['page'] ?? 0;
-		$GLOBALS['more'] = 1;
-		$GLOBALS['page'] = 1;
-
-		if ( PressNative_WooCommerce::is_active() && $this->has_product_shortcodes( $stripped_content ) ) {
-			// ── Inline mode: split content at each product shortcode ────────
-			$marked = $this->replace_product_shortcodes_with_markers( $stripped_content );
-			$processed_html = $this->wrap_content_with_assets(
-				apply_filters( 'the_content', $marked ),
-				$post
-			);
-			$GLOBALS['more'] = $saved_more;
-			$GLOBALS['page'] = $saved_paged;
-
-			$segments = $this->split_html_at_product_markers( $processed_html );
-
-			// PostDetail header — no inline HTML; content is delivered as segments.
-			$post_detail = array(
-				'id'      => 'post-detail-' . $post_id,
-				'type'    => 'PostDetail',
-				'styles'  => $styles,
-				'content' => array(
-					'post_id'   => (string) $post_id,
-					'title'     => get_the_title( $post ),
-					'excerpt'   => '',
-					'content'   => '',
-					'image_url' => $this->get_post_image_url( $post_id, 'large', $post->post_content ),
-					'date'      => get_the_date( 'c', $post ),
-					'author'    => get_the_author_meta( 'display_name', $post->post_author ),
-				),
-			);
-
-			$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
-			$components[] = $post_detail;
-
-			foreach ( $segments as $seg_idx => $segment ) {
-				if ( 'html' === $segment['type'] ) {
-					$html = trim( $segment['content'] );
-					if ( '' === strip_tags( $html ) ) {
-						continue; // Skip whitespace-only blocks.
-					}
-					$components[] = array(
-						'id'      => 'post-' . $post_id . '-block-' . $seg_idx,
-						'type'    => 'PostContentBlock',
-						'styles'  => $styles,
-						'content' => array( 'html' => $html ),
-					);
-				} elseif ( 'product' === $segment['type'] ) {
-					$pid = (int) $segment['product_id'];
-					$p   = PressNative_WooCommerce::get_product( $pid );
-					if ( $p ) {
-						$in_post_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
-						$components[] = array(
-							'id'      => 'post-' . $post_id . '-product-' . $pid . '-' . $seg_idx,
-							'type'    => 'ProductCardCompact',
-							'styles'  => $styles,
-							'content' => array(
-								'title'         => '',
-								'products'      => array(
-									array(
-										'product_id'         => $p['product_id'],
-										'title'              => $p['title'],
-										'price'              => $p['price'],
-										'image_url'          => $p['image_url'],
-										'categories'         => isset( $p['categories'] ) ? $p['categories'] : array(),
-										'action'             => array(
-											'type'    => 'open_product',
-											'payload' => array( 'product_id' => $p['product_id'] ),
-										),
-										'add_to_cart_action' => $p['add_to_cart_action'],
-									),
-								),
-								'display_style' => $in_post_style,
-							),
-						);
-					}
-				}
-			}
+		// AOT cache → on-demand DOM parse → empty fallback.
+		if ( is_array( $cached_blocks ) && ! empty( $cached_blocks ) ) {
+			$content_blocks = $cached_blocks;
 		} else {
-			// ── Standard mode: single PostDetail with full HTML content ─────
-			$extracted_product_ids = $this->collect_product_ids_from_content( $stripped_content );
-			$stripped_content      = $this->strip_product_page_shortcodes( $stripped_content );
-
-			$processed_content = $this->wrap_content_with_assets(
-				apply_filters( 'the_content', $stripped_content ),
-				$post
-			);
-			$GLOBALS['more'] = $saved_more;
-			$GLOBALS['page'] = $saved_paged;
-
-			if ( ! empty( $extracted_product_ids ) ) {
-				$processed_content = $this->strip_wc_product_html( $processed_content, $extracted_product_ids );
-			}
-
-			$post_detail = array(
-				'id'      => 'post-detail-' . $post_id,
-				'type'    => 'PostDetail',
-				'styles'  => $styles,
-				'content' => array(
-					'post_id'   => (string) $post_id,
-					'title'     => get_the_title( $post ),
-					'excerpt'   => trim( wp_strip_all_tags( get_the_excerpt( $post ) ) ) ?: '',
-					'content'   => $processed_content,
-					'image_url' => $this->get_post_image_url( $post_id, 'large', $post->post_content ),
-					'date'      => get_the_date( 'c', $post ),
-					'author'    => get_the_author_meta( 'display_name', $post->post_author ),
-				),
-			);
-
-			$product_components = $this->extract_product_shortcode_components( $stripped_content, $styles, 'post-' . $post_id );
-			$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
-			$components[] = $post_detail;
-			$components = array_merge( $components, $product_components );
+			$content_blocks = PressNative_AOT_Compiler::compile_on_demand( (int) $post_id );
 		}
+
+		$post_detail = array(
+			'id'      => 'post-detail-' . $post_id,
+			'type'    => 'PostDetail',
+			'styles'  => $styles,
+			'content' => array(
+				'post_id'        => (string) $post_id,
+				'title'          => get_the_title( $post ),
+				'excerpt'        => trim( wp_strip_all_tags( get_the_excerpt( $post ) ) ) ?: '',
+				'content'        => '',
+				'content_blocks' => $content_blocks,
+				'image_url'      => $this->get_post_image_url( $post_id, 'large', $post->post_content ),
+				'date'           => get_the_date( 'c', $post ),
+				'author'         => get_the_author_meta( 'display_name', $post->post_author ),
+			),
+		);
+
+		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
+		$components[] = $post_detail;
 
 		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
@@ -931,132 +843,33 @@ class PressNative_Layout {
 		}
 
 		$shortcode_blocks = PressNative_Shortcodes::extract_shortcode_blocks( $page->post_content );
-		$stripped_content = PressNative_Shortcodes::strip_native_shortcodes( $page->post_content );
 		$styles           = $this->get_component_styles();
 
-		$saved_more  = $GLOBALS['more'] ?? 0;
-		$saved_paged = $GLOBALS['page'] ?? 0;
-		$GLOBALS['more'] = 1;
-		$GLOBALS['page'] = 1;
-
-		if ( PressNative_WooCommerce::is_active() && $this->has_product_shortcodes( $stripped_content ) ) {
-			// ── Inline mode ─────────────────────────────────────────────────
-			$marked = $this->replace_product_shortcodes_with_markers( $stripped_content );
-			$processed_html = $this->wrap_content_with_assets(
-				apply_filters( 'the_content', $marked ),
-				$page
-			);
-			$GLOBALS['more'] = $saved_more;
-			$GLOBALS['page'] = $saved_paged;
-
-			$segments = $this->split_html_at_product_markers( $processed_html );
-
-			$post_detail = array(
-				'id'      => 'page-detail-' . $page->ID,
-				'type'    => 'PostDetail',
-				'styles'  => $styles,
-				'content' => array(
-					'post_id'   => (string) $page->ID,
-					'title'     => get_the_title( $page ),
-					'excerpt'   => '',
-					'content'   => '',
-					'image_url' => $this->get_post_image_url( $page->ID, 'large', $page->post_content ),
-					'date'      => get_the_date( 'c', $page ),
-					'author'    => get_the_author_meta( 'display_name', $page->post_author ),
-					'page_slug' => $page->post_name,
-				),
-			);
-
-			$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
-			$components[] = $post_detail;
-
-			foreach ( $segments as $seg_idx => $segment ) {
-				if ( 'html' === $segment['type'] ) {
-					$html = trim( $segment['content'] );
-					if ( '' === strip_tags( $html ) ) {
-						continue;
-					}
-					$components[] = array(
-						'id'      => 'page-' . $page->ID . '-block-' . $seg_idx,
-						'type'    => 'PostContentBlock',
-						'styles'  => $styles,
-						'content' => array( 'html' => $html ),
-					);
-				} elseif ( 'product' === $segment['type'] ) {
-					$pid = (int) $segment['product_id'];
-					$p   = PressNative_WooCommerce::get_product( $pid );
-					if ( $p ) {
-						$in_post_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
-						$components[] = array(
-							'id'      => 'page-' . $page->ID . '-product-' . $pid . '-' . $seg_idx,
-							'type'    => 'ProductCardCompact',
-							'styles'  => $styles,
-							'content' => array(
-								'title'         => '',
-								'products'      => array(
-									array(
-										'product_id'         => $p['product_id'],
-										'title'              => $p['title'],
-										'price'              => $p['price'],
-										'image_url'          => $p['image_url'],
-										'categories'         => isset( $p['categories'] ) ? $p['categories'] : array(),
-										'action'             => array(
-											'type'    => 'open_product',
-											'payload' => array( 'product_id' => $p['product_id'] ),
-										),
-										'add_to_cart_action' => $p['add_to_cart_action'],
-									),
-								),
-								'display_style' => $in_post_style,
-							),
-						);
-					}
-				}
-			}
-		} else {
-			// ── Standard mode ───────────────────────────────────────────────
-			$extracted_product_ids = $this->collect_product_ids_from_content( $stripped_content );
-			$stripped_content      = $this->strip_product_page_shortcodes( $stripped_content );
-
-			$processed_content = $this->wrap_content_with_assets(
-				apply_filters( 'the_content', $stripped_content ),
-				$page
-			);
-			$GLOBALS['more'] = $saved_more;
-			$GLOBALS['page'] = $saved_paged;
-
-			if ( ! empty( $extracted_product_ids ) ) {
-				$processed_content = $this->strip_wc_product_html( $processed_content, $extracted_product_ids );
-			}
-
-			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
-				error_log( sprintf(
-					'[PressNative] get_page_layout: slug=%s, post_id=%d, content_len=%d, shortcode_blocks=%d',
-					$slug, $page->ID, strlen( $processed_content ), count( $shortcode_blocks )
-				) );
-			}
-
-			$post_detail = array(
-				'id'      => 'page-detail-' . $page->ID,
-				'type'    => 'PostDetail',
-				'styles'  => $styles,
-				'content' => array(
-					'post_id'   => (string) $page->ID,
-					'title'     => get_the_title( $page ),
-					'excerpt'   => trim( wp_strip_all_tags( get_the_excerpt( $page ) ) ) ?: '',
-					'content'   => $processed_content,
-					'image_url' => $this->get_post_image_url( $page->ID, 'large', $page->post_content ),
-					'date'      => get_the_date( 'c', $page ),
-					'author'    => get_the_author_meta( 'display_name', $page->post_author ),
-					'page_slug' => $page->post_name,
-				),
-			);
-
-			$product_components = $this->extract_product_shortcode_components( $stripped_content, $styles, 'page-' . $page->ID );
-			$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
-			$components[] = $post_detail;
-			$components = array_merge( $components, $product_components );
+		// AOT cache → on-demand DOM parse → empty fallback.
+		$content_blocks = PressNative_AOT_Compiler::get_cached_blocks( (int) $page->ID );
+		if ( null === $content_blocks ) {
+			$content_blocks = PressNative_AOT_Compiler::compile_on_demand( (int) $page->ID );
 		}
+
+		$post_detail = array(
+			'id'      => 'page-detail-' . $page->ID,
+			'type'    => 'PostDetail',
+			'styles'  => $styles,
+			'content' => array(
+				'post_id'        => (string) $page->ID,
+				'title'          => get_the_title( $page ),
+				'excerpt'        => trim( wp_strip_all_tags( get_the_excerpt( $page ) ) ) ?: '',
+				'content'        => '',
+				'content_blocks' => $content_blocks,
+				'image_url'      => $this->get_post_image_url( $page->ID, 'large', $page->post_content ),
+				'date'           => get_the_date( 'c', $page ),
+				'author'         => get_the_author_meta( 'display_name', $page->post_author ),
+				'page_slug'      => $page->post_name,
+			),
+		);
+
+		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
+		$components[] = $post_detail;
 
 		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
@@ -1068,6 +881,532 @@ class PressNative_Layout {
 			'components' => $components,
 		);
 		return $this->inject_shop_config( $layout );
+	}
+
+	// ─── Native Content Block Parsing ────────────────────────────────────
+
+	/**
+	 * Progressive enhancement parser for post/page body content.
+	 *
+	 * Strategy:
+	 * 1) Elementor override -> one BlockHtml wrapper for the full rendered HTML.
+	 * 2) Parse Gutenberg blocks and map known "Core 8" blocks to native JSON.
+	 * 3) Intercept WooCommerce "Big 3" shortcodes into native JSON components.
+	 * 4) Unknown/custom blocks fall back to BlockHtml using render_block().
+	 *
+	 * @param WP_Post $post        Source post/page.
+	 * @param string  $raw_content Raw post_content to parse.
+	 * @return array
+	 */
+	private function parse_content_to_native_blocks( $post, $raw_content ) {
+		if ( empty( $post ) || empty( $raw_content ) ) {
+			return array();
+		}
+
+		$is_elementor = (bool) get_post_meta( $post->ID, '_elementor_edit_mode', true );
+		if ( $is_elementor ) {
+			$rendered = apply_filters( 'the_content', $raw_content );
+			if ( ! empty( trim( wp_strip_all_tags( $rendered ) ) ) || ! empty( trim( $rendered ) ) ) {
+				return array(
+					array(
+						'type' => 'BlockHtml',
+						'html' => $this->wrap_content_with_assets( $rendered, $post ),
+					),
+				);
+			}
+			return array();
+		}
+
+		if ( ! function_exists( 'parse_blocks' ) ) {
+			return array();
+		}
+
+		$blocks  = parse_blocks( $raw_content );
+		$output  = array();
+		foreach ( $blocks as $block ) {
+			if ( ! is_array( $block ) ) {
+				continue;
+			}
+			if ( $this->is_empty_block( $block ) ) {
+				continue;
+			}
+			$mapped = $this->map_block_progressive( $block, $post );
+			if ( empty( $mapped ) ) {
+				continue;
+			}
+			foreach ( $mapped as $component ) {
+				if ( ! empty( $component ) && is_array( $component ) ) {
+					$output[] = $component;
+				}
+			}
+		}
+
+		return $output;
+	}
+
+	/**
+	 * True when block is null-name and only whitespace content.
+	 *
+	 * @param array $block Parsed block.
+	 * @return bool
+	 */
+	private function is_empty_block( $block ) {
+		$block_name = isset( $block['blockName'] ) ? $block['blockName'] : null;
+		$inner_html = isset( $block['innerHTML'] ) ? $block['innerHTML'] : '';
+
+		$stripped = preg_replace( '#<script[^>]*>.*?</script>#si', '', (string) $inner_html );
+		$stripped = preg_replace( '#<style[^>]*>.*?</style>#si', '', $stripped );
+		$stripped = trim( wp_strip_all_tags( $stripped ) );
+
+		return ( null === $block_name || '' === $block_name ) && '' === $stripped;
+	}
+
+	/**
+	 * Maps one parsed block into one or more SDUI components.
+	 *
+	 * @param array   $block Parsed block.
+	 * @param WP_Post $post  Source post/page.
+	 * @return array
+	 */
+	private function map_block_progressive( $block, $post ) {
+		$block_name = isset( $block['blockName'] ) ? (string) $block['blockName'] : '';
+		$inner_html = isset( $block['innerHTML'] ) ? (string) $block['innerHTML'] : '';
+		$attrs      = ( isset( $block['attrs'] ) && is_array( $block['attrs'] ) ) ? $block['attrs'] : array();
+
+		$shortcode_mapped = $this->map_woocommerce_shortcode_block( $block_name, $inner_html, $attrs );
+		if ( ! empty( $shortcode_mapped ) ) {
+			return $shortcode_mapped;
+		}
+
+		$core_mapped = $this->map_core_block( $block_name, $inner_html, $attrs, $block );
+		if ( ! empty( $core_mapped ) ) {
+			return $core_mapped;
+		}
+
+		$fallback_html = '';
+		if ( ! empty( $block_name ) && function_exists( 'render_block' ) ) {
+			$fallback_html = (string) render_block( $block );
+		} else {
+			$fallback_html = $inner_html;
+			if ( ! empty( $fallback_html ) && false !== strpos( $fallback_html, '[' ) && function_exists( 'do_shortcode' ) ) {
+				$fallback_html = do_shortcode( $fallback_html );
+			}
+		}
+
+		$fallback_html = preg_replace( '#<script[^>]*>.*?</script>#si', '', $fallback_html );
+		$fallback_html = preg_replace( '#<style[^>]*>.*?</style>#si', '', $fallback_html );
+
+		if ( '' === trim( wp_strip_all_tags( $fallback_html ) ) ) {
+			return array();
+		}
+
+		return array(
+			array(
+				'type' => 'BlockHtml',
+				'html' => $fallback_html,
+			),
+		);
+	}
+
+	/**
+	 * Core 8 Gutenberg block mapping.
+	 *
+	 * @param string $block_name Block name.
+	 * @param string $inner_html Inner html.
+	 * @param array  $attrs      Block attrs.
+	 * @param array  $block      Full block.
+	 * @return array
+	 */
+	private function map_core_block( $block_name, $inner_html, $attrs, $block ) {
+		switch ( $block_name ) {
+			case 'core/paragraph':
+				$plain_text = trim( wp_strip_all_tags( $inner_html ) );
+				if ( $this->contains_shortcode_like_text( $plain_text ) ) {
+					return array();
+				}
+				$allowed = strip_tags( $inner_html, '<a><b><i><strong><em>' );
+				$text    = trim( wp_strip_all_tags( $allowed ) );
+				if ( '' === $text ) {
+					return array();
+				}
+				return array(
+					array(
+						'type'         => 'BlockText',
+						'html_content' => trim( $allowed ),
+						'text'         => $text,
+						'style'        => 'paragraph',
+					),
+				);
+
+			case 'core/heading':
+				$level = isset( $attrs['level'] ) ? (int) $attrs['level'] : 2;
+				$level = max( 1, min( 6, $level ) );
+				$allowed = strip_tags( $inner_html, '<a><b><i><strong><em>' );
+				return array(
+					array(
+						'type'         => 'BlockText',
+						'html_content' => trim( $allowed ),
+						'text'         => trim( wp_strip_all_tags( $allowed ) ),
+						'style'        => 'h' . $level,
+					),
+				);
+
+			case 'core/image':
+				$image = $this->parse_image_block( $block );
+				return empty( $image ) ? array() : array( $image );
+
+			case 'core/list':
+				$items = array();
+				if ( preg_match_all( '/<li[^>]*>(.*?)<\/li>/si', $inner_html, $matches ) ) {
+					foreach ( $matches[1] as $item_html ) {
+						$item_text = trim( wp_strip_all_tags( $item_html ) );
+						if ( '' !== $item_text ) {
+							$items[] = $item_text;
+						}
+					}
+				}
+				if ( empty( $items ) ) {
+					return array();
+				}
+				return array(
+					array(
+						'type'  => 'BlockList',
+						'items' => $items,
+					),
+				);
+
+			case 'core/quote':
+				$quote = $this->parse_quote_block( $block );
+				return empty( $quote ) ? array() : array( $quote );
+
+			case 'core/buttons':
+				$buttons = array();
+				if ( isset( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) ) {
+					foreach ( $block['innerBlocks'] as $inner ) {
+						$button = $this->parse_button_like_html( isset( $inner['innerHTML'] ) ? (string) $inner['innerHTML'] : '' );
+						if ( ! empty( $button ) ) {
+							$buttons[] = $button;
+						}
+					}
+				}
+				if ( empty( $buttons ) ) {
+					$button = $this->parse_button_like_html( $inner_html );
+					if ( ! empty( $button ) ) {
+						$buttons[] = $button;
+					}
+				}
+				return $buttons;
+
+			case 'core/gallery':
+				$images = array();
+				if ( isset( $block['innerBlocks'] ) && is_array( $block['innerBlocks'] ) ) {
+					foreach ( $block['innerBlocks'] as $inner ) {
+						$img = $this->parse_image_block( $inner );
+						if ( ! empty( $img ) ) {
+							$images[] = $img;
+						}
+					}
+				}
+				if ( empty( $images ) && preg_match_all( '/<img[^>]+src=["\']([^"\']+)["\'][^>]*>/i', $inner_html, $matches ) ) {
+					foreach ( $matches[1] as $url ) {
+						$images[] = array(
+							'type'   => 'BlockImage',
+							'url'    => esc_url_raw( $url ),
+							'width'  => 0,
+							'height' => 0,
+							'alt'    => '',
+						);
+					}
+				}
+				if ( empty( $images ) ) {
+					return array();
+				}
+				return array(
+					array(
+						'type'   => 'BlockGallery',
+						'images' => $images,
+					),
+				);
+
+			case 'core/embed':
+				$provider_url = '';
+				if ( isset( $attrs['url'] ) ) {
+					$provider_url = (string) $attrs['url'];
+				} elseif ( preg_match( '/https?:\/\/[^\s"\']+/i', $inner_html, $m ) ) {
+					$provider_url = $m[0];
+				}
+				if ( '' === $provider_url ) {
+					return array();
+				}
+				return array(
+					array(
+						'type'         => 'BlockVideo',
+						'provider_url' => esc_url_raw( $provider_url ),
+					),
+				);
+		}
+
+		return array();
+	}
+
+	/**
+	 * Detects and maps WooCommerce "Big 3" shortcodes.
+	 *
+	 * @param string $block_name Block name.
+	 * @param string $inner_html Inner html.
+	 * @param array  $attrs      Block attrs.
+	 * @return array
+	 */
+	private function map_woocommerce_shortcode_block( $block_name, $inner_html, $attrs ) {
+		$shortcode_text = '';
+		if ( 'core/shortcode' === $block_name ) {
+			$shortcode_text = trim( wp_strip_all_tags( $inner_html ) );
+		} elseif ( 'core/paragraph' === $block_name ) {
+			$paragraph_text = trim( wp_strip_all_tags( $inner_html ) );
+			if ( $this->contains_shortcode_like_text( $paragraph_text ) ) {
+				$shortcode_text = $paragraph_text;
+			}
+		}
+
+		if ( '' === $shortcode_text ) {
+			return array();
+		}
+
+		if ( ! preg_match( '/^\[([a-zA-Z0-9_]+)([^\]]*)\]$/', $shortcode_text, $m ) ) {
+			return array();
+		}
+
+		$shortcode = strtolower( $m[1] );
+		$attr_str  = isset( $m[2] ) ? trim( $m[2] ) : '';
+		$parsed    = array();
+		if ( '' !== $attr_str ) {
+			$maybe = shortcode_parse_atts( $attr_str );
+			$parsed = is_array( $maybe ) ? $maybe : array();
+		}
+
+		if ( 'products' === $shortcode ) {
+			return array(
+				array(
+					'type'    => 'ProductGrid',
+					'params'  => array(
+						'ids'      => isset( $parsed['ids'] ) ? (string) $parsed['ids'] : '',
+						'category' => isset( $parsed['category'] ) ? (string) $parsed['category'] : '',
+						'limit'    => isset( $parsed['limit'] ) ? (string) $parsed['limit'] : '',
+						'columns'  => isset( $parsed['columns'] ) ? (string) $parsed['columns'] : '',
+					),
+					'source'  => 'shortcode',
+				),
+			);
+		}
+
+		if ( 'product_categories' === $shortcode ) {
+			return array(
+				array(
+					'type'   => 'ProductCategoryList',
+					'params' => array(
+						'ids'     => isset( $parsed['ids'] ) ? (string) $parsed['ids'] : '',
+						'number'  => isset( $parsed['number'] ) ? (string) $parsed['number'] : '',
+						'parent'  => isset( $parsed['parent'] ) ? (string) $parsed['parent'] : '',
+						'columns' => isset( $parsed['columns'] ) ? (string) $parsed['columns'] : '',
+					),
+					'source' => 'shortcode',
+				),
+			);
+		}
+
+		if ( 'add_to_cart' === $shortcode ) {
+			$product_id = isset( $parsed['id'] ) ? (string) $parsed['id'] : '';
+			if ( '' === $product_id ) {
+				return array();
+			}
+			return array(
+				array(
+					'type' => 'BlockButton',
+					'text' => isset( $parsed['text'] ) ? (string) $parsed['text'] : __( 'Add to cart', 'pressnative' ),
+					'action' => array(
+						'type'    => 'add_to_cart',
+						'payload' => array(
+							'product_id' => $product_id,
+						),
+					),
+				),
+			);
+		}
+
+		return array();
+	}
+
+	/**
+	 * Parse a single anchor/button html snippet into BlockButton.
+	 *
+	 * @param string $html HTML snippet.
+	 * @return array|null
+	 */
+	private function parse_button_like_html( $html ) {
+		if ( '' === trim( $html ) ) {
+			return null;
+		}
+		$text = trim( wp_strip_all_tags( $html ) );
+		$url  = '';
+		if ( preg_match( '/<a[^>]+href=["\']([^"\']+)["\']/i', $html, $m ) ) {
+			$url = esc_url_raw( $m[1] );
+		}
+		if ( '' === $text && '' === $url ) {
+			return null;
+		}
+		return array(
+			'type' => 'BlockButton',
+			'text' => $text,
+			'url'  => $url,
+		);
+	}
+
+	/**
+	 * Simple shortcode-like detector for paragraph/shortcode content.
+	 *
+	 * @param string $value Value to test.
+	 * @return bool
+	 */
+	private function contains_shortcode_like_text( $value ) {
+		return (bool) preg_match( '/\[[a-zA-Z0-9_]+[^\]]*\]/', (string) $value );
+	}
+
+	/**
+	 * Extracts image data from a core/image block.
+	 *
+	 * @param array $block Parsed image block.
+	 * @return array|null BlockImage object or null.
+	 */
+	private function parse_image_block( $block ) {
+		$url    = '';
+		$width  = 0;
+		$height = 0;
+		$alt    = '';
+		$html   = $block['innerHTML'] ?? '';
+
+		if ( ! empty( $block['attrs']['id'] ) ) {
+			$attachment_id = (int) $block['attrs']['id'];
+			$image = wp_get_attachment_image_src( $attachment_id, 'large' );
+			if ( $image ) {
+				$url    = $image[0];
+				$width  = (int) $image[1];
+				$height = (int) $image[2];
+			}
+			$alt = get_post_meta( $attachment_id, '_wp_attachment_image_alt', true ) ?: '';
+		}
+
+		if ( empty( $url ) && preg_match( '/<img[^>]+src=["\']([^"\']+)["\']/', $html, $m ) ) {
+			$url = $m[1];
+		}
+		if ( empty( $width ) && preg_match( '/<img[^>]+width=["\']?(\d+)/', $html, $m ) ) {
+			$width = (int) $m[1];
+		}
+		if ( empty( $height ) && preg_match( '/<img[^>]+height=["\']?(\d+)/', $html, $m ) ) {
+			$height = (int) $m[1];
+		}
+		if ( empty( $alt ) && preg_match( '/<img[^>]+alt=["\']([^"\']*)["\']/', $html, $m ) ) {
+			$alt = $m[1];
+		}
+		if ( empty( $width ) && ! empty( $block['attrs']['width'] ) ) {
+			$width = (int) $block['attrs']['width'];
+		}
+		if ( empty( $height ) && ! empty( $block['attrs']['height'] ) ) {
+			$height = (int) $block['attrs']['height'];
+		}
+
+		if ( empty( $url ) ) {
+			return null;
+		}
+
+		return array(
+			'type'   => 'BlockImage',
+			'url'    => $url,
+			'width'  => $width,
+			'height' => $height,
+			'alt'    => $alt,
+		);
+	}
+
+	/**
+	 * Extracts text and citation from a core/quote block.
+	 *
+	 * @param array $block Parsed quote block.
+	 * @return array|null BlockQuote object or null.
+	 */
+	private function parse_quote_block( $block ) {
+		$html   = $block['innerHTML'] ?? '';
+		$text   = '';
+		$author = '';
+
+		if ( preg_match( '/<blockquote[^>]*>(.*?)<\/blockquote>/s', $html, $bq ) ) {
+			$inner = $bq[1];
+			if ( preg_match( '/<cite>(.*?)<\/cite>/s', $inner, $cite ) ) {
+				$author = trim( strip_tags( $cite[1] ) );
+				$inner  = str_replace( $cite[0], '', $inner );
+			}
+			$text = trim( strip_tags( $inner ) );
+		}
+
+		if ( empty( $text ) ) {
+			return null;
+		}
+
+		return array(
+			'type'   => 'BlockQuote',
+			'text'   => $text,
+			'author' => $author,
+		);
+	}
+
+	/**
+	 * Splits parsed Gutenberg blocks into segments at WooCommerce product
+	 * shortcode boundaries. Used for inline-product mode.
+	 *
+	 * @param string $raw_content Raw post_content.
+	 * @return array Segments — each is either ['type'=>'blocks','content_blocks'=>[...]]
+	 *               or ['type'=>'product','product_id'=>int].
+	 */
+	private function split_blocks_at_product_shortcodes( $raw_content ) {
+		if ( empty( $raw_content ) || ! function_exists( 'parse_blocks' ) ) {
+			return array();
+		}
+
+		$blocks          = parse_blocks( $raw_content );
+		$product_pattern = '/\[(?:product_page|product|add_to_cart)\s+id=["\']?(\d+)["\']?[^\]]*\]/i';
+		$segments        = array();
+		$current_blocks  = array();
+
+		foreach ( $blocks as $block ) {
+			$block_name = $block['blockName'] ?? '';
+			$inner_html = $block['innerHTML'] ?? '';
+
+			if ( preg_match( $product_pattern, $inner_html, $m ) ) {
+				if ( ! empty( $current_blocks ) ) {
+					$segments[]    = array( 'type' => 'blocks', 'content_blocks' => $current_blocks );
+					$current_blocks = array();
+				}
+				$segments[] = array( 'type' => 'product', 'product_id' => (int) $m[1] );
+				continue;
+			}
+
+			if ( in_array( $block_name, array( 'core/group', 'core/columns', 'core/column' ), true ) ) {
+				if ( ! empty( $block['innerBlocks'] ) ) {
+					$current_blocks = array_merge( $current_blocks, $this->map_gutenberg_blocks( $block['innerBlocks'] ) );
+				}
+				continue;
+			}
+
+			$mapped = $this->map_single_block( $block );
+			if ( null !== $mapped ) {
+				$current_blocks[] = $mapped;
+			}
+		}
+
+		if ( ! empty( $current_blocks ) ) {
+			$segments[] = array( 'type' => 'blocks', 'content_blocks' => $current_blocks );
+		}
+
+		return $segments;
 	}
 
 	/**
@@ -1385,7 +1724,7 @@ class PressNative_Layout {
 	 */
 	private function build_product_grid() {
 		if ( ! PressNative_WooCommerce::is_active() ) {
-			return array( 'id' => 'product-grid', 'type' => 'ProductGrid', 'styles' => $this->get_component_styles(), 'content' => array( 'columns' => 2, 'products' => array(), 'display_style' => 'card' ) );
+			return array( 'id' => 'product-grid', 'type' => 'ProductGrid', 'styles' => $this->get_component_styles( 'tile' ), 'content' => array( 'columns' => 2, 'products' => array(), 'display_style' => 'card' ) );
 		}
 		$cols = PressNative_Layout_Options::get_product_grid_columns();
 		$per  = PressNative_Layout_Options::get_product_grid_per_page();
@@ -1394,7 +1733,7 @@ class PressNative_Layout {
 		return array(
 			'id'      => 'product-grid',
 			'type'    => 'ProductGrid',
-			'styles'  => $this->get_component_styles(),
+			'styles'  => $this->get_component_styles( 'tile' ),
 			'content' => array(
 				'columns'       => $cols,
 				'products'      => $products,

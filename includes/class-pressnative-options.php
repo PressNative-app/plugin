@@ -21,6 +21,7 @@ class PressNative_Options {
 	const OPTION_BACKGROUND_COLOR      = 'pressnative_background_color';
 	const OPTION_BACKGROUND_IMAGE      = 'pressnative_background_image_attachment_id';
 	const OPTION_TEXT_COLOR            = 'pressnative_text_color';
+	const OPTION_BORDER_COLOR          = 'pressnative_border_color';
 	const OPTION_TILE_BACKGROUND_COLOR = 'pressnative_tile_background_color';
 	const OPTION_TILE_BACKGROUND       = 'pressnative_tile_background_attachment_id';
 	const OPTION_TILE_TEXT_COLOR       = 'pressnative_tile_text_color';
@@ -44,6 +45,7 @@ class PressNative_Options {
 	const DEFAULT_ACCENT_COLOR          = '#34C759';
 	const DEFAULT_BACKGROUND_COLOR      = '#FFFFFF';
 	const DEFAULT_TEXT_COLOR            = '#111111';
+	const DEFAULT_BORDER_COLOR          = '#E5E7EB';
 	const DEFAULT_TILE_BACKGROUND_COLOR = '#F6F7F9';
 	const DEFAULT_TILE_TEXT_COLOR       = '#111111';
 	const DEFAULT_FONT_FAMILY           = 'sans-serif';
@@ -115,6 +117,7 @@ class PressNative_Options {
 				'background_color'      => self::sanitize_hex( get_option( self::OPTION_BACKGROUND_COLOR, self::DEFAULT_BACKGROUND_COLOR ) ),
 				'background_image_url'  => $background_image_url,
 				'text_color'            => self::sanitize_hex( get_option( self::OPTION_TEXT_COLOR, self::DEFAULT_TEXT_COLOR ) ),
+				'border_color'          => self::sanitize_hex( get_option( self::OPTION_BORDER_COLOR, self::DEFAULT_BORDER_COLOR ) ),
 				'tile_background_color' => self::sanitize_hex( get_option( self::OPTION_TILE_BACKGROUND_COLOR, self::DEFAULT_TILE_BACKGROUND_COLOR ) ),
 				'tile_background_url'   => $tile_bg_url,
 				'tile_text_color'       => self::sanitize_hex( get_option( self::OPTION_TILE_TEXT_COLOR, self::DEFAULT_TILE_TEXT_COLOR ) ),

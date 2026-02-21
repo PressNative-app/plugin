@@ -13,11 +13,14 @@ defined( 'ABSPATH' ) || exit;
  */
 class PressNative_Analytics {
 
-	const EVENT_HOME     = 'home';
-	const EVENT_POST     = 'post';
-	const EVENT_PAGE     = 'page';
-	const EVENT_CATEGORY = 'category';
-	const EVENT_SEARCH   = 'search';
+	const EVENT_HOME            = 'home';
+	const EVENT_POST            = 'post';
+	const EVENT_PAGE            = 'page';
+	const EVENT_CATEGORY        = 'category';
+	const EVENT_SEARCH          = 'search';
+	const EVENT_SHOP            = 'shop';
+	const EVENT_PRODUCT         = 'product';
+	const EVENT_PRODUCT_CATEGORY = 'product-category';
 
 	const DEVICE_IOS     = 'ios';
 	const DEVICE_ANDROID = 'android';
@@ -61,7 +64,7 @@ class PressNative_Analytics {
 	 * @return bool True if the Registry accepted the event (or no key configured and we skipped), false on failure.
 	 */
 	public static function forward_event_to_registry( $event_type, $resource_id = '', $resource_title = null, $device_type = null, $device_id = null ) {
-		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH );
+		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH, self::EVENT_SHOP, self::EVENT_PRODUCT, self::EVENT_PRODUCT_CATEGORY );
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
 			return false;
 		}
@@ -163,7 +166,7 @@ class PressNative_Analytics {
 		$device_type   = isset( $params['device_type'] ) ? sanitize_text_field( $params['device_type'] ) : null;
 		$device_id     = isset( $params['device_id'] ) ? sanitize_text_field( $params['device_id'] ) : null;
 
-		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH );
+		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH, self::EVENT_SHOP, self::EVENT_PRODUCT, self::EVENT_PRODUCT_CATEGORY );
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
 			return new WP_Error( 'invalid_event_type', __( 'Invalid event_type.', 'pressnative' ), array( 'status' => 400 ) );
 		}
@@ -194,7 +197,7 @@ class PressNative_Analytics {
 					'event_type'     => array(
 						'required'          => true,
 						'type'              => 'string',
-						'enum'              => array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH ),
+						'enum'              => array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH, self::EVENT_SHOP, self::EVENT_PRODUCT, self::EVENT_PRODUCT_CATEGORY ),
 						'sanitize_callback' => 'sanitize_text_field',
 					),
 					'resource_id'    => array( 'required' => false, 'type' => 'string', 'default' => '' ),
