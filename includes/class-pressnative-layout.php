@@ -484,6 +484,7 @@ class PressNative_Layout {
 
 	/**
 	 * PostGrid component from get_posts.
+	 * When there are more published posts than shown, adds see_more_action so the app can show "See all posts".
 	 *
 	 * @return array
 	 */
@@ -530,14 +531,26 @@ class PressNative_Layout {
 			);
 		}
 
+		$content = array(
+			'columns' => $cols,
+			'posts'   => $posts,
+		);
+
+		// Allow app to show "See all posts" when there are more than the home subset.
+		$total_posts = (int) wp_count_posts( 'post' )->publish;
+		if ( $total_posts > $per ) {
+			$content['see_more_action'] = array(
+				'type'    => 'open_posts_list',
+				'payload' => array( 'page' => 1 ),
+			);
+			$content['total_posts'] = $total_posts;
+		}
+
 		return array(
 			'id'      => 'post-grid',
 			'type'    => 'PostGrid',
 			'styles'  => $this->get_component_styles( 'tile' ),
-			'content' => array(
-				'columns' => $cols,
-				'posts'   => $posts,
-			),
+			'content' => $content,
 		);
 	}
 
@@ -603,7 +616,34 @@ class PressNative_Layout {
 	}
 
 	/**
+	 * Whether the given page is a WooCommerce system page (Shop, Cart, Checkout, My Account).
+	 * These are excluded from the app's PageList so users don't see duplicate or irrelevant entries.
+	 *
+	 * @param WP_Post $page Page object.
+	 * @return bool
+	 */
+	private function is_woocommerce_system_page( $page ) {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return false;
+		}
+		$wc_page_ids = array(
+			wc_get_page_id( 'shop' ),
+			wc_get_page_id( 'cart' ),
+			wc_get_page_id( 'checkout' ),
+			wc_get_page_id( 'myaccount' ),
+		);
+		foreach ( $wc_page_ids as $wc_id ) {
+			if ( $wc_id > 0 && (int) $page->ID === $wc_id ) {
+				return true;
+			}
+		}
+		$wc_slugs = array( 'shop', 'cart', 'checkout', 'my-account', 'woocommerce' );
+		return in_array( $page->post_name, $wc_slugs, true );
+	}
+
+	/**
 	 * PageList component from get_pages.
+	 * WooCommerce default pages (Cart, Checkout, My Account, Shop) are excluded.
 	 *
 	 * @return array
 	 */
@@ -619,6 +659,9 @@ class PressNative_Layout {
 		$items   = array();
 		if ( ! empty( $pages ) && ! is_wp_error( $pages ) ) {
 			foreach ( $pages as $page ) {
+				if ( $this->is_woocommerce_system_page( $page ) ) {
+					continue;
+				}
 				$slug   = $page->post_name ?: 'page-' . $page->ID;
 				$img_url = $this->get_post_image_url( $page->ID, 'thumbnail', $page->post_content );
 				$items[] = array(
@@ -686,6 +729,99 @@ class PressNative_Layout {
 				'ignore_sticky_posts' => true,
 			)
 		);
+	}
+
+	/**
+	 * Paginated posts for "All Posts" screen. Uses WP_Query for paged results.
+	 *
+	 * @param int $page     Page number (1-based).
+	 * @param int $per_page Posts per page.
+	 * @return array{posts: array, total: int, has_next_page: bool, next_page: int|null}
+	 */
+	private function get_posts_page( $page = 1, $per_page = 20 ) {
+		$page     = max( 1, absint( $page ) );
+		$per_page = max( 1, min( 50, absint( $per_page ) ) );
+
+		$query = new \WP_Query(
+			array(
+				'post_type'           => 'post',
+				'post_status'         => 'publish',
+				'posts_per_page'      => $per_page,
+				'paged'               => $page,
+				'ignore_sticky_posts' => true,
+				'fields'              => 'ids',
+			)
+		);
+
+		$total   = (int) $query->found_posts;
+		$ids     = $query->posts;
+		$posts   = array();
+		foreach ( $ids as $post_id ) {
+			$post = get_post( $post_id );
+			if ( ! $post || $post->post_status !== 'publish' ) {
+				continue;
+			}
+			$posts[] = array(
+				'post_id'       => (string) $post->ID,
+				'title'         => get_the_title( $post->ID ),
+				'excerpt'       => trim( wp_strip_all_tags( get_the_excerpt( $post ) ) ) ?: '',
+				'thumbnail_url' => $this->get_post_image_url( $post->ID, 'medium', $post->post_content ),
+				'action'        => array(
+					'type'    => 'open_post',
+					'payload' => array( 'post_id' => (string) $post->ID ),
+				),
+			);
+		}
+
+		$has_next = ( $page * $per_page ) < $total;
+		return array(
+			'posts'         => $posts,
+			'total'         => $total,
+			'has_next_page' => $has_next,
+			'next_page'     => $has_next ? $page + 1 : null,
+			'page'          => $page,
+			'per_page'      => $per_page,
+		);
+	}
+
+	/**
+	 * Layout for the "All Posts" screen (paginated). Used by GET /layout/posts?page=1&per_page=20.
+	 *
+	 * @param int $page     Page number (1-based).
+	 * @param int $per_page Posts per page.
+	 * @return array Layout array with screen id 'posts' and one PostGrid component.
+	 */
+	public function get_posts_list_layout( $page = 1, $per_page = 20 ) {
+		$cols  = PressNative_Layout_Options::get_post_grid_columns();
+		$data  = $this->get_posts_page( $page, $per_page );
+
+		$content = array(
+			'columns'        => $cols,
+			'posts'          => $data['posts'],
+			'page'           => $data['page'],
+			'per_page'       => $data['per_page'],
+			'total_posts'    => $data['total'],
+			'has_next_page'  => $data['has_next_page'],
+			'next_page'      => $data['next_page'],
+		);
+
+		$post_grid = array(
+			'id'      => 'posts-list',
+			'type'    => 'PostGrid',
+			'styles'  => $this->get_component_styles( 'tile' ),
+			'content' => $content,
+		);
+
+		$layout = array(
+			'api_url'    => rest_url( 'pressnative/v1/' ),
+			'branding'   => PressNative_Options::get_branding(),
+			'screen'     => array(
+				'id'    => 'posts',
+				'title' => __( 'All Posts', 'pressnative' ),
+			),
+			'components' => array( $post_grid ),
+		);
+		return $this->inject_shop_config( $layout );
 	}
 
 	/**
@@ -796,6 +932,19 @@ class PressNative_Layout {
 			$content_blocks = PressNative_AOT_Compiler::compile_on_demand( (int) $post_id );
 		}
 
+		// Resolve ProductReference markers into native product components.
+		$content_blocks = $this->resolve_product_references( $content_blocks, $styles );
+
+		// When content_blocks is empty (e.g. parser failed or classic content), send raw HTML so the app can render it in a WebView fallback.
+		$content_html = ( count( $content_blocks ) === 0 && ! empty( $post->post_content ) )
+			? apply_filters( 'the_content', $post->post_content )
+			: '';
+
+		$date_format = get_option( 'date_format', 'F j, Y' );
+		$time_format = get_option( 'time_format', 'g:i a' );
+		$date_display = get_the_date( $date_format, $post );
+		$time_display = get_the_time( $time_format, $post );
+
 		$post_detail = array(
 			'id'      => 'post-detail-' . $post_id,
 			'type'    => 'PostDetail',
@@ -804,11 +953,14 @@ class PressNative_Layout {
 				'post_id'        => (string) $post_id,
 				'title'          => get_the_title( $post ),
 				'excerpt'        => trim( wp_strip_all_tags( get_the_excerpt( $post ) ) ) ?: '',
-				'content'        => '',
+				'content'        => $content_html,
 				'content_blocks' => $content_blocks,
 				'image_url'      => $this->get_post_image_url( $post_id, 'large', $post->post_content ),
 				'date'           => get_the_date( 'c', $post ),
+				'date_display'   => $date_display,
+				'time_display'   => $time_display,
 				'author'         => get_the_author_meta( 'display_name', $post->post_author ),
+				'show_author'    => true,
 			),
 		);
 
@@ -851,6 +1003,19 @@ class PressNative_Layout {
 			$content_blocks = PressNative_AOT_Compiler::compile_on_demand( (int) $page->ID );
 		}
 
+		// Resolve ProductReference markers into native product components.
+		$content_blocks = $this->resolve_product_references( $content_blocks, $styles );
+
+		// When content_blocks is empty, send raw HTML so the app can render it in a WebView fallback.
+		$content_html = ( count( $content_blocks ) === 0 && ! empty( $page->post_content ) )
+			? apply_filters( 'the_content', $page->post_content )
+			: '';
+
+		$date_format = get_option( 'date_format', 'F j, Y' );
+		$time_format = get_option( 'time_format', 'g:i a' );
+		$date_display = get_the_date( $date_format, $page );
+		$time_display = get_the_time( $time_format, $page );
+
 		$post_detail = array(
 			'id'      => 'page-detail-' . $page->ID,
 			'type'    => 'PostDetail',
@@ -859,11 +1024,14 @@ class PressNative_Layout {
 				'post_id'        => (string) $page->ID,
 				'title'          => get_the_title( $page ),
 				'excerpt'        => trim( wp_strip_all_tags( get_the_excerpt( $page ) ) ) ?: '',
-				'content'        => '',
+				'content'        => $content_html,
 				'content_blocks' => $content_blocks,
 				'image_url'      => $this->get_post_image_url( $page->ID, 'large', $page->post_content ),
 				'date'           => get_the_date( 'c', $page ),
+				'date_display'   => $date_display,
+				'time_display'   => $time_display,
 				'author'         => get_the_author_meta( 'display_name', $page->post_author ),
+				'show_author'    => true,
 				'page_slug'      => $page->post_name,
 			),
 		);
@@ -881,6 +1049,103 @@ class PressNative_Layout {
 			'components' => $components,
 		);
 		return $this->inject_shop_config( $layout );
+	}
+
+	// ─── Product Reference Resolution ───────────────────────────────────
+
+	/**
+	 * Walk a content_blocks array and replace every ProductReference with
+	 * live product data from WooCommerce. Consecutive product references are
+	 * grouped into a single ProductCardCompact component.
+	 *
+	 * Runs at request time so prices, images and stock are always fresh.
+	 *
+	 * @param array $blocks Content blocks (may contain ProductReference items).
+	 * @param array $styles Component styles for the product card.
+	 * @return array Blocks with ProductReference items resolved or removed.
+	 */
+	private function resolve_product_references( array $blocks, array $styles ): array {
+		if ( ! class_exists( 'PressNative_WooCommerce' ) || ! PressNative_WooCommerce::is_active() ) {
+			return array_values( array_filter( $blocks, function ( $b ) {
+				return ( $b['type'] ?? '' ) !== 'ProductReference';
+			} ) );
+		}
+
+		$display_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
+		$resolved      = array();
+		$product_batch = array();
+
+		foreach ( $blocks as $block ) {
+			if ( ( $block['type'] ?? '' ) === 'ProductReference' ) {
+				$product_batch[] = (int) $block['product_id'];
+				continue;
+			}
+
+			// Flush any accumulated product references as a group.
+			if ( ! empty( $product_batch ) ) {
+				$card = $this->build_product_card_from_ids( $product_batch, $styles, $display_style );
+				if ( $card ) {
+					$resolved[] = $card;
+				}
+				$product_batch = array();
+			}
+
+			$resolved[] = $block;
+		}
+
+		// Trailing product references at end of content.
+		if ( ! empty( $product_batch ) ) {
+			$card = $this->build_product_card_from_ids( $product_batch, $styles, $display_style );
+			if ( $card ) {
+				$resolved[] = $card;
+			}
+		}
+
+		return $resolved;
+	}
+
+	/**
+	 * Build a ProductCardCompact content block from a list of product IDs.
+	 *
+	 * @param int[]  $product_ids  Product IDs.
+	 * @param array  $styles       Component styles.
+	 * @param string $display_style Display style preference.
+	 * @return array|null The product card block or null if no products found.
+	 */
+	private function build_product_card_from_ids( array $product_ids, array $styles, string $display_style ): ?array {
+		$products = array();
+		foreach ( $product_ids as $pid ) {
+			$p = PressNative_WooCommerce::get_product( $pid );
+			if ( ! $p ) {
+				continue;
+			}
+			$products[] = array(
+				'product_id'         => $p['product_id'],
+				'title'              => $p['title'],
+				'price'              => $p['price'],
+				'image_url'          => $p['image_url'],
+				'categories'         => $p['categories'] ?? array(),
+				'action'             => array(
+					'type'    => 'open_product',
+					'payload' => array( 'product_id' => $p['product_id'] ),
+				),
+				'add_to_cart_action' => $p['add_to_cart_action'],
+			);
+		}
+
+		if ( empty( $products ) ) {
+			return null;
+		}
+
+		return array(
+			'type'    => 'ProductCardCompact',
+			'styles'  => $styles,
+			'content' => array(
+				'title'         => __( 'Shop these products', 'pressnative' ),
+				'products'      => $products,
+				'display_style' => $display_style,
+			),
+		);
 	}
 
 	// ─── Native Content Block Parsing ────────────────────────────────────
@@ -1849,6 +2114,7 @@ class PressNative_Layout {
 				'price'               => $product['price'],
 				'description'         => $product['description'],
 				'image_url'           => $product['image_url'],
+				'images'              => isset( $product['images'] ) ? $product['images'] : array(),
 				'add_to_cart_action'  => $product['add_to_cart_action'],
 			),
 		);

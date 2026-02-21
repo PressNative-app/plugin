@@ -49,6 +49,9 @@ add_action( 'init', function () {
 register_activation_hook( __FILE__, function () {
 	PressNative_Devices::create_table();
 	PressNative_Admin::verify_registry_schema();
+
+	// Schedule async AOT warm-up so existing content is pre-compiled.
+	PressNative_AOT_Compiler::schedule_warmup();
 } );
 
 /**
@@ -56,8 +59,9 @@ register_activation_hook( __FILE__, function () {
  * Full cleanup (options + database table) happens in uninstall.php.
  */
 register_deactivation_hook( __FILE__, function () {
-	// Intentionally empty: data is preserved for reactivation.
-	// See uninstall.php for full cleanup on plugin deletion.
+	// Stop any in-progress AOT batch compilation.
+	wp_clear_scheduled_hook( PressNative_AOT_Compiler::CRON_HOOK );
+	// Data is preserved for reactivation. See uninstall.php for full cleanup.
 } );
 
 /**
@@ -83,6 +87,44 @@ add_action( 'rest_api_init', function () {
 				return $response;
 			},
 			'permission_callback' => '__return_true',
+		)
+	);
+
+	register_rest_route(
+		'pressnative/v1',
+		'/layout/posts',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
+				$page     = (int) $request->get_param( 'page' );
+				$per_page = (int) $request->get_param( 'per_page' );
+				if ( $page < 1 ) {
+					$page = 1;
+				}
+				if ( $per_page < 1 || $per_page > 50 ) {
+					$per_page = 20;
+				}
+				$data     = $layout->get_posts_list_layout( $page, $per_page );
+				$response = rest_ensure_response( $data );
+				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+				return $response;
+			},
+			'permission_callback' => '__return_true',
+			'args'                => array(
+				'page'      => array(
+					'type'              => 'integer',
+					'default'           => 1,
+					'minimum'           => 1,
+					'sanitize_callback' => 'absint',
+				),
+				'per_page'  => array(
+					'type'              => 'integer',
+					'default'           => 20,
+					'minimum'           => 1,
+					'maximum'           => 50,
+					'sanitize_callback' => 'absint',
+				),
+			),
 		)
 	);
 

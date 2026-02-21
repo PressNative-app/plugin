@@ -329,8 +329,8 @@ class PressNative_WooCommerce {
 		if ( ! $product || ! $product->is_visible() ) {
 			return null;
 		}
-		$id     = $product->get_id();
-		$image  = '';
+		$id    = $product->get_id();
+		$image = '';
 		if ( $product->get_image_id() ) {
 			$image = wp_get_attachment_image_url( $product->get_image_id(), 'large' );
 		}
@@ -338,7 +338,40 @@ class PressNative_WooCommerce {
 			$image = wc_placeholder_img_src( 'large' );
 		}
 		$image = $image ? (string) $image : '';
-		$desc  = $product->get_short_description();
+
+		// Gallery: featured first, then gallery IDs, deduplicated URLs.
+		$image_ids = array();
+		$feat_id   = $product->get_image_id();
+		if ( $feat_id ) {
+			$image_ids[] = $feat_id;
+		}
+		if ( method_exists( $product, 'get_gallery_image_ids' ) ) {
+			$gallery_ids = $product->get_gallery_image_ids();
+			if ( is_array( $gallery_ids ) ) {
+				foreach ( $gallery_ids as $aid ) {
+					if ( $aid && ! in_array( $aid, $image_ids, true ) ) {
+						$image_ids[] = $aid;
+					}
+				}
+			}
+		}
+		$images = array();
+		$seen   = array();
+		foreach ( $image_ids as $aid ) {
+			$url = wp_get_attachment_image_url( (int) $aid, 'large' );
+			if ( $url && ! in_array( $url, $seen, true ) ) {
+				$images[] = (string) $url;
+				$seen[]   = $url;
+			}
+		}
+		if ( empty( $images ) && $image ) {
+			$images[] = $image;
+		}
+		if ( empty( $images ) && function_exists( 'wc_placeholder_img_src' ) ) {
+			$images[] = (string) wc_placeholder_img_src( 'large' );
+		}
+
+		$desc = $product->get_short_description();
 		if ( empty( $desc ) ) {
 			$desc = $product->get_description();
 		}
@@ -362,6 +395,7 @@ class PressNative_WooCommerce {
 			'price_raw'           => $product->get_price(),
 			'description'        => $desc,
 			'image_url'           => $image,
+			'images'              => $images,
 			'categories'          => $category_names,
 			'add_to_cart_action'   => array(
 				'type'    => 'add_to_cart',

@@ -17,6 +17,12 @@ defined( 'ABSPATH' ) || exit;
 class PressNative_DOM_Parser {
 
 	/**
+	 * Regex that matches the AOT compiler's product marker comments.
+	 * e.g. <!--PRESSNATIVE_PRODUCT:76-->
+	 */
+	private const PRODUCT_MARKER_PATTERN = '/^PRESSNATIVE_PRODUCT:(\d+)$/';
+
+	/**
 	 * Tags that must never be recursed into — their full outer HTML becomes
 	 * a BlockHtml so the native app can render them inside a micro-WebView.
 	 */
@@ -106,8 +112,17 @@ class PressNative_DOM_Parser {
 			);
 		}
 
-		// ── #comment nodes — skip completely ────────────────────────────
+		// ── #comment nodes — detect product markers, skip the rest ─────
 		if ( XML_COMMENT_NODE === $node->nodeType ) {
+			$data = trim( $node->textContent );
+			if ( preg_match( self::PRODUCT_MARKER_PATTERN, $data, $m ) ) {
+				return array(
+					array(
+						'type'       => 'ProductReference',
+						'product_id' => (int) $m[1],
+					),
+				);
+			}
 			return array();
 		}
 
