@@ -33,6 +33,7 @@ class PressNative_Themes {
 					'accent_color'     => '#c41e3a',
 					'background_color' => '#fafafa',
 					'text_color'       => '#1a1a1a',
+					'border_color'     => '#e5e7eb',
 				),
 				'typography'  => array(
 					'font_family'    => 'serif',
@@ -47,6 +48,7 @@ class PressNative_Themes {
 					'accent_color'     => '#4ade80',
 					'background_color' => '#0f172a',
 					'text_color'       => '#e2e8f0',
+					'border_color'     => '#1f2937',
 				),
 				'typography'  => array(
 					'font_family'    => 'sans-serif',
@@ -61,6 +63,7 @@ class PressNative_Themes {
 					'accent_color'     => '#22c55e',
 					'background_color' => '#fffbeb',
 					'text_color'       => '#1c1917',
+					'border_color'     => '#e7e5e4',
 				),
 				'typography'  => array(
 					'font_family'    => 'sans-serif',
@@ -75,6 +78,7 @@ class PressNative_Themes {
 					'accent_color'     => '#0ea5e9',
 					'background_color' => '#ffffff',
 					'text_color'       => '#334155',
+					'border_color'     => '#e2e8f0',
 				),
 				'typography'  => array(
 					'font_family'    => 'sans-serif',
@@ -89,6 +93,7 @@ class PressNative_Themes {
 					'accent_color'     => '#737373',
 					'background_color' => '#ffffff',
 					'text_color'       => '#171717',
+					'border_color'     => '#e5e7eb',
 				),
 				'typography'  => array(
 					'font_family'    => 'sans-serif',

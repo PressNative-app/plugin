@@ -22,7 +22,12 @@ class PressNative_Preview {
 		'primary_color'        => 'pressnative_primary_color',
 		'accent_color'         => 'pressnative_accent_color',
 		'background_color'     => 'pressnative_background_color',
+		'background_image_attachment' => 'pressnative_background_image_attachment_id',
 		'text_color'           => 'pressnative_text_color',
+		'border_color'         => 'pressnative_border_color',
+		'tile_background_color' => 'pressnative_tile_background_color',
+		'tile_background_attachment' => 'pressnative_tile_background_attachment_id',
+		'tile_text_color'      => 'pressnative_tile_text_color',
 		'font_family'          => 'pressnative_font_family',
 		'base_font_size'       => 'pressnative_base_font_size',
 		'logo_attachment'      => 'pressnative_logo_attachment_id',
@@ -32,6 +37,8 @@ class PressNative_Preview {
 		'post_grid_per_page'   => 'pressnative_post_grid_per_page',
 		'enabled_categories'   => 'pressnative_enabled_categories',
 		'enabled_components'   => 'pressnative_enabled_components',
+		'product_in_post_style' => 'pressnative_product_in_post_style',
+		'product_grid_style'    => 'pressnative_product_grid_style',
 	);
 
 	/**
@@ -98,6 +105,9 @@ class PressNative_Preview {
 			case 'pressnative_accent_color':
 			case 'pressnative_background_color':
 			case 'pressnative_text_color':
+			case 'pressnative_border_color':
+			case 'pressnative_tile_background_color':
+			case 'pressnative_tile_text_color':
 				return PressNative_Options::sanitize_hex( (string) $value );
 			case 'pressnative_font_family':
 				$allowed = array( 'sans-serif', 'serif', 'monospace' );
@@ -115,6 +125,8 @@ class PressNative_Preview {
 				$v = absint( $value );
 				return max( 1, min( 50, $v ) );
 			case 'pressnative_logo_attachment_id':
+			case 'pressnative_background_image_attachment_id':
+			case 'pressnative_tile_background_attachment_id':
 				return absint( $value );
 			case 'pressnative_enabled_categories':
 				if ( ! is_array( $value ) ) {
@@ -129,6 +141,11 @@ class PressNative_Preview {
 				$ids = array_map( 'trim', explode( ',', (string) $value ) );
 				$valid = array_values( array_intersect( array_filter( $ids ), PressNative_Layout_Options::COMPONENT_IDS ) );
 				return empty( $valid ) ? PressNative_Layout_Options::COMPONENT_IDS : $valid;
+			case 'pressnative_product_in_post_style':
+			case 'pressnative_product_grid_style':
+				$allowed = array( 'compact_row', 'mini_card', 'card' );
+				$v = (string) $value;
+				return in_array( $v, $allowed, true ) ? $v : null;
 			default:
 				return sanitize_text_field( (string) $value );
 		}

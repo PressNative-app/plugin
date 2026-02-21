@@ -135,12 +135,12 @@ class PressNative_WooCommerce {
 			return '';
 		}
 		$page_id = wc_get_page_id( 'cart' );
-		$url     = $page_id > 0 ? (string) get_permalink( $page_id ) : trailingslashit( home_url( 'cart' ) );
-		return add_query_arg( 'pressnative_checkout', '1', $url );
+		return $page_id > 0 ? (string) get_permalink( $page_id ) : trailingslashit( home_url( 'cart' ) );
 	}
 
 	/**
 	 * Get checkout URL for the site.
+	 * The app builds the actual checkout URL with ?pressnative_checkout=ID:QTY,ID:QTY to transfer cart and redirect here.
 	 *
 	 * @return string
 	 */
@@ -149,8 +149,7 @@ class PressNative_WooCommerce {
 			return '';
 		}
 		$page_id = wc_get_page_id( 'checkout' );
-		$url     = $page_id > 0 ? (string) get_permalink( $page_id ) : trailingslashit( home_url( 'checkout' ) );
-		return add_query_arg( 'pressnative_checkout', '1', $url );
+		return $page_id > 0 ? (string) get_permalink( $page_id ) : trailingslashit( home_url( 'checkout' ) );
 	}
 
 	/**

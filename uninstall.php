@@ -24,6 +24,7 @@ $options = array(
 	'pressnative_logo_attachment_id',
 	'pressnative_background_color',
 	'pressnative_text_color',
+	'pressnative_border_color',
 	'pressnative_font_family',
 	'pressnative_base_font_size',
 	'pressnative_theme_id',

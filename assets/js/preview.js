@@ -43,14 +43,28 @@
 			if (accent) overrides.accent_color = accent;
 			var bg = getVal('pressnative_background_color');
 			if (bg) overrides.background_color = bg;
+			var bgImageId = getVal('pressnative_background_image');
+			if (bgImageId) overrides.background_image_attachment = parseInt(bgImageId, 10);
 			var text = getVal('pressnative_text_color');
 			if (text) overrides.text_color = text;
+			var border = getVal('pressnative_border_color');
+			if (border) overrides.border_color = border;
+			var tileBg = getVal('pressnative_tile_background_color');
+			if (tileBg) overrides.tile_background_color = tileBg;
+			var tileBgId = getVal('pressnative_tile_background');
+			if (tileBgId) overrides.tile_background_attachment = parseInt(tileBgId, 10);
+			var tileText = getVal('pressnative_tile_text_color');
+			if (tileText) overrides.tile_text_color = tileText;
 			var font = getVal('pressnative_font_family');
 			if (font) overrides.font_family = font;
 			var fontSize = getVal('pressnative_base_font_size');
 			if (fontSize) overrides.base_font_size = parseInt(fontSize, 10);
 			var logoId = getVal('pressnative_logo_attachment_id');
 			if (logoId) overrides.logo_attachment = parseInt(logoId, 10);
+			var inPostStyle = getVal('pressnative_product_in_post_style');
+			if (inPostStyle) overrides.product_in_post_style = inPostStyle;
+			var gridStyle = getVal('pressnative_product_grid_style');
+			if (gridStyle) overrides.product_grid_style = gridStyle;
 		} else if (page === 'layout-settings') {
 			var heroSlug = getVal('pressnative_hero_category_slug');
 			if (heroSlug) overrides.hero_category_slug = heroSlug;
@@ -234,6 +248,77 @@
 		return html;
 	}
 
+	function renderProductGrid(component) {
+		var styles = component.styles || {};
+		var colors = styles.colors || {};
+		var pad = styles.padding || {};
+		var content = component.content || {};
+		var products = content.products || [];
+		var cols = Math.min(4, Math.max(1, parseInt(content.columns, 10) || 2));
+		var displayStyle = (content.display_style || 'card').toLowerCase();
+
+		var html = '<div class="pressnative-preview-component pressnative-productgrid pressnative-productgrid-cols-' + cols + ' pressnative-productgrid-style-' + escapeHtml(displayStyle) + '" style="--pn-card-bg:' + escapeHtml(colors.background || '#f6f7f9') + ';--pn-card-text:' + escapeHtml(colors.text || '#111') + ';--pn-accent:' + escapeHtml(colors.accent || '#34c759') + ';padding:' + (pad.vertical || 16) + 'px ' + (pad.horizontal || 16) + 'px;">';
+		html += '<div class="pressnative-productgrid-inner">';
+		products.forEach(function (p) {
+			html += '<div class="pressnative-product-card">';
+			if (p.image_url) {
+				html += '<img class="pressnative-product-card-img" src="' + escapeHtml(p.image_url) + '" alt="" loading="lazy" />';
+			}
+			html += '<div class="pressnative-product-card-body">';
+			html += '<p class="pressnative-product-card-title">' + escapeHtml(p.title || '') + '</p>';
+			if (p.price) html += '<p class="pressnative-product-card-price">' + escapeHtml(p.price) + '</p>';
+			html += '<div class="pressnative-product-card-cta" aria-hidden="true">Add</div>';
+			html += '</div></div>';
+		});
+		html += '</div></div>';
+		return html;
+	}
+
+	function renderProductCategoryList(component) {
+		var styles = component.styles || {};
+		var colors = styles.colors || {};
+		var pad = styles.padding || {};
+		var cats = (component.content && component.content.categories) || [];
+
+		var html = '<div class="pressnative-preview-component pressnative-productcategories" style="--pn-card-bg:' + escapeHtml(colors.background || '#fff') + ';--pn-card-text:' + escapeHtml(colors.text || '#111') + ';--pn-accent:' + escapeHtml(colors.accent || '#34c759') + ';padding:' + (pad.vertical || 12) + 'px ' + (pad.horizontal || 16) + 'px;">';
+		html += '<div class="pressnative-productcategories-list">';
+		cats.forEach(function (c) {
+			html += '<div class="pressnative-productcategory-chip">';
+			if (c.icon_url) {
+				html += '<img class="pressnative-productcategory-chip-img" src="' + escapeHtml(c.icon_url) + '" alt="" loading="lazy" />';
+			} else {
+				html += '<span class="pressnative-productcategory-chip-dot" aria-hidden="true"></span>';
+			}
+			html += '<span class="pressnative-productcategory-chip-name">' + escapeHtml(c.name || '') + '</span>';
+			html += '</div>';
+		});
+		html += '</div></div>';
+		return html;
+	}
+
+	function renderProductCarousel(component) {
+		var styles = component.styles || {};
+		var colors = styles.colors || {};
+		var pad = styles.padding || {};
+		var items = (component.content && component.content.items) || [];
+		if (items.length === 0) return '';
+
+		var html = '<div class="pressnative-preview-component pressnative-productcarousel" style="--pn-card-bg:' + escapeHtml(colors.background || '#fff') + ';--pn-card-text:' + escapeHtml(colors.text || '#111') + ';--pn-accent:' + escapeHtml(colors.accent || '#34c759') + ';padding:' + (pad.vertical || 16) + 'px ' + (pad.horizontal || 16) + 'px;">';
+		html += '<div class="pressnative-productcarousel-track">';
+		items.forEach(function (p) {
+			html += '<div class="pressnative-productcarousel-card">';
+			if (p.image_url) {
+				html += '<img class="pressnative-productcarousel-card-img" src="' + escapeHtml(p.image_url) + '" alt="" loading="lazy" />';
+			}
+			html += '<div class="pressnative-productcarousel-card-body">';
+			html += '<p class="pressnative-productcarousel-card-title">' + escapeHtml(p.title || '') + '</p>';
+			if (p.price) html += '<p class="pressnative-productcarousel-card-price">' + escapeHtml(p.price) + '</p>';
+			html += '</div></div>';
+		});
+		html += '</div></div>';
+		return html;
+	}
+
 	function renderComponent(component) {
 		var type = (component.type || '').toLowerCase();
 		switch (type) {
@@ -242,6 +327,9 @@
 			case 'categorylist': return renderCategoryList(component);
 			case 'pagelist': return renderPageList(component);
 			case 'adplacement': return renderAdPlacement(component);
+			case 'productgrid': return renderProductGrid(component);
+			case 'productcategorylist': return renderProductCategoryList(component);
+			case 'productcarousel': return renderProductCarousel(component);
 			default: return '';
 		}
 	}
@@ -256,6 +344,7 @@
 
 		var branding = layout.branding || {};
 		var theme = branding.theme || {};
+		var typography = branding.typography || {};
 		var screen = layout.screen || {};
 		var components = layout.components || [];
 
@@ -263,11 +352,27 @@
 		var text = theme.text_color || '#111111';
 		var accent = theme.accent_color || '#34c759';
 		var primary = theme.primary_color || '#1a1a1a';
+		var border = theme.border_color || '#e5e7eb';
+		var bgImg = theme.background_image_url || '';
+		var tileBgImg = theme.tile_background_url || '';
+		var fontFamily = String(typography.font_family || 'sans-serif').toLowerCase();
+		var baseFontSize = parseInt(typography.base_font_size, 10) || 16;
+		var fontStack = 'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif';
+		if (fontFamily === 'serif') {
+			fontStack = 'ui-serif, Georgia, Cambria, \"Times New Roman\", Times, serif';
+		} else if (fontFamily === 'monospace') {
+			fontStack = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace';
+		}
 
 		container.style.setProperty('--pn-preview-bg', bg);
 		container.style.setProperty('--pn-preview-text', text);
 		container.style.setProperty('--pn-accent', accent);
 		container.style.setProperty('--pn-header-bg', primary);
+		container.style.setProperty('--pn-border', border);
+		container.style.setProperty('--pn-preview-bg-img', bgImg ? ("url('" + bgImg.replace(/'/g, '%27') + "')") : 'none');
+		container.style.setProperty('--pn-tile-bg-img', tileBgImg ? ("url('" + tileBgImg.replace(/'/g, '%27') + "')") : 'none');
+		container.style.setProperty('--pn-font-family', fontStack);
+		container.style.setProperty('--pn-base-font-size', baseFontSize + 'px');
 
 		var toolbar = container.querySelector('.pressnative-preview-toolbar');
 		var content = container.querySelector('.pressnative-preview-content');

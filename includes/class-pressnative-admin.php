@@ -269,6 +269,15 @@ class PressNative_Admin {
 		);
 		register_setting(
 			'pressnative_app_settings',
+			PressNative_Options::OPTION_BORDER_COLOR,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_hex' ),
+				'default'           => PressNative_Options::DEFAULT_BORDER_COLOR,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
 			PressNative_Options::OPTION_TILE_TEXT_COLOR,
 			array(
 				'type'              => 'string',
@@ -826,7 +835,7 @@ class PressNative_Admin {
 			wp_enqueue_media();
 			wp_add_inline_script(
 				'wp-color-picker',
-				'jQuery(function($){$(".pressnative-color-picker").wpColorPicker();});'
+				'jQuery(function($){var t;function schedule(){if(t)clearTimeout(t);t=setTimeout(function(){t=null;if(typeof window.pressnativePreviewRefresh==="function")window.pressnativePreviewRefresh();},300);}$(".pressnative-color-picker").wpColorPicker({change:schedule,clear:schedule});});'
 			);
 			wp_add_inline_script(
 				'wp-color-picker',
@@ -980,8 +989,10 @@ class PressNative_Admin {
 				var radio = $(this).find('input[type=radio]');
 				if (radio.length) {
 					radio.prop('checked', true);
+					radio.trigger('change');
 					$('.pressnative-theme-card').css('border', '2px solid #ddd');
 					$(this).css('border', '2px solid #2271b1');
+					if (typeof window.pressnativePreviewRefresh === 'function') { window.pressnativePreviewRefresh(); }
 				}
 			});
 		});
@@ -1346,6 +1357,22 @@ class PressNative_Admin {
 								   value="<?php echo esc_attr( $text_color ); ?>"
 								   class="pressnative-color-picker"/>
 							<p class="description"><?php esc_html_e( 'Primary text color.', 'pressnative' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="pressnative_border_color"><?php esc_html_e( 'Border Color', 'pressnative' ); ?></label>
+						</th>
+						<td>
+							<?php
+							$border_color = get_option( PressNative_Options::OPTION_BORDER_COLOR, PressNative_Options::DEFAULT_BORDER_COLOR );
+							?>
+							<input type="text"
+								   id="pressnative_border_color"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_BORDER_COLOR ); ?>"
+								   value="<?php echo esc_attr( $border_color ); ?>"
+								   class="pressnative-color-picker"/>
+							<p class="description"><?php esc_html_e( 'Subtle outline color for cards, tiles, and dividers.', 'pressnative' ); ?></p>
 						</td>
 					</tr>
 					<tr>
