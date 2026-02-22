@@ -182,18 +182,6 @@ class PressNative_Admin {
 		// App Settings (branding)
 		register_setting(
 			'pressnative_app_settings',
-			PressNative_Themes::OPTION_THEME_ID,
-			array(
-				'type'              => 'string',
-				'sanitize_callback' => function ( $v ) {
-					$themes = PressNative_Themes::get_themes();
-					return isset( $themes[ $v ] ) ? $v : PressNative_Themes::THEME_CUSTOM;
-				},
-				'default'           => 'editorial',
-			)
-		);
-		register_setting(
-			'pressnative_app_settings',
 			PressNative_Options::OPTION_APP_NAME,
 			array(
 				'type'              => 'string',
@@ -997,7 +985,7 @@ class PressNative_Admin {
 			);
 			wp_add_inline_script(
 				'wp-color-picker',
-				self::get_logo_upload_script() . "\n" . self::get_media_upload_script() . "\n" . self::get_theme_card_script() . "\n" . self::get_app_categories_script(),
+				self::get_logo_upload_script() . "\n" . self::get_media_upload_script() . "\n" . self::get_app_categories_script(),
 				'after'
 			);
 		}
@@ -1129,28 +1117,6 @@ class PressNative_Admin {
 				
 				if (typeof window.pressnativePreviewRefresh === 'function') { 
 					window.pressnativePreviewRefresh(); 
-				}
-			});
-		});
-		";
-	}
-
-	/**
-	 * Inline script for theme card clicks (ensures radios work when label/input association fails).
-	 *
-	 * @return string
-	 */
-	private static function get_theme_card_script() {
-		return "
-		jQuery(function($){
-			$('.pressnative-theme-card').on('click', function(e){
-				var radio = $(this).find('input[type=radio]');
-				if (radio.length) {
-					radio.prop('checked', true);
-					radio.trigger('change');
-					$('.pressnative-theme-card').css('border', '2px solid #ddd');
-					$(this).css('border', '2px solid #2271b1');
-					if (typeof window.pressnativePreviewRefresh === 'function') { window.pressnativePreviewRefresh(); }
 				}
 			});
 		});
@@ -1293,43 +1259,6 @@ class PressNative_Admin {
 			<form method="post" action="options.php" class="pressnative-settings-form">
 				<?php settings_fields( 'pressnative_app_settings' ); ?>
 				<table class="form-table" role="presentation">
-					<tr>
-						<th scope="row">
-							<label for="pressnative_theme_id"><?php esc_html_e( 'Theme', 'pressnative' ); ?></label>
-						</th>
-						<td>
-							<?php
-							$current_theme = PressNative_Themes::get_selected_theme_id();
-							$themes       = PressNative_Themes::get_themes();
-							?>
-							<div class="pressnative-theme-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:12px;">
-								<?php foreach ( $themes as $id => $t ) :
-									$active = $current_theme === $id ? '2px solid #2271b1' : '2px solid #ddd';
-									if ( $id === PressNative_Themes::THEME_CUSTOM ) {
-										$bg = '#f6f7f7';
-										$accent = '#999';
-									} else {
-										$bg = isset( $t['theme']['background_color'] ) ? esc_attr( $t['theme']['background_color'] ) : '#fff';
-										$accent = isset( $t['theme']['accent_color'] ) ? esc_attr( $t['theme']['accent_color'] ) : '#34c759';
-									}
-									?>
-									<label class="pressnative-theme-card" style="cursor:pointer;border:<?php echo $active; ?>;border-radius:8px;overflow:hidden;transition:border-color .15s;position:relative;display:block;">
-										<input type="radio" name="<?php echo esc_attr( PressNative_Themes::OPTION_THEME_ID ); ?>" value="<?php echo esc_attr( $id ); ?>" <?php checked( $current_theme, $id ); ?> style="position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer;">
-										<div style="background:<?php echo $bg; ?>;padding:10px;min-height:70px;pointer-events:none;">
-											<div style="width:20px;height:20px;border-radius:4px;background:<?php echo $accent; ?>;margin-bottom:6px;"></div>
-											<span style="font-size:12px;font-weight:600;color:inherit;"><?php echo esc_html( $t['name'] ); ?></span>
-										</div>
-									</label>
-								<?php endforeach; ?>
-							</div>
-							<p class="description">
-								<?php
-								$desc = isset( $themes[ $current_theme ]['description'] ) ? $themes[ $current_theme ]['description'] : '';
-								echo $desc ? esc_html( $desc ) : esc_html__( 'Choose a preset theme or Custom to use your own colors below.', 'pressnative' );
-								?>
-							</p>
-						</td>
-					</tr>
 					<tr>
 						<th scope="row">
 							<label for="pressnative_app_name"><?php esc_html_e( 'App Name', 'pressnative' ); ?></label>

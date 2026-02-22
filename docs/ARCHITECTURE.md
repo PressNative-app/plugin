@@ -116,7 +116,7 @@ sequenceDiagram
 
     Note over WPAdmin,Registry: Path B: Registry pushes branding to WordPress
     Registry->>Plugin: POST /pressnative/v1/branding
-    Note right of Registry: {theme_id, primary_color,<br/>accent_color, logo_url, ...}
+    Note right of Registry: {primary_color, accent_color,<br/>logo_url, ...}
     Plugin->>WP: Update pressnative options
     Plugin->>Plugin: Download external logo to media library
 ```
@@ -125,7 +125,7 @@ sequenceDiagram
 
 | Category | Options |
 |----------|----------|
-| **Branding** | app_name, primary_color, accent_color, background_color, text_color, font_family, base_font_size, logo_attachment, theme_id |
+| **Branding** | app_name, primary_color, accent_color, background_color, text_color, font_family, base_font_size, logo_attachment |
 | **Layout** | hero_category_slug, hero_max_items, post_grid_columns, post_grid_per_page, enabled_categories, enabled_components |
 
 ---
@@ -156,7 +156,6 @@ graph TD
   "branding": {
     "app_name": "My Site",
     "logo_url": "https://example.com/logo.png",
-    "theme_id": "editorial",
     "theme": {
       "primary_color": "#1a1a2e",
       "accent_color": "#e94560",

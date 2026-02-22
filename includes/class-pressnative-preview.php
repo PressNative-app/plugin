@@ -17,7 +17,6 @@ class PressNative_Preview {
 
 	/** Map override keys (from JS) to WordPress option names. */
 	const OPTION_MAP = array(
-		'theme_id'             => 'pressnative_theme_id',
 		'app_name'             => 'pressnative_app_name',
 		'primary_color'        => 'pressnative_primary_color',
 		'accent_color'         => 'pressnative_accent_color',
@@ -98,9 +97,6 @@ class PressNative_Preview {
 		}
 
 		switch ( $option_name ) {
-			case 'pressnative_theme_id':
-				$themes = PressNative_Themes::get_themes();
-				return isset( $themes[ (string) $value ] ) ? (string) $value : null;
 			case 'pressnative_primary_color':
 			case 'pressnative_accent_color':
 			case 'pressnative_background_color':

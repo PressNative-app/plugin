@@ -108,7 +108,7 @@ class PressNative_Options {
 		}
 
 		$branding = array(
-			'app_name'   => (string) get_option( self::OPTION_APP_NAME, self::DEFAULT_APP_NAME ),
+			'app_name'   => (string) get_option( self::OPTION_APP_NAME, get_bloginfo( 'name' ) ),
 			'logo_url'   => $logo_url,
 			'app_categories' => self::get_app_categories(),
 			'theme'      => array(
@@ -129,7 +129,7 @@ class PressNative_Options {
 			'notification_preferences' => self::get_notification_preferences(),
 			'settings_version' => self::get_settings_version(),
 		);
-		return PressNative_Themes::apply_theme_to_branding( $branding );
+		return $branding;
 	}
 
 	/**

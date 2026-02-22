@@ -64,7 +64,6 @@ All other data uses standard `wp_options`:
 | `pressnative_font_family` | Typography font family |
 | `pressnative_base_font_size` | Typography base size |
 | `pressnative_logo_attachment` | Logo media attachment ID |
-| `pressnative_theme_id` | Selected theme preset |
 | `pressnative_hero_category_slug` | Hero carousel category |
 | `pressnative_hero_max_items` | Max hero items |
 | `pressnative_post_grid_columns` | Post grid column count |

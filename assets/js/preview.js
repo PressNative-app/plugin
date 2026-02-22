@@ -20,11 +20,6 @@
 		return el ? (el.value || '').trim() : '';
 	}
 
-	function getCheckedRadio(name) {
-		var el = document.querySelector('input[name="' + name + '"]:checked');
-		return el ? el.value : '';
-	}
-
 	/**
 	 * Collect override params from the current page form (App Settings or Layout Settings).
 	 * @param {string} page - 'app-settings' or 'layout-settings'
@@ -33,8 +28,6 @@
 	function collectFormOverrides(page) {
 		var overrides = {};
 		if (page === 'app-settings') {
-			var themeId = getCheckedRadio('pressnative_theme_id');
-			if (themeId) overrides.theme_id = themeId;
 			var appName = getVal('pressnative_app_name');
 			if (appName) overrides.app_name = appName;
 			var primary = getVal('pressnative_primary_color');

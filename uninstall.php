@@ -27,8 +27,6 @@ $options = array(
 	'pressnative_border_color',
 	'pressnative_font_family',
 	'pressnative_base_font_size',
-	'pressnative_theme_id',
-
 	// Layout settings.
 	'pressnative_hero_category_slug',
 	'pressnative_hero_max_items',

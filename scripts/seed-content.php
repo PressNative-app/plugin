@@ -116,7 +116,7 @@ $pages = array(
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>Choose from curated theme presets or define your own colors, typography, and logo. Your app looks like your brand, not a generic template. WCAG AA contrast validation ensures accessibility.</p>
+<p>Define your own colors, typography, and logo. Your app looks like your brand, not a generic template. WCAG AA contrast validation ensures accessibility.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:heading {"level":3} -->
@@ -175,7 +175,7 @@ $pages = array(
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>Open the PressNative settings in your WordPress admin. Choose a theme preset or define custom colors and typography. Upload your logo, configure your home screen layout, and select which categories to feature. Use the live preview to see exactly how your app will look on iOS and Android.</p>
+<p>Open the PressNative settings in your WordPress admin. Define custom colors and typography. Upload your logo, configure your home screen layout, and select which categories to feature. Use the live preview to see exactly how your app will look on iOS and Android.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:heading {"level":3} -->
@@ -615,7 +615,7 @@ $posts = array(
 <ul>
 <li><strong>Native performance:</strong> 60fps rendering with Jetpack Compose and SwiftUI — no WebView wrappers</li>
 <li><strong>Push notifications:</strong> Send from your WordPress dashboard, target by platform and engagement</li>
-<li><strong>Customizable branding:</strong> Theme presets or fully custom colors, typography, and logo</li>
+<li><strong>Customizable branding:</strong> Fully custom colors, typography, and logo</li>
 <li><strong>Flexible layouts:</strong> Hero carousel, post grid, category navigation, page lists, ad placements</li>
 <li><strong>Built-in analytics:</strong> Views, top content, device breakdown, push engagement</li>
 <li><strong>Live preview:</strong> See your app in iPhone and Android device frames before going live</li>
@@ -676,26 +676,13 @@ $posts = array(
 		'image'   => 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800',
 	),
 	array(
-		'title'   => 'Theme Customization: Make Your App Uniquely Yours',
-		'excerpt' => 'Six curated theme presets, full custom color support, typography options, and WCAG AA accessibility validation — all configurable from WordPress.',
-		'content' => '<p>Your app should look like your brand, not a generic template. Today we\'re detailing the branding and theme customization system in PressNative.</p>
+		'title'   => 'Branding Customization: Make Your App Uniquely Yours',
+		'excerpt' => 'Full custom color support, typography options, and WCAG AA accessibility validation — all configurable from WordPress.',
+		'content' => '<p>Your app should look like your brand, not a generic template. Today we\'re detailing the branding customization system in PressNative.</p>
 
-<h2>Theme Presets</h2>
+<h2>Custom Colors and Typography</h2>
 
-<p>Start with one of six curated presets designed for different aesthetics:</p>
-
-<ul>
-<li><strong>Editorial:</strong> Serif typography with a classic newsmagazine palette. Warm, authoritative, and readable.</li>
-<li><strong>Midnight:</strong> A premium dark mode experience with high-contrast accents.</li>
-<li><strong>Citrus:</strong> Vibrant greens and warm tones for lifestyle and wellness content.</li>
-<li><strong>Ocean:</strong> Cool blues and grays for a calm, professional feel.</li>
-<li><strong>Minimal:</strong> Black and white simplicity that puts content first.</li>
-<li><strong>Custom:</strong> Start from scratch with your own color palette.</li>
-</ul>
-
-<h2>Full Customization</h2>
-
-<p>Every preset is a starting point. You can customize:</p>
+<p>Configure your app\'s look with these options:</p>
 
 <ul>
 <li><strong>Primary color:</strong> Used for headers, buttons, and navigation</li>
@@ -750,7 +737,6 @@ $posts = array(
 
 <ol>
 <li><strong>App name:</strong> What appears under the app icon on users\' home screens</li>
-<li><strong>Theme:</strong> Choose a preset or go custom</li>
 <li><strong>Colors and typography:</strong> Match your website\'s brand identity</li>
 <li><strong>Logo:</strong> Upload a square logo (recommended: 512×512px)</li>
 </ol>
@@ -1090,7 +1076,7 @@ foreach ( $posts as $p ) {
 
 echo "\n═══ Seeding Complete ═══\n";
 echo "\nNext steps:\n";
-echo "  1. Go to PressNative → App Settings and choose a theme\n";
+echo "  1. Go to PressNative → App Settings and configure branding\n";
 echo "  2. Go to PressNative → Layout Settings:\n";
 echo "     • Set Hero Carousel category to \"featured\"\n";
 echo "     • Enable all categories in Category List\n";
