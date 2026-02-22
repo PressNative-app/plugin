@@ -935,10 +935,29 @@ class PressNative_Layout {
 		// Resolve ProductReference markers into native product components.
 		$content_blocks = $this->resolve_product_references( $content_blocks, $styles );
 
+		// If parser output has no native product blocks but raw content has WC product shortcodes,
+		// surface them as native ProductCardCompact components so cards are tappable in-app.
+		$product_shortcode_components = array();
+		$product_ids_from_shortcodes  = array();
+		$content_source_for_html      = $post->post_content;
+		if (
+			! $this->blocks_have_native_product_content( $content_blocks ) &&
+			$this->has_product_shortcodes( $post->post_content )
+		) {
+			$product_shortcode_components = $this->extract_product_shortcode_components( $post->post_content, $styles, 'post-' . $post_id );
+			if ( ! empty( $product_shortcode_components ) ) {
+				$product_ids_from_shortcodes = $this->collect_product_ids_from_content( $post->post_content );
+				$content_source_for_html     = $this->strip_product_page_shortcodes( $content_source_for_html );
+			}
+		}
+
 		// When content_blocks is empty (e.g. parser failed or classic content), send raw HTML so the app can render it in a WebView fallback.
-		$content_html = ( count( $content_blocks ) === 0 && ! empty( $post->post_content ) )
-			? apply_filters( 'the_content', $post->post_content )
+		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
+			? apply_filters( 'the_content', $content_source_for_html )
 			: '';
+		if ( ! empty( $content_html ) && ! empty( $product_ids_from_shortcodes ) ) {
+			$content_html = $this->strip_wc_product_html( $content_html, $product_ids_from_shortcodes );
+		}
 
 		$date_format = get_option( 'date_format', 'F j, Y' );
 		$time_format = get_option( 'time_format', 'g:i a' );
@@ -965,6 +984,9 @@ class PressNative_Layout {
 		);
 
 		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'post-' . $post_id );
+		if ( ! empty( $product_shortcode_components ) ) {
+			$components = array_merge( $components, $product_shortcode_components );
+		}
 		$components[] = $post_detail;
 
 		$layout = array(
@@ -1006,10 +1028,29 @@ class PressNative_Layout {
 		// Resolve ProductReference markers into native product components.
 		$content_blocks = $this->resolve_product_references( $content_blocks, $styles );
 
+		// If parser output has no native product blocks but raw content has WC product shortcodes,
+		// surface them as native ProductCardCompact components so cards are tappable in-app.
+		$product_shortcode_components = array();
+		$product_ids_from_shortcodes  = array();
+		$content_source_for_html      = $page->post_content;
+		if (
+			! $this->blocks_have_native_product_content( $content_blocks ) &&
+			$this->has_product_shortcodes( $page->post_content )
+		) {
+			$product_shortcode_components = $this->extract_product_shortcode_components( $page->post_content, $styles, 'page-' . $page->ID );
+			if ( ! empty( $product_shortcode_components ) ) {
+				$product_ids_from_shortcodes = $this->collect_product_ids_from_content( $page->post_content );
+				$content_source_for_html     = $this->strip_product_page_shortcodes( $content_source_for_html );
+			}
+		}
+
 		// When content_blocks is empty, send raw HTML so the app can render it in a WebView fallback.
-		$content_html = ( count( $content_blocks ) === 0 && ! empty( $page->post_content ) )
-			? apply_filters( 'the_content', $page->post_content )
+		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
+			? apply_filters( 'the_content', $content_source_for_html )
 			: '';
+		if ( ! empty( $content_html ) && ! empty( $product_ids_from_shortcodes ) ) {
+			$content_html = $this->strip_wc_product_html( $content_html, $product_ids_from_shortcodes );
+		}
 
 		$date_format = get_option( 'date_format', 'F j, Y' );
 		$time_format = get_option( 'time_format', 'g:i a' );
@@ -1037,6 +1078,9 @@ class PressNative_Layout {
 		);
 
 		$components = $this->build_shortcode_components( $shortcode_blocks, $styles, 'page-' . $page->ID );
+		if ( ! empty( $product_shortcode_components ) ) {
+			$components = array_merge( $components, $product_shortcode_components );
+		}
 		$components[] = $post_detail;
 
 		$layout = array(
@@ -1102,6 +1146,22 @@ class PressNative_Layout {
 		}
 
 		return $resolved;
+	}
+
+	/**
+	 * Whether parsed content blocks already include native product content.
+	 *
+	 * @param array $blocks Parsed block array.
+	 * @return bool
+	 */
+	private function blocks_have_native_product_content( array $blocks ): bool {
+		foreach ( $blocks as $block ) {
+			$type = is_array( $block ) ? ( $block['type'] ?? '' ) : '';
+			if ( 'ProductReference' === $type || 'ProductCardCompact' === $type ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

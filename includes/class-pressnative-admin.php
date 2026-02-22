@@ -35,12 +35,6 @@ class PressNative_Admin {
 		add_action( 'admin_post_pressnative_verify_site', array( __CLASS__, 'handle_verify_site' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'show_woocommerce_seed_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'show_cache_invalidation_notice' ) );
-
-		// Per-post SDUI cache status columns in list tables.
-		foreach ( array( 'post', 'page', 'product' ) as $pt ) {
-			add_filter( "manage_{$pt}s_columns", array( __CLASS__, 'add_cache_column' ) );
-			add_action( "manage_{$pt}s_custom_column", array( __CLASS__, 'render_cache_column' ), 10, 2 );
-		}
 	}
 
 	/**
@@ -738,44 +732,6 @@ class PressNative_Admin {
 	 * Renders the AOT Cache Status card on the main PressNative settings page.
 	 * Shows compilation stats, a progress bar when running, and a Recompile button.
 	 */
-	/**
-	 * Add the SDUI Cache column header to post/page/product list tables.
-	 *
-	 * @param array $columns Existing columns.
-	 * @return array
-	 */
-	public static function add_cache_column( array $columns ): array {
-		$columns['pressnative_cache'] = '<span class="dashicons dashicons-smartphone" title="'
-			. esc_attr__( 'PressNative SDUI Cache', 'pressnative' )
-			. '" style="font-size:16px;"></span>';
-		return $columns;
-	}
-
-	/**
-	 * Render the SDUI Cache status cell for each row.
-	 *
-	 * @param string $column  Column name.
-	 * @param int    $post_id Post ID.
-	 */
-	public static function render_cache_column( string $column, int $post_id ): void {
-		if ( 'pressnative_cache' !== $column ) {
-			return;
-		}
-		$compiled_at = PressNative_AOT_Compiler::get_compiled_at( $post_id );
-		if ( $compiled_at ) {
-			$ago = human_time_diff( $compiled_at, time() );
-			printf(
-				'<span style="color:#00a32a;" title="%s">&#x2713;</span>',
-				esc_attr( sprintf( __( 'Compiled %s ago', 'pressnative' ), $ago ) )
-			);
-		} else {
-			printf(
-				'<span style="color:#d63638;" title="%s">&#x2717;</span>',
-				esc_attr__( 'Not compiled — will be compiled on next save or API request', 'pressnative' )
-			);
-		}
-	}
-
 	private static function render_aot_cache_card() {
 		$stats    = PressNative_AOT_Compiler::get_cache_stats();
 		$progress = PressNative_AOT_Compiler::get_progress();
