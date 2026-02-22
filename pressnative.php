@@ -225,6 +225,19 @@ add_action( 'rest_api_init', function () {
 		);
 	}
 
+	// Branding GET endpoint: Public API for clients to fetch app branding (app name, logo, theme colors).
+	register_rest_route(
+		'pressnative/v1',
+		'/branding',
+		array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => function () {
+				return rest_ensure_response( PressNative_Options::get_branding() );
+			},
+			'permission_callback' => '__return_true',
+		)
+	);
+
 	// Branding sync endpoint: Registry pushes branding updates to WordPress.
 	register_rest_route(
 		'pressnative/v1',
