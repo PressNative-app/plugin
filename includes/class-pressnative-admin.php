@@ -35,6 +35,12 @@ class PressNative_Admin {
 		add_action( 'admin_post_pressnative_verify_site', array( __CLASS__, 'handle_verify_site' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'show_woocommerce_seed_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'show_cache_invalidation_notice' ) );
+
+		// Per-post SDUI cache status columns in list tables.
+		foreach ( array( 'post', 'page', 'product' ) as $pt ) {
+			add_filter( "manage_{$pt}s_columns", array( __CLASS__, 'add_cache_column' ) );
+			add_action( "manage_{$pt}s_custom_column", array( __CLASS__, 'render_cache_column' ), 10, 2 );
+		}
 	}
 
 	/**
@@ -734,6 +740,158 @@ class PressNative_Admin {
 				</table>
 				<?php submit_button(); ?>
 			</form>
+
+			<?php self::render_aot_cache_card(); ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders the AOT Cache Status card on the main PressNative settings page.
+	 * Shows compilation stats, a progress bar when running, and a Recompile button.
+	 */
+	/**
+	 * Add the SDUI Cache column header to post/page/product list tables.
+	 *
+	 * @param array $columns Existing columns.
+	 * @return array
+	 */
+	public static function add_cache_column( array $columns ): array {
+		$columns['pressnative_cache'] = '<span class="dashicons dashicons-smartphone" title="'
+			. esc_attr__( 'PressNative SDUI Cache', 'pressnative' )
+			. '" style="font-size:16px;"></span>';
+		return $columns;
+	}
+
+	/**
+	 * Render the SDUI Cache status cell for each row.
+	 *
+	 * @param string $column  Column name.
+	 * @param int    $post_id Post ID.
+	 */
+	public static function render_cache_column( string $column, int $post_id ): void {
+		if ( 'pressnative_cache' !== $column ) {
+			return;
+		}
+		$compiled_at = PressNative_AOT_Compiler::get_compiled_at( $post_id );
+		if ( $compiled_at ) {
+			$ago = human_time_diff( $compiled_at, time() );
+			printf(
+				'<span style="color:#00a32a;" title="%s">&#x2713;</span>',
+				esc_attr( sprintf( __( 'Compiled %s ago', 'pressnative' ), $ago ) )
+			);
+		} else {
+			printf(
+				'<span style="color:#d63638;" title="%s">&#x2717;</span>',
+				esc_attr__( 'Not compiled — will be compiled on next save or API request', 'pressnative' )
+			);
+		}
+	}
+
+	private static function render_aot_cache_card() {
+		$stats    = PressNative_AOT_Compiler::get_cache_stats();
+		$progress = PressNative_AOT_Compiler::get_progress();
+		$running  = ( 'running' === $progress['status'] );
+
+		$bar_color = '#00a32a';
+		if ( $stats['percent'] < 50 ) {
+			$bar_color = '#d63638';
+		} elseif ( $stats['percent'] < 100 ) {
+			$bar_color = '#dba617';
+		}
+
+		$aot_msg = isset( $_GET['aot'] ) ? sanitize_text_field( $_GET['aot'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		?>
+		<div class="pressnative-aot-card" style="background:#fff;border:1px solid #c3c4c7;border-left:4px solid <?php echo esc_attr( $bar_color ); ?>;border-radius:4px;padding:16px 20px;margin-top:24px;max-width:700px;">
+			<h2 style="margin:0 0 12px;font-size:1.1em;">
+				<?php esc_html_e( 'Content Cache (AOT Compiler)', 'pressnative' ); ?>
+			</h2>
+
+			<?php if ( 'started' === $aot_msg ) : ?>
+				<div class="notice notice-success inline" style="margin:0 0 12px;">
+					<p><?php esc_html_e( 'Bulk recompilation started. Processing in background via WP-Cron.', 'pressnative' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<table style="border-collapse:collapse;width:100%;margin-bottom:12px;">
+				<tr>
+					<td style="padding:6px 12px 6px 0;color:#50575e;width:140px;">
+						<strong><?php esc_html_e( 'Total Content', 'pressnative' ); ?></strong>
+					</td>
+					<td style="padding:6px 0;">
+						<?php echo esc_html( number_format_i18n( $stats['total'] ) ); ?>
+						<?php esc_html_e( 'posts / pages / products', 'pressnative' ); ?>
+					</td>
+				</tr>
+				<tr>
+					<td style="padding:6px 12px 6px 0;color:#50575e;">
+						<strong><?php esc_html_e( 'Cached', 'pressnative' ); ?></strong>
+					</td>
+					<td style="padding:6px 0;">
+						<span style="color:<?php echo esc_attr( $bar_color ); ?>;font-weight:600;">
+							<?php echo esc_html( number_format_i18n( $stats['cached'] ) ); ?>
+						</span>
+						/ <?php echo esc_html( number_format_i18n( $stats['total'] ) ); ?>
+						(<?php echo esc_html( $stats['percent'] ); ?>%)
+					</td>
+				</tr>
+				<?php if ( $stats['uncached'] > 0 ) : ?>
+				<tr>
+					<td style="padding:6px 12px 6px 0;color:#50575e;">
+						<strong><?php esc_html_e( 'Uncached', 'pressnative' ); ?></strong>
+					</td>
+					<td style="padding:6px 0;color:#d63638;font-weight:600;">
+						<?php echo esc_html( number_format_i18n( $stats['uncached'] ) ); ?>
+					</td>
+				</tr>
+				<?php endif; ?>
+			</table>
+
+			<!-- Progress bar -->
+			<div style="background:#f0f0f1;border-radius:4px;height:24px;overflow:hidden;margin-bottom:12px;">
+				<div style="background:<?php echo esc_attr( $bar_color ); ?>;height:100%;width:<?php echo esc_attr( $stats['percent'] ); ?>%;transition:width .3s;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:600;">
+					<?php if ( $stats['percent'] >= 10 ) : ?>
+						<?php echo esc_html( $stats['percent'] ); ?>%
+					<?php endif; ?>
+				</div>
+			</div>
+
+			<?php if ( $running ) : ?>
+				<p style="color:#50575e;font-style:italic;margin:0 0 12px;">
+					<?php
+					echo esc_html( sprintf(
+						__( 'Background compilation in progress — %1$s of %2$s processed. Reload this page to see updated progress.', 'pressnative' ),
+						number_format_i18n( $progress['compiled'] ),
+						number_format_i18n( $progress['total'] )
+					) );
+					?>
+				</p>
+			<?php elseif ( 'complete' === $progress['status'] && $progress['compiled'] > 0 ) : ?>
+				<p style="color:#00a32a;margin:0 0 12px;">
+					<?php
+					echo esc_html( sprintf(
+						__( 'Last batch completed: %1$s items compiled on %2$s.', 'pressnative' ),
+						number_format_i18n( $progress['compiled'] ),
+						wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $progress['updated'] )
+					) );
+					?>
+				</p>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+				<?php wp_nonce_field( 'pressnative_aot_recompile' ); ?>
+				<input type="hidden" name="action" value="pressnative_aot_recompile" />
+				<button type="submit" class="button button-secondary" <?php disabled( $running ); ?>>
+					<?php echo $running
+						? esc_html__( 'Compilation Running…', 'pressnative' )
+						: esc_html__( 'Recompile All Content', 'pressnative' ); ?>
+				</button>
+			</form>
+			<?php if ( $running ) : ?>
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative' ) ); ?>" class="button" style="margin-left:8px;">
+					<?php esc_html_e( 'Refresh Status', 'pressnative' ); ?>
+				</a>
+			<?php endif; ?>
 		</div>
 		<?php
 	}
