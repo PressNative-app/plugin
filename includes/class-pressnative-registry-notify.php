@@ -26,7 +26,6 @@ class PressNative_Registry_Notify {
 		PressNative_Options::OPTION_FONT_FAMILY,
 		PressNative_Options::OPTION_BASE_FONT_SIZE,
 		PressNative_Options::OPTION_APP_CATEGORIES,
-		PressNative_Themes::OPTION_THEME_ID,
 		// Layout options
 		PressNative_Layout_Options::OPTION_HERO_CATEGORY_SLUG,
 		PressNative_Layout_Options::OPTION_HERO_MAX_ITEMS,

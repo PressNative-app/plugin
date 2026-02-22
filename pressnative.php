@@ -21,7 +21,6 @@ define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-options.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-themes.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout-options.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-dom-parser.php';
@@ -261,17 +260,6 @@ add_action( 'rest_api_init', function () {
 				'base_font_size'   => PressNative_Options::OPTION_BASE_FONT_SIZE,
 			);
 			$updated = array();
-
-			// Switch to Custom theme when Registry pushes explicit colors,
-			// so theme presets don't override the synced values.
-			if ( isset( $params['theme_id'] ) ) {
-				$theme_id = sanitize_text_field( $params['theme_id'] );
-				$themes   = PressNative_Themes::get_themes();
-				if ( isset( $themes[ $theme_id ] ) ) {
-					update_option( PressNative_Themes::OPTION_THEME_ID, $theme_id );
-					$updated[] = 'theme_id';
-				}
-			}
 
 			foreach ( $map as $key => $option_name ) {
 				if ( isset( $params[ $key ] ) ) {
