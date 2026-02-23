@@ -33,17 +33,17 @@ class PressNative_Sponsors {
 			self::POST_TYPE,
 			array(
 				'labels'             => array(
-					'name'               => _x( 'Sponsors', 'post type general name', 'pressnative' ),
-					'singular_name'      => _x( 'Sponsor', 'post type singular name', 'pressnative' ),
-					'menu_name'          => _x( 'Sponsors', 'admin menu', 'pressnative' ),
-					'add_new'            => _x( 'Add New', 'sponsor', 'pressnative' ),
-					'add_new_item'       => __( 'Add New Sponsor', 'pressnative' ),
-					'edit_item'          => __( 'Edit Sponsor', 'pressnative' ),
-					'new_item'           => __( 'New Sponsor', 'pressnative' ),
-					'view_item'          => __( 'View Sponsor', 'pressnative' ),
-					'search_items'       => __( 'Search Sponsors', 'pressnative' ),
-					'not_found'          => __( 'No sponsors found.', 'pressnative' ),
-					'not_found_in_trash' => __( 'No sponsors found in Trash.', 'pressnative' ),
+					'name'               => _x( 'Sponsors', 'post type general name', 'pressnative-apps' ),
+					'singular_name'      => _x( 'Sponsor', 'post type singular name', 'pressnative-apps' ),
+					'menu_name'          => _x( 'Sponsors', 'admin menu', 'pressnative-apps' ),
+					'add_new'            => _x( 'Add New', 'sponsor', 'pressnative-apps' ),
+					'add_new_item'       => __( 'Add New Sponsor', 'pressnative-apps' ),
+					'edit_item'          => __( 'Edit Sponsor', 'pressnative-apps' ),
+					'new_item'           => __( 'New Sponsor', 'pressnative-apps' ),
+					'view_item'          => __( 'View Sponsor', 'pressnative-apps' ),
+					'search_items'       => __( 'Search Sponsors', 'pressnative-apps' ),
+					'not_found'          => __( 'No sponsors found.', 'pressnative-apps' ),
+					'not_found_in_trash' => __( 'No sponsors found in Trash.', 'pressnative-apps' ),
 				),
 				'public'             => false,
 				'publicly_queryable'  => false,
@@ -68,7 +68,7 @@ class PressNative_Sponsors {
 		}
 		add_meta_box(
 			'pressnative_sponsor_url',
-			__( 'Sponsor URL', 'pressnative' ),
+			__( 'Sponsor URL', 'pressnative-apps' ),
 			array( __CLASS__, 'render_meta_box' ),
 			self::POST_TYPE,
 			'normal'
@@ -85,9 +85,9 @@ class PressNative_Sponsors {
 		$url = get_post_meta( $post->ID, self::META_KEY_URL, true );
 		?>
 		<p>
-			<label for="pressnative_sponsor_url"><?php esc_html_e( 'Click URL', 'pressnative' ); ?></label><br />
+			<label for="pressnative_sponsor_url"><?php esc_html_e( 'Click URL', 'pressnative-apps' ); ?></label><br />
 			<input type="url" id="pressnative_sponsor_url" name="pressnative_sponsor_url" value="<?php echo esc_attr( $url ); ?>" class="widefat" placeholder="https://" />
-			<span class="description"><?php esc_html_e( 'URL to open when the sponsor banner is tapped in the app.', 'pressnative' ); ?></span>
+			<span class="description"><?php esc_html_e( 'URL to open when the sponsor banner is tapped in the app.', 'pressnative-apps' ); ?></span>
 		</p>
 		<?php
 	}

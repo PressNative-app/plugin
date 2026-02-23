@@ -221,6 +221,7 @@ class PressNative_AOT_Compiler {
 		global $wpdb;
 
 		$like = '%"product_id":' . $product_id . '%';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$post_ids = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value LIKE %s",
@@ -319,6 +320,7 @@ class PressNative_AOT_Compiler {
 	public static function run_initial_sweep( int $limit = 10 ): int {
 		global $wpdb;
 		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
 		$rows  = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT ID FROM {$wpdb->posts}
@@ -403,6 +405,7 @@ class PressNative_AOT_Compiler {
 	private static function count_eligible_posts(): int {
 		global $wpdb;
 		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
 		return (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->posts}
 			 WHERE post_status = 'publish'
@@ -419,6 +422,7 @@ class PressNative_AOT_Compiler {
 	private static function count_cached_posts(): int {
 		global $wpdb;
 		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
@@ -441,6 +445,7 @@ class PressNative_AOT_Compiler {
 	private static function get_eligible_post_ids( int $limit, int $offset ): array {
 		global $wpdb;
 		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
 		$rows = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT ID FROM {$wpdb->posts}

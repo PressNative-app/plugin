@@ -188,16 +188,16 @@ class PressNative_WooCommerce {
 			'grid_style'    => $grid_style,
 			'available_styles' => array(
 				'compact_row' => array(
-					'name'        => __( 'Compact Row', 'pressnative' ),
-					'description' => __( 'Image on left, details on right - perfect for in-post products', 'pressnative' ),
+					'name'        => __( 'Compact Row', 'pressnative-apps' ),
+					'description' => __( 'Image on left, details on right - perfect for in-post products', 'pressnative-apps' ),
 				),
 				'card' => array(
-					'name'        => __( 'Card', 'pressnative' ),
-					'description' => __( 'Full-width card with large image - great for product grids', 'pressnative' ),
+					'name'        => __( 'Card', 'pressnative-apps' ),
+					'description' => __( 'Full-width card with large image - great for product grids', 'pressnative-apps' ),
 				),
 				'mini_card' => array(
-					'name'        => __( 'Mini Card', 'pressnative' ),
-					'description' => __( 'Smaller card with centered image - subtle in-post display', 'pressnative' ),
+					'name'        => __( 'Mini Card', 'pressnative-apps' ),
+					'description' => __( 'Smaller card with centered image - subtle in-post display', 'pressnative-apps' ),
 				),
 			),
 		);
@@ -589,8 +589,17 @@ class PressNative_WooCommerce {
 
 		// Create shoppable posts
 		foreach ( $shoppable_posts as $post_data ) {
-			// Check if post already exists
-			$existing_post = get_page_by_title( $post_data['title'], OBJECT, 'post' );
+			// Check if post already exists (WP_Query used; get_page_by_title is deprecated since 6.2).
+			$existing_query = new WP_Query(
+				array(
+					'title'          => $post_data['title'],
+					'post_type'      => 'post',
+					'post_status'     => 'any',
+					'posts_per_page' => 1,
+					'no_found_rows'  => true,
+				)
+			);
+			$existing_post  = $existing_query->have_posts() ? $existing_query->next_post() : null;
 			if ( $existing_post ) {
 				continue;
 			}

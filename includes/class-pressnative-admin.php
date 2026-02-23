@@ -56,8 +56,8 @@ class PressNative_Admin {
 	 */
 	public static function add_menu() {
 		add_menu_page(
-			__( 'PressNative', 'pressnative' ),
-			__( 'PressNative', 'pressnative' ),
+			__( 'PressNative', 'pressnative-apps' ),
+			__( 'PressNative', 'pressnative-apps' ),
 			'manage_options',
 			'pressnative',
 			array( __CLASS__, 'render_settings_page' ),
@@ -66,40 +66,40 @@ class PressNative_Admin {
 		);
 		add_submenu_page(
 			'pressnative',
-			__( 'App Settings', 'pressnative' ),
-			__( 'App Settings', 'pressnative' ),
+			__( 'App Settings', 'pressnative-apps' ),
+			__( 'App Settings', 'pressnative-apps' ),
 			'manage_options',
 			'pressnative-app-settings',
 			array( __CLASS__, 'render_app_settings_page' )
 		);
 		add_submenu_page(
 			'pressnative',
-			__( 'Layout Settings', 'pressnative' ),
-			__( 'Layout Settings', 'pressnative' ),
+			__( 'Layout Settings', 'pressnative-apps' ),
+			__( 'Layout Settings', 'pressnative-apps' ),
 			'manage_options',
 			'pressnative-layout-settings',
 			array( __CLASS__, 'render_layout_settings_page' )
 		);
 		add_submenu_page(
 			'pressnative',
-			__( 'Dashboard', 'pressnative' ),
-			__( 'Dashboard', 'pressnative' ),
+			__( 'Dashboard', 'pressnative-apps' ),
+			__( 'Dashboard', 'pressnative-apps' ),
 			'manage_options',
 			'pressnative-analytics',
 			array( __CLASS__, 'render_analytics_page' )
 		);
 		add_submenu_page(
 			'pressnative',
-			__( 'Push Notifications', 'pressnative' ),
-			__( 'Push Notifications', 'pressnative' ),
+			__( 'Push Notifications', 'pressnative-apps' ),
+			__( 'Push Notifications', 'pressnative-apps' ),
 			'manage_options',
 			'pressnative-push',
 			array( __CLASS__, 'render_push_page' )
 		);
 		add_submenu_page(
 			'pressnative',
-			__( 'Get Started', 'pressnative' ),
-			__( 'Get Started', 'pressnative' ),
+			__( 'Get Started', 'pressnative-apps' ),
+			__( 'Get Started', 'pressnative-apps' ),
 			'manage_options',
 			'pressnative-growth',
 			array( __CLASS__, 'render_growth_page' )
@@ -113,8 +113,8 @@ class PressNative_Admin {
 	 */
 	public static function add_settings_subpage() {
 		add_options_page(
-			__( 'PressNative', 'pressnative' ),
-			__( 'PressNative', 'pressnative' ),
+			__( 'PressNative', 'pressnative-apps' ),
+			__( 'PressNative', 'pressnative-apps' ),
 			'manage_options',
 			'pressnative-settings',
 			array( __CLASS__, 'render_pressnative_settings_page' )
@@ -152,7 +152,7 @@ class PressNative_Admin {
 	 */
 	public static function handle_disconnect() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative' ) );
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative-apps' ) );
 		}
 		check_admin_referer( 'pressnative_disconnect' );
 		delete_option( self::OPTION_API_KEY );
@@ -173,13 +173,13 @@ class PressNative_Admin {
 		$connect_url = 'https://pressnative.app/connect?site_url=' . rawurlencode( site_url() ) . '&return_url=' . rawurlencode( admin_url( 'options-general.php?page=pressnative-settings' ) );
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'PressNative', 'pressnative' ); ?></h1>
+			<h1><?php esc_html_e( 'PressNative', 'pressnative-apps' ); ?></h1>
 			<?php if ( empty( $api_key ) ) : ?>
 				<div class="pressnative-connect-hero" style="max-width:560px;margin:32px 0;padding:32px;background:#fff;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center;">
-					<p style="font-size:1.2em;margin:0 0 16px;color:#1d2327;"><?php esc_html_e( 'Connect your site to PressNative Cloud to power your native app.', 'pressnative' ); ?></p>
-					<p style="margin:0 0 24px;color:#50575e;"><?php esc_html_e( 'You will be redirected to PressNative to sign in or create an account, then returned here automatically.', 'pressnative' ); ?></p>
+					<p style="font-size:1.2em;margin:0 0 16px;color:#1d2327;"><?php esc_html_e( 'Connect your site to PressNative Cloud to power your native app.', 'pressnative-apps' ); ?></p>
+					<p style="margin:0 0 24px;color:#50575e;"><?php esc_html_e( 'You will be redirected to PressNative to sign in or create an account, then returned here automatically.', 'pressnative-apps' ); ?></p>
 					<a href="<?php echo esc_url( $connect_url ); ?>" class="button button-primary button-hero" style="font-size:16px;padding:12px 32px;">
-						<?php esc_html_e( 'Connect to PressNative Cloud', 'pressnative' ); ?>
+						<?php esc_html_e( 'Connect to PressNative Cloud', 'pressnative-apps' ); ?>
 					</a>
 				</div>
 			<?php else : ?>
@@ -187,13 +187,13 @@ class PressNative_Admin {
 				$masked = strlen( $api_key ) > 8 ? substr( $api_key, 0, 8 ) . '****' . substr( $api_key, -4 ) : 'pn_live_****' . substr( $api_key, -4 );
 				?>
 				<div class="pressnative-connected-card" style="max-width:560px;margin:32px 0;padding:24px;background:#fff;border:1px solid #c3c4c7;border-left:4px solid #00a32a;border-radius:4px;">
-					<h2 style="margin:0 0 12px;font-size:1.1em;"><?php esc_html_e( 'Successfully Connected', 'pressnative' ); ?></h2>
+					<h2 style="margin:0 0 12px;font-size:1.1em;"><?php esc_html_e( 'Successfully Connected', 'pressnative-apps' ); ?></h2>
 					<p style="margin:0 0 16px;color:#50575e;">
-						<?php esc_html_e( 'API Key:', 'pressnative' ); ?>
+						<?php esc_html_e( 'API Key:', 'pressnative-apps' ); ?>
 						<code style="background:#f0f0f1;padding:2px 8px;border-radius:4px;"><?php echo esc_html( $masked ); ?></code>
 					</p>
 					<p style="margin:0;">
-						<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pressnative_disconnect' ), 'pressnative_disconnect' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Disconnect', 'pressnative' ); ?></a>
+						<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pressnative_disconnect' ), 'pressnative_disconnect' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Disconnect', 'pressnative-apps' ); ?></a>
 					</p>
 				</div>
 			<?php endif; ?>
@@ -240,9 +240,9 @@ class PressNative_Admin {
 		$submenu['pressnative'] = $reordered;
 
 		if ( $has_active ) {
-			$submenu['pressnative'][0][0] = __( 'Dashboard', 'pressnative' );
+			$submenu['pressnative'][0][0] = __( 'Dashboard', 'pressnative-apps' );
 		} else {
-			$submenu['pressnative'][0][0] = __( 'Get Started', 'pressnative' );
+			$submenu['pressnative'][0][0] = __( 'Get Started', 'pressnative-apps' );
 		}
 	}
 
@@ -659,16 +659,16 @@ class PressNative_Admin {
 		$sub_status     = ! empty( $api_key ) ? self::fetch_subscription_status() : null;
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'PressNative', 'pressnative' ); ?></h1>
+			<h1><?php esc_html_e( 'PressNative', 'pressnative-apps' ); ?></h1>
 
 			<?php if ( $sub_status ) : ?>
 			<div class="pressnative-subscription-card" style="background:#fff;border:1px solid #c3c4c7;border-left:4px solid <?php echo 'active' === $sub_status['billing_status'] ? '#00a32a' : ( 'trial' === $sub_status['billing_status'] ? '#dba617' : '#d63638' ); ?>;border-radius:4px;padding:16px 20px;margin-bottom:20px;max-width:700px;">
 				<h2 style="margin:0 0 12px;font-size:1.1em;">
-					<?php esc_html_e( 'Subscription Status', 'pressnative' ); ?>
+					<?php esc_html_e( 'Subscription Status', 'pressnative-apps' ); ?>
 				</h2>
 				<table style="border-collapse:collapse;width:100%;">
 					<tr>
-						<td style="padding:6px 12px 6px 0;color:#50575e;width:140px;"><strong><?php esc_html_e( 'Plan', 'pressnative' ); ?></strong></td>
+						<td style="padding:6px 12px 6px 0;color:#50575e;width:140px;"><strong><?php esc_html_e( 'Plan', 'pressnative-apps' ); ?></strong></td>
 						<td style="padding:6px 0;">
 							<span style="display:inline-block;padding:2px 10px;border-radius:4px;background:#f0f0f1;font-weight:600;text-transform:capitalize;">
 								<?php echo esc_html( $sub_status['plan'] ); ?>
@@ -676,7 +676,7 @@ class PressNative_Admin {
 						</td>
 					</tr>
 					<tr>
-						<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Status', 'pressnative' ); ?></strong></td>
+						<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Status', 'pressnative-apps' ); ?></strong></td>
 						<td style="padding:6px 0;">
 							<?php
 							$status_label = $sub_status['billing_status'];
@@ -698,7 +698,7 @@ class PressNative_Admin {
 						<?php $stripe_sub = $sub_status['stripe_subscription']; ?>
 						<?php if ( ! empty( $stripe_sub['plan_name'] ) ) : ?>
 						<tr>
-							<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Stripe Plan', 'pressnative' ); ?></strong></td>
+							<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Stripe Plan', 'pressnative-apps' ); ?></strong></td>
 							<td style="padding:6px 0;"><?php echo esc_html( $stripe_sub['plan_name'] ); ?>
 								<?php if ( ! empty( $stripe_sub['plan_amount'] ) ) : ?>
 									— <?php echo esc_html( '$' . number_format( $stripe_sub['plan_amount'] / 100, 2 ) . '/' . ( $stripe_sub['plan_interval'] ?? 'month' ) ); ?>
@@ -708,11 +708,11 @@ class PressNative_Admin {
 						<?php endif; ?>
 						<?php if ( ! empty( $stripe_sub['current_period_end'] ) ) : ?>
 						<tr>
-							<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Renews On', 'pressnative' ); ?></strong></td>
+							<td style="padding:6px 12px 6px 0;color:#50575e;"><strong><?php esc_html_e( 'Renews On', 'pressnative-apps' ); ?></strong></td>
 							<td style="padding:6px 0;">
 								<?php echo esc_html( gmdate( 'F j, Y', $stripe_sub['current_period_end'] ) ); ?>
 								<?php if ( ! empty( $stripe_sub['cancel_at_period_end'] ) ) : ?>
-									<span style="color:#d63638;font-weight:600;margin-left:8px;"><?php esc_html_e( '(Cancels at period end)', 'pressnative' ); ?></span>
+									<span style="color:#d63638;font-weight:600;margin-left:8px;"><?php esc_html_e( '(Cancels at period end)', 'pressnative-apps' ); ?></span>
 								<?php endif; ?>
 							</td>
 						</tr>
@@ -722,33 +722,36 @@ class PressNative_Admin {
 				<?php if ( $sub_status['has_stripe'] ) : ?>
 					<p style="margin:12px 0 0;">
 						<a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative&pressnative_portal=1' ) ); ?>" class="button button-secondary">
-							<?php esc_html_e( 'Manage Subscription', 'pressnative' ); ?>
+							<?php esc_html_e( 'Manage Subscription', 'pressnative-apps' ); ?>
 						</a>
-						<span class="description" style="margin-left:8px;"><?php esc_html_e( 'Opens the Stripe billing portal to update payment, change plan, or cancel.', 'pressnative' ); ?></span>
+						<span class="description" style="margin-left:8px;"><?php esc_html_e( 'Opens the Stripe billing portal to update payment, change plan, or cancel.', 'pressnative-apps' ); ?></span>
 					</p>
 				<?php endif; ?>
 			</div>
 		<?php elseif ( ! empty( $api_key ) ) : ?>
 		<div class="notice notice-warning" style="max-width:700px;">
-			<p><?php esc_html_e( 'Could not fetch subscription status. Ensure the Registry is running and your API key is valid.', 'pressnative' ); ?></p>
+			<p><?php esc_html_e( 'Could not fetch subscription status. Ensure the Registry is running and your API key is valid.', 'pressnative-apps' ); ?></p>
 		</div>
 		<?php endif; ?>
 
 		<?php if ( ! empty( $api_key ) && ! empty( $site_verified ) ) : ?>
 		<div class="notice notice-success" style="max-width:700px;">
 			<p>
-				<strong><?php esc_html_e( 'Site Verified', 'pressnative' ); ?></strong> —
-				<?php echo esc_html( sprintf( __( 'WordPress admin access confirmed on %s.', 'pressnative' ), $site_verified ) ); ?>
+				<strong><?php esc_html_e( 'Site Verified', 'pressnative-apps' ); ?></strong> —
+				<?php
+				/* translators: %s: verification timestamp or site identifier */
+				echo esc_html( sprintf( __( 'WordPress admin access confirmed on %s.', 'pressnative-apps' ), $site_verified ) );
+				?>
 			</p>
 		</div>
 		<?php elseif ( ! empty( $api_key ) && empty( $site_verified ) ) : ?>
 		<div class="notice notice-warning" style="max-width:700px;">
 			<p>
-				<?php esc_html_e( 'Site verification pending. Click the button below to verify your WordPress admin access with the Registry.', 'pressnative' ); ?>
+				<?php esc_html_e( 'Site verification pending. Click the button below to verify your WordPress admin access with the Registry.', 'pressnative-apps' ); ?>
 			</p>
 			<p>
 				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pressnative_verify_site' ), 'pressnative_verify_site' ) ); ?>" class="button button-primary">
-					<?php esc_html_e( 'Verify Now', 'pressnative' ); ?>
+					<?php esc_html_e( 'Verify Now', 'pressnative-apps' ); ?>
 				</a>
 			</p>
 			<?php
@@ -756,14 +759,14 @@ class PressNative_Admin {
 			if ( $verify_error ) :
 				delete_transient( 'pressnative_verify_error' );
 			?>
-				<p style="color:#d63638;"><strong><?php esc_html_e( 'Last verification error:', 'pressnative' ); ?></strong> <?php echo esc_html( $verify_error ); ?></p>
+				<p style="color:#d63638;"><strong><?php esc_html_e( 'Last verification error:', 'pressnative-apps' ); ?></strong> <?php echo esc_html( $verify_error ); ?></p>
 			<?php endif; ?>
 		</div>
 		<?php endif; ?>
 
 			<?php if ( ! empty( $_GET['pressnative_portal_error'] ) ) : ?>
 			<div class="notice notice-error is-dismissible" style="max-width:700px;">
-				<p><?php esc_html_e( 'Could not open the subscription management portal. Ensure your API key is valid and the Registry is running.', 'pressnative' ); ?></p>
+				<p><?php esc_html_e( 'Could not open the subscription management portal. Ensure your API key is valid and the Registry is running.', 'pressnative-apps' ); ?></p>
 			</div>
 			<?php endif; ?>
 
@@ -773,7 +776,7 @@ class PressNative_Admin {
 				<?php if ( self::is_localhost() ) : ?>
 				<tr>
 					<th scope="row">
-						<label for="pressnative_registry_url"><?php esc_html_e( 'Registry URL', 'pressnative' ); ?></label>
+						<label for="pressnative_registry_url"><?php esc_html_e( 'Registry URL', 'pressnative-apps' ); ?></label>
 					</th>
 					<td>
 						<input type="url"
@@ -783,9 +786,9 @@ class PressNative_Admin {
 							   class="regular-text"
 							   placeholder="http://localhost:3000"/>
 						<p class="description">
-							<?php esc_html_e( 'Local development: Base URL of your local PressNative Registry.', 'pressnative' ); ?>
+							<?php esc_html_e( 'Local development: Base URL of your local PressNative Registry.', 'pressnative-apps' ); ?>
 							<?php if ( $verified ) : ?>
-								<br><strong><?php esc_html_e( 'Last verified:', 'pressnative' ); ?></strong> <?php echo esc_html( $verified ); ?>
+								<br><strong><?php esc_html_e( 'Last verified:', 'pressnative-apps' ); ?></strong> <?php echo esc_html( $verified ); ?>
 							<?php endif; ?>
 						</p>
 					</td>
@@ -793,7 +796,7 @@ class PressNative_Admin {
 				<?php endif; ?>
 				<tr>
 						<th scope="row">
-							<label for="pressnative_api_key"><?php esc_html_e( 'API Key', 'pressnative' ); ?></label>
+							<label for="pressnative_api_key"><?php esc_html_e( 'API Key', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="password"
@@ -804,7 +807,7 @@ class PressNative_Admin {
 								   autocomplete="off"
 								   placeholder="pn_..."/>
 							<p class="description">
-								<?php esc_html_e( 'Issued by PressNative after you start your subscription (sent via email). Required for analytics: events are stored on our servers and the dashboard queries them.', 'pressnative' ); ?>
+								<?php esc_html_e( 'Issued by PressNative after you start your subscription (sent via email). Required for analytics: events are stored on our servers and the dashboard queries them.', 'pressnative-apps' ); ?>
 							</p>
 						</td>
 					</tr>
@@ -833,32 +836,32 @@ class PressNative_Admin {
 			$bar_color = '#dba617';
 		}
 
-		$aot_msg = isset( $_GET['aot'] ) ? sanitize_text_field( $_GET['aot'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$aot_msg = isset( $_GET['aot'] ) ? sanitize_text_field( wp_unslash( $_GET['aot'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only message from redirect
 		?>
 		<div class="pressnative-aot-card" style="background:#fff;border:1px solid #c3c4c7;border-left:4px solid <?php echo esc_attr( $bar_color ); ?>;border-radius:4px;padding:16px 20px;margin-top:24px;max-width:700px;">
 			<h2 style="margin:0 0 12px;font-size:1.1em;">
-				<?php esc_html_e( 'Content Cache (AOT Compiler)', 'pressnative' ); ?>
+				<?php esc_html_e( 'Content Cache (AOT Compiler)', 'pressnative-apps' ); ?>
 			</h2>
 
 			<?php if ( 'started' === $aot_msg ) : ?>
 				<div class="notice notice-success inline" style="margin:0 0 12px;">
-					<p><?php esc_html_e( 'Bulk recompilation started. Processing in background via WP-Cron.', 'pressnative' ); ?></p>
+					<p><?php esc_html_e( 'Bulk recompilation started. Processing in background via WP-Cron.', 'pressnative-apps' ); ?></p>
 				</div>
 			<?php endif; ?>
 
 			<table style="border-collapse:collapse;width:100%;margin-bottom:12px;">
 				<tr>
 					<td style="padding:6px 12px 6px 0;color:#50575e;width:140px;">
-						<strong><?php esc_html_e( 'Total Content', 'pressnative' ); ?></strong>
+						<strong><?php esc_html_e( 'Total Content', 'pressnative-apps' ); ?></strong>
 					</td>
 					<td style="padding:6px 0;">
 						<?php echo esc_html( number_format_i18n( $stats['total'] ) ); ?>
-						<?php esc_html_e( 'posts / pages / products', 'pressnative' ); ?>
+						<?php esc_html_e( 'posts / pages / products', 'pressnative-apps' ); ?>
 					</td>
 				</tr>
 				<tr>
 					<td style="padding:6px 12px 6px 0;color:#50575e;">
-						<strong><?php esc_html_e( 'Cached', 'pressnative' ); ?></strong>
+						<strong><?php esc_html_e( 'Cached', 'pressnative-apps' ); ?></strong>
 					</td>
 					<td style="padding:6px 0;">
 						<span style="color:<?php echo esc_attr( $bar_color ); ?>;font-weight:600;">
@@ -871,7 +874,7 @@ class PressNative_Admin {
 				<?php if ( $stats['uncached'] > 0 ) : ?>
 				<tr>
 					<td style="padding:6px 12px 6px 0;color:#50575e;">
-						<strong><?php esc_html_e( 'Uncached', 'pressnative' ); ?></strong>
+						<strong><?php esc_html_e( 'Uncached', 'pressnative-apps' ); ?></strong>
 					</td>
 					<td style="padding:6px 0;color:#d63638;font-weight:600;">
 						<?php echo esc_html( number_format_i18n( $stats['uncached'] ) ); ?>
@@ -892,8 +895,9 @@ class PressNative_Admin {
 			<?php if ( $running ) : ?>
 				<p style="color:#50575e;font-style:italic;margin:0 0 12px;">
 					<?php
+					/* translators: 1: number of items compiled so far, 2: total number of items */
 					echo esc_html( sprintf(
-						__( 'Background compilation in progress — %1$s of %2$s processed. Reload this page to see updated progress.', 'pressnative' ),
+						__( 'Background compilation in progress — %1$s of %2$s processed. Reload this page to see updated progress.', 'pressnative-apps' ),
 						number_format_i18n( $progress['compiled'] ),
 						number_format_i18n( $progress['total'] )
 					) );
@@ -902,8 +906,9 @@ class PressNative_Admin {
 			<?php elseif ( 'complete' === $progress['status'] && $progress['compiled'] > 0 ) : ?>
 				<p style="color:#00a32a;margin:0 0 12px;">
 					<?php
+					/* translators: 1: number of items compiled, 2: date and time of completion */
 					echo esc_html( sprintf(
-						__( 'Last batch completed: %1$s items compiled on %2$s.', 'pressnative' ),
+						__( 'Last batch completed: %1$s items compiled on %2$s.', 'pressnative-apps' ),
 						number_format_i18n( $progress['compiled'] ),
 						wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $progress['updated'] )
 					) );
@@ -916,13 +921,13 @@ class PressNative_Admin {
 				<input type="hidden" name="action" value="pressnative_aot_recompile" />
 				<button type="submit" class="button button-secondary" <?php disabled( $running ); ?>>
 					<?php echo $running
-						? esc_html__( 'Compilation Running…', 'pressnative' )
-						: esc_html__( 'Recompile All Content', 'pressnative' ); ?>
+						? esc_html__( 'Compilation Running…', 'pressnative-apps' )
+						: esc_html__( 'Recompile All Content', 'pressnative-apps' ); ?>
 				</button>
 			</form>
 			<?php if ( $running ) : ?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative' ) ); ?>" class="button" style="margin-left:8px;">
-					<?php esc_html_e( 'Refresh Status', 'pressnative' ); ?>
+					<?php esc_html_e( 'Refresh Status', 'pressnative-apps' ); ?>
 				</a>
 			<?php endif; ?>
 		</div>
@@ -1297,8 +1302,8 @@ class PressNative_Admin {
 		}
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'App Settings', 'pressnative' ); ?></h1>
-			<p class="description"><?php esc_html_e( 'Branding shown in the PressNative mobile app (toolbar title, logo, theme colors).', 'pressnative' ); ?></p>
+			<h1><?php esc_html_e( 'App Settings', 'pressnative-apps' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'Branding shown in the PressNative mobile app (toolbar title, logo, theme colors).', 'pressnative-apps' ); ?></p>
 			<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;">
 				<div style="flex:1;min-width:320px;">
 			<form method="post" action="options.php" class="pressnative-settings-form">
@@ -1306,7 +1311,7 @@ class PressNative_Admin {
 				<table class="form-table" role="presentation">
 					<tr>
 						<th scope="row">
-							<label for="pressnative_app_name"><?php esc_html_e( 'App Name', 'pressnative' ); ?></label>
+							<label for="pressnative_app_name"><?php esc_html_e( 'App Name', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="text"
@@ -1315,12 +1320,12 @@ class PressNative_Admin {
 								   value="<?php echo esc_attr( $app_name ); ?>"
 								   class="regular-text"
 								   placeholder="<?php echo esc_attr( PressNative_Options::DEFAULT_APP_NAME ); ?>"/>
-							<p class="description"><?php esc_html_e( 'Title shown in the app toolbar.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Title shown in the app toolbar.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_primary_color"><?php esc_html_e( 'Primary Color', 'pressnative' ); ?></label>
+							<label for="pressnative_primary_color"><?php esc_html_e( 'Primary Color', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="text"
@@ -1332,7 +1337,7 @@ class PressNative_Admin {
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_accent_color"><?php esc_html_e( 'Accent Color', 'pressnative' ); ?></label>
+							<label for="pressnative_accent_color"><?php esc_html_e( 'Accent Color', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="text"
@@ -1340,12 +1345,12 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Options::OPTION_ACCENT_COLOR ); ?>"
 								   value="<?php echo esc_attr( $accent_color ); ?>"
 								   class="pressnative-color-picker"/>
-							<p class="description"><?php esc_html_e( 'Buttons, links, highlights.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Buttons, links, highlights.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_background_color"><?php esc_html_e( 'App Background Color', 'pressnative' ); ?></label>
+							<label for="pressnative_background_color"><?php esc_html_e( 'App Background Color', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1356,12 +1361,12 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Options::OPTION_BACKGROUND_COLOR ); ?>"
 								   value="<?php echo esc_attr( $bg_color ); ?>"
 								   class="pressnative-color-picker"/>
-							<p class="description"><?php esc_html_e( 'Main app background color. Used when no background image is set.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Main app background color. Used when no background image is set.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label><?php esc_html_e( 'App Background Image', 'pressnative' ); ?></label>
+							<label><?php esc_html_e( 'App Background Image', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1386,24 +1391,24 @@ class PressNative_Admin {
 										class="button pressnative-media-upload"
 										data-target="#pressnative_background_image"
 										data-preview="#pressnative-bg-image-preview"
-										data-title="<?php esc_attr_e( 'Select app background image', 'pressnative' ); ?>"
-										data-button="<?php esc_attr_e( 'Use image', 'pressnative' ); ?>">
-									<?php esc_html_e( 'Select or upload image', 'pressnative' ); ?>
+										data-title="<?php esc_attr_e( 'Select app background image', 'pressnative-apps' ); ?>"
+										data-button="<?php esc_attr_e( 'Use image', 'pressnative-apps' ); ?>">
+									<?php esc_html_e( 'Select or upload image', 'pressnative-apps' ); ?>
 								</button>
 								<button type="button"
 										class="button pressnative-media-remove"
 										data-target="#pressnative_background_image"
 										data-preview="#pressnative-bg-image-preview"
 										<?php echo $bg_image_id ? '' : 'style="display:none;"'; ?>>
-									<?php esc_html_e( 'Remove', 'pressnative' ); ?>
+									<?php esc_html_e( 'Remove', 'pressnative-apps' ); ?>
 								</button>
 							</div>
-							<p class="description"><?php esc_html_e( 'Optional background image for the app. Overrides background color when set.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Optional background image for the app. Overrides background color when set.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_tile_background_color"><?php esc_html_e( 'Tile Background Color', 'pressnative' ); ?></label>
+							<label for="pressnative_tile_background_color"><?php esc_html_e( 'Tile Background Color', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1414,12 +1419,12 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Options::OPTION_TILE_BACKGROUND_COLOR ); ?>"
 								   value="<?php echo esc_attr( $tile_bg_color ); ?>"
 								   class="pressnative-color-picker"/>
-							<p class="description"><?php esc_html_e( 'Background color for content tiles/cards. Used when no tile background image is set.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Background color for content tiles/cards. Used when no tile background image is set.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label><?php esc_html_e( 'Tile Background Image', 'pressnative' ); ?></label>
+							<label><?php esc_html_e( 'Tile Background Image', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1444,24 +1449,24 @@ class PressNative_Admin {
 										class="button pressnative-media-upload"
 										data-target="#pressnative_tile_background"
 										data-preview="#pressnative-tile-bg-preview"
-										data-title="<?php esc_attr_e( 'Select tile background image', 'pressnative' ); ?>"
-										data-button="<?php esc_attr_e( 'Use image', 'pressnative' ); ?>">
-									<?php esc_html_e( 'Select or upload image', 'pressnative' ); ?>
+										data-title="<?php esc_attr_e( 'Select tile background image', 'pressnative-apps' ); ?>"
+										data-button="<?php esc_attr_e( 'Use image', 'pressnative-apps' ); ?>">
+									<?php esc_html_e( 'Select or upload image', 'pressnative-apps' ); ?>
 								</button>
 								<button type="button"
 										class="button pressnative-media-remove"
 										data-target="#pressnative_tile_background"
 										data-preview="#pressnative-tile-bg-preview"
 										<?php echo $tile_bg_id ? '' : 'style="display:none;"'; ?>>
-									<?php esc_html_e( 'Remove', 'pressnative' ); ?>
+									<?php esc_html_e( 'Remove', 'pressnative-apps' ); ?>
 								</button>
 							</div>
-							<p class="description"><?php esc_html_e( 'Optional background image for content tiles/cards. Overrides tile background color when set.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Optional background image for content tiles/cards. Overrides tile background color when set.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_tile_text_color"><?php esc_html_e( 'Tile Text Color', 'pressnative' ); ?></label>
+							<label for="pressnative_tile_text_color"><?php esc_html_e( 'Tile Text Color', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1472,12 +1477,12 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Options::OPTION_TILE_TEXT_COLOR ); ?>"
 								   value="<?php echo esc_attr( $tile_text_color ); ?>"
 								   class="pressnative-color-picker"/>
-							<p class="description"><?php esc_html_e( 'Text color for content on tiles/cards.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Text color for content on tiles/cards.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_text_color"><?php esc_html_e( 'Text Color', 'pressnative' ); ?></label>
+							<label for="pressnative_text_color"><?php esc_html_e( 'Text Color', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1488,12 +1493,12 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Options::OPTION_TEXT_COLOR ); ?>"
 								   value="<?php echo esc_attr( $text_color ); ?>"
 								   class="pressnative-color-picker"/>
-							<p class="description"><?php esc_html_e( 'Primary text color.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Primary text color.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_border_color"><?php esc_html_e( 'Border Color', 'pressnative' ); ?></label>
+							<label for="pressnative_border_color"><?php esc_html_e( 'Border Color', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1504,12 +1509,12 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Options::OPTION_BORDER_COLOR ); ?>"
 								   value="<?php echo esc_attr( $border_color ); ?>"
 								   class="pressnative-color-picker"/>
-							<p class="description"><?php esc_html_e( 'Subtle outline color for cards, tiles, and dividers.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Subtle outline color for cards, tiles, and dividers.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_font_family"><?php esc_html_e( 'Font Family', 'pressnative' ); ?></label>
+							<label for="pressnative_font_family"><?php esc_html_e( 'Font Family', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1517,16 +1522,16 @@ class PressNative_Admin {
 							?>
 							<select id="pressnative_font_family"
 									name="<?php echo esc_attr( PressNative_Options::OPTION_FONT_FAMILY ); ?>">
-								<option value="sans-serif" <?php selected( $font_family, 'sans-serif' ); ?>><?php esc_html_e( 'Sans-serif (default)', 'pressnative' ); ?></option>
-								<option value="serif" <?php selected( $font_family, 'serif' ); ?>><?php esc_html_e( 'Serif', 'pressnative' ); ?></option>
-								<option value="monospace" <?php selected( $font_family, 'monospace' ); ?>><?php esc_html_e( 'Monospace', 'pressnative' ); ?></option>
+								<option value="sans-serif" <?php selected( $font_family, 'sans-serif' ); ?>><?php esc_html_e( 'Sans-serif (default)', 'pressnative-apps' ); ?></option>
+								<option value="serif" <?php selected( $font_family, 'serif' ); ?>><?php esc_html_e( 'Serif', 'pressnative-apps' ); ?></option>
+								<option value="monospace" <?php selected( $font_family, 'monospace' ); ?>><?php esc_html_e( 'Monospace', 'pressnative-apps' ); ?></option>
 							</select>
-							<p class="description"><?php esc_html_e( 'Base font for app content.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Base font for app content.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_base_font_size"><?php esc_html_e( 'Base Font Size', 'pressnative' ); ?></label>
+							<label for="pressnative_base_font_size"><?php esc_html_e( 'Base Font Size', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1537,25 +1542,25 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Options::OPTION_BASE_FONT_SIZE ); ?>"
 								   value="<?php echo esc_attr( $base_font_size ); ?>"
 								   min="12" max="24" step="1" class="small-text"/>
-							<span><?php esc_html_e( 'px (12–24)', 'pressnative' ); ?></span>
-							<p class="description"><?php esc_html_e( 'Base font size for app typography.', 'pressnative' ); ?></p>
+							<span><?php esc_html_e( 'px (12–24)', 'pressnative-apps' ); ?></span>
+							<p class="description"><?php esc_html_e( 'Base font size for app typography.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label><?php esc_html_e( 'Logo', 'pressnative' ); ?></label>
+							<label><?php esc_html_e( 'Logo', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="hidden" id="pressnative_logo_attachment_id" name="<?php echo esc_attr( PressNative_Options::OPTION_LOGO_ATTACHMENT ); ?>" value="<?php echo esc_attr( $logo_attachment ); ?>"/>
 							<div id="pressnative_logo_preview"><?php echo wp_kses_post( $logo_preview ); ?></div>
-							<button type="button" class="button" id="pressnative_logo_select"><?php esc_html_e( 'Select or upload logo', 'pressnative' ); ?></button>
-							<button type="button" class="button" id="pressnative_logo_remove"><?php esc_html_e( 'Remove', 'pressnative' ); ?></button>
-							<p class="description"><?php esc_html_e( 'Header logo for the app. Used when provided in the API.', 'pressnative' ); ?></p>
+							<button type="button" class="button" id="pressnative_logo_select"><?php esc_html_e( 'Select or upload logo', 'pressnative-apps' ); ?></button>
+							<button type="button" class="button" id="pressnative_logo_remove"><?php esc_html_e( 'Remove', 'pressnative-apps' ); ?></button>
+							<p class="description"><?php esc_html_e( 'Header logo for the app. Used when provided in the API.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_app_categories"><?php esc_html_e( 'App Categories', 'pressnative' ); ?></label>
+							<label for="pressnative_app_categories"><?php esc_html_e( 'App Categories', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1563,7 +1568,7 @@ class PressNative_Admin {
 							$default_tags   = array( 'TCG', 'News', 'Store', 'Community' );
 							?>
 							<div id="pressnative-app-categories" class="pressnative-tag-cloud" style="margin-bottom:10px;">
-								<span class="pressnative-tag-label" style="display:block;margin-bottom:6px;font-weight:500;"><?php esc_html_e( 'Suggested:', 'pressnative' ); ?></span>
+								<span class="pressnative-tag-label" style="display:block;margin-bottom:6px;font-weight:500;"><?php esc_html_e( 'Suggested:', 'pressnative-apps' ); ?></span>
 								<div class="pressnative-tag-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
 									<?php foreach ( $default_tags as $tag ) : ?>
 										<button type="button" class="pressnative-tag-pill button" data-tag="<?php echo esc_attr( $tag ); ?>" style="border-radius:16px;padding:4px 12px;height:auto;line-height:1.4;"><?php echo esc_html( $tag ); ?></button>
@@ -1573,13 +1578,13 @@ class PressNative_Admin {
 									<?php foreach ( $app_categories as $tag ) : ?>
 										<span class="pressnative-tag-pill-display" data-tag="<?php echo esc_attr( $tag ); ?>" style="display:inline-flex;align-items:center;gap:4px;background:#2271b1;color:#fff;border-radius:16px;padding:4px 8px 4px 12px;font-size:13px;">
 											<?php echo esc_html( $tag ); ?>
-											<button type="button" class="pressnative-tag-remove" data-tag="<?php echo esc_attr( $tag ); ?>" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;line-height:1;opacity:0.8;" aria-label="<?php esc_attr_e( 'Remove tag', 'pressnative' ); ?>">&times;</button>
+											<button type="button" class="pressnative-tag-remove" data-tag="<?php echo esc_attr( $tag ); ?>" style="background:none;border:none;color:inherit;cursor:pointer;padding:0;line-height:1;opacity:0.8;" aria-label="<?php esc_attr_e( 'Remove tag', 'pressnative-apps' ); ?>">&times;</button>
 										</span>
 									<?php endforeach; ?>
 									<input type="text"
 										   id="pressnative_app_categories_input"
 										   class="pressnative-tag-input"
-										   placeholder="<?php esc_attr_e( 'Type and press Enter or comma to add (max 5)', 'pressnative' ); ?>"
+										   placeholder="<?php esc_attr_e( 'Type and press Enter or comma to add (max 5)', 'pressnative-apps' ); ?>"
 										   data-max="<?php echo (int) PressNative_Options::APP_CATEGORIES_MAX; ?>"
 										   style="flex:1;min-width:120px;border:none;outline:none;font-size:14px;"/>
 									<input type="hidden"
@@ -1592,8 +1597,8 @@ class PressNative_Admin {
 								<?php
 								printf(
 									/* translators: %d: max number of tags */
-									esc_html__( 'Tags for Hub discovery. Max %d tags. Syncs to pressnative.app when you save.', 'pressnative' ),
-									PressNative_Options::APP_CATEGORIES_MAX
+									esc_html__( 'Tags for Hub discovery. Max %d tags. Syncs to pressnative.app when you save.', 'pressnative-apps' ),
+									(int) PressNative_Options::APP_CATEGORIES_MAX
 								);
 								?>
 							</p>
@@ -1602,20 +1607,20 @@ class PressNative_Admin {
 				</table>
 
 				<?php if ( class_exists( 'WooCommerce' ) ) : ?>
-				<h2 style="margin-top:2em;"><?php esc_html_e( 'WooCommerce Product Display', 'pressnative' ); ?></h2>
-				<p class="description"><?php esc_html_e( 'Configure how products appear in different contexts within your app.', 'pressnative' ); ?></p>
+				<h2 style="margin-top:2em;"><?php esc_html_e( 'WooCommerce Product Display', 'pressnative-apps' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Configure how products appear in different contexts within your app.', 'pressnative-apps' ); ?></p>
 				<table class="form-table" role="presentation">
 					<tr>
 						<th scope="row">
-							<label for="pressnative_product_in_post_style"><?php esc_html_e( 'In-Post Product Style', 'pressnative' ); ?></label>
+							<label for="pressnative_product_in_post_style"><?php esc_html_e( 'In-Post Product Style', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
 							$in_post_style = get_option( 'pressnative_product_in_post_style', 'compact_row' );
 							$style_options = array(
-								'compact_row' => __( 'Compact Row - Image left, details right (recommended)', 'pressnative' ),
-								'mini_card'   => __( 'Mini Card - Small centered card, subtle display', 'pressnative' ),
-								'card'        => __( 'Full Card - Large card with prominent image', 'pressnative' ),
+								'compact_row' => __( 'Compact Row - Image left, details right (recommended)', 'pressnative-apps' ),
+								'mini_card'   => __( 'Mini Card - Small centered card, subtle display', 'pressnative-apps' ),
+								'card'        => __( 'Full Card - Large card with prominent image', 'pressnative-apps' ),
 							);
 							?>
 							<select id="pressnative_product_in_post_style" name="pressnative_product_in_post_style">
@@ -1623,12 +1628,12 @@ class PressNative_Admin {
 									<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $in_post_style, $value ); ?>><?php echo esc_html( $label ); ?></option>
 								<?php endforeach; ?>
 							</select>
-							<p class="description"><?php esc_html_e( 'How products appear when embedded within blog post content using shortcodes.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'How products appear when embedded within blog post content using shortcodes.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_product_grid_style"><?php esc_html_e( 'Product Grid Style', 'pressnative' ); ?></label>
+							<label for="pressnative_product_grid_style"><?php esc_html_e( 'Product Grid Style', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<?php
@@ -1639,7 +1644,7 @@ class PressNative_Admin {
 									<option value="<?php echo esc_attr( $value ); ?>" <?php selected( $grid_style, $value ); ?>><?php echo esc_html( $label ); ?></option>
 								<?php endforeach; ?>
 							</select>
-							<p class="description"><?php esc_html_e( 'How products appear in dedicated product grid sections on your home screen.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'How products appear in dedicated product grid sections on your home screen.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 				</table>
@@ -1694,19 +1699,19 @@ class PressNative_Admin {
 
 		$categories = get_categories( array( 'hide_empty' => false, 'parent' => 0 ) );
 		$component_labels = array(
-			'hero-carousel'        => __( 'Hero Carousel', 'pressnative' ),
-			'post-grid'            => __( 'Post Grid', 'pressnative' ),
-			'category-list'        => __( 'Category List', 'pressnative' ),
-			'page-list'            => __( 'Page List', 'pressnative' ),
-			'product-grid'         => __( 'Product Grid (WooCommerce)', 'pressnative' ),
-			'product-category-list' => __( 'Product Categories (WooCommerce)', 'pressnative' ),
-			'product-carousel'     => __( 'Product Carousel (WooCommerce)', 'pressnative' ),
-			'ad-slot-1'            => __( 'Ad Placement', 'pressnative' ),
+			'hero-carousel'        => __( 'Hero Carousel', 'pressnative-apps' ),
+			'post-grid'            => __( 'Post Grid', 'pressnative-apps' ),
+			'category-list'        => __( 'Category List', 'pressnative-apps' ),
+			'page-list'            => __( 'Page List', 'pressnative-apps' ),
+			'product-grid'         => __( 'Product Grid (WooCommerce)', 'pressnative-apps' ),
+			'product-category-list' => __( 'Product Categories (WooCommerce)', 'pressnative-apps' ),
+			'product-carousel'     => __( 'Product Carousel (WooCommerce)', 'pressnative-apps' ),
+			'ad-slot-1'            => __( 'Ad Placement', 'pressnative-apps' ),
 		);
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Layout Settings', 'pressnative' ); ?></h1>
-			<p class="description"><?php esc_html_e( 'Configure home screen components and content. Changes appear in the mobile app.', 'pressnative' ); ?></p>
+			<h1><?php esc_html_e( 'Layout Settings', 'pressnative-apps' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'Configure home screen components and content. Changes appear in the mobile app.', 'pressnative-apps' ); ?></p>
 			<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;">
 				<div style="flex:1;min-width:320px;">
 			<form method="post" action="options.php" class="pressnative-settings-form">
@@ -1714,7 +1719,7 @@ class PressNative_Admin {
 				<table class="form-table" role="presentation">
 					<tr>
 						<th scope="row">
-							<label for="pressnative_hero_category_slug"><?php esc_html_e( 'Hero Carousel: Featured Category', 'pressnative' ); ?></label>
+							<label for="pressnative_hero_category_slug"><?php esc_html_e( 'Hero Carousel: Featured Category', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="text"
@@ -1723,12 +1728,12 @@ class PressNative_Admin {
 								   value="<?php echo esc_attr( $hero_slug ); ?>"
 								   class="regular-text"
 								   placeholder="featured"/>
-							<p class="description"><?php esc_html_e( 'Category slug for hero items. Create a category with this slug (e.g. "featured") and assign posts to it.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Category slug for hero items. Create a category with this slug (e.g. "featured") and assign posts to it.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_hero_max_items"><?php esc_html_e( 'Hero Carousel: Max Items', 'pressnative' ); ?></label>
+							<label for="pressnative_hero_max_items"><?php esc_html_e( 'Hero Carousel: Max Items', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="number"
@@ -1736,12 +1741,12 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_HERO_MAX_ITEMS ); ?>"
 								   value="<?php echo esc_attr( $hero_max ); ?>"
 								   min="1" max="10" step="1" class="small-text"/>
-							<p class="description"><?php esc_html_e( 'Maximum slides in the hero carousel (1–10).', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Maximum slides in the hero carousel (1–10).', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_post_grid_columns"><?php esc_html_e( 'Post Grid: Columns', 'pressnative' ); ?></label>
+							<label for="pressnative_post_grid_columns"><?php esc_html_e( 'Post Grid: Columns', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<select id="pressnative_post_grid_columns"
@@ -1750,12 +1755,12 @@ class PressNative_Admin {
 									<option value="<?php echo esc_attr( $i ); ?>" <?php selected( $grid_cols, $i ); ?>><?php echo esc_html( $i ); ?></option>
 								<?php endfor; ?>
 							</select>
-							<p class="description"><?php esc_html_e( 'Number of columns in the post grid.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Number of columns in the post grid.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label for="pressnative_post_grid_per_page"><?php esc_html_e( 'Post Grid: Posts Per Page', 'pressnative' ); ?></label>
+							<label for="pressnative_post_grid_per_page"><?php esc_html_e( 'Post Grid: Posts Per Page', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="number"
@@ -1763,12 +1768,12 @@ class PressNative_Admin {
 								   name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_POST_GRID_PER_PAGE ); ?>"
 								   value="<?php echo esc_attr( $grid_per ); ?>"
 								   min="1" max="50" step="1" class="small-text"/>
-							<p class="description"><?php esc_html_e( 'Number of posts shown in the grid (1–50).', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Number of posts shown in the grid (1–50).', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label><?php esc_html_e( 'Category List: Visible Categories', 'pressnative' ); ?></label>
+							<label><?php esc_html_e( 'Category List: Visible Categories', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<input type="hidden" name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_ENABLED_CATEGORIES ); ?>[]" value="0" />
@@ -1784,19 +1789,19 @@ class PressNative_Admin {
 										</label>
 									<?php endforeach; ?>
 								</fieldset>
-								<p class="description"><?php esc_html_e( 'Select categories to show in the app. Leave all unchecked to show all top-level categories.', 'pressnative' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Select categories to show in the app. Leave all unchecked to show all top-level categories.', 'pressnative-apps' ); ?></p>
 							<?php else : ?>
-								<p><?php esc_html_e( 'No categories found. Create categories in Posts → Categories.', 'pressnative' ); ?></p>
+								<p><?php esc_html_e( 'No categories found. Create categories in Posts → Categories.', 'pressnative-apps' ); ?></p>
 							<?php endif; ?>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row">
-							<label><?php esc_html_e( 'Component Order', 'pressnative' ); ?></label>
+							<label><?php esc_html_e( 'Component Order', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
 							<style>.pressnative-sortable-placeholder{height:40px;background:#f0f0f1;border:2px dashed #c3c4c7;margin-bottom:6px;list-style:none;}</style>
-							<p class="description"><?php esc_html_e( 'Drag to reorder. Uncheck to hide a component.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Drag to reorder. Uncheck to hide a component.', 'pressnative-apps' ); ?></p>
 							<input type="hidden" id="pressnative-component-order-value"
 								   name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_ENABLED_COMPONENTS ); ?>"
 								   value="<?php echo esc_attr( implode( ',', $enabled_comp ) ); ?>" />
@@ -1857,7 +1862,7 @@ class PressNative_Admin {
 	 */
 	public static function handle_send_push() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative' ) );
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative-apps' ) );
 		}
 		if ( ! isset( $_POST['pressnative_push_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['pressnative_push_nonce'] ) ), 'pressnative_send_push' ) ) {
 			wp_safe_redirect( add_query_arg( 'pressnative_push_error', 'nonce', admin_url( 'admin.php?page=pressnative-push' ) ) );
@@ -1920,7 +1925,7 @@ class PressNative_Admin {
 			wp_safe_redirect( add_query_arg( 'pressnative_push_sent', $sent, admin_url( 'admin.php?page=pressnative-push' ) ) );
 			exit;
 		}
-		$err_msg = isset( $data['error'] ) ? $data['error'] : __( 'Unknown error', 'pressnative' );
+		$err_msg = isset( $data['error'] ) ? $data['error'] : __( 'Unknown error', 'pressnative-apps' );
 		wp_safe_redirect( add_query_arg( array( 'pressnative_push_error' => 'registry', 'pressnative_push_message' => rawurlencode( $err_msg ) ), admin_url( 'admin.php?page=pressnative-push' ) ) );
 		exit;
 	}
@@ -1944,20 +1949,20 @@ class PressNative_Admin {
 		$stats        = is_array( $stats ) ? $stats : array( 'total' => 0, 'ios' => 0, 'android' => 0, 'engaged_7d' => 0, 'engaged_30d' => 0 );
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Push Notifications', 'pressnative' ); ?></h1>
-			<p class="description"><?php esc_html_e( 'Send an ad-hoc push notification to all app users who have your site favorited and opted into push. Requires API key and Registry URL in Settings.', 'pressnative' ); ?></p>
+			<h1><?php esc_html_e( 'Push Notifications', 'pressnative-apps' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'Send an ad-hoc push notification to all app users who have your site favorited and opted into push. Requires API key and Registry URL in Settings.', 'pressnative-apps' ); ?></p>
 
 			<?php if ( $has_config ) : ?>
 				<div class="pressnative-push-stats" style="margin: 16px 0; padding: 12px 16px; background: #f0f0f1; border-left: 4px solid #2271b1; max-width: 600px;">
 					<p style="margin: 0 0 8px; font-weight: 600;">
-						<?php esc_html_e( 'Subscribers', 'pressnative' ); ?>
-						<a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative-push' ) ); ?>" class="button button-small" style="margin-left: 8px; vertical-align: middle;"><?php esc_html_e( 'Refresh', 'pressnative' ); ?></a>
+						<?php esc_html_e( 'Subscribers', 'pressnative-apps' ); ?>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative-push' ) ); ?>" class="button button-small" style="margin-left: 8px; vertical-align: middle;"><?php esc_html_e( 'Refresh', 'pressnative-apps' ); ?></a>
 					</p>
 					<p style="margin: 0; font-size: 24px; line-height: 1.2;">
 						<?php
 						printf(
 							/* translators: %s: number of subscribers */
-							esc_html__( '%s subscriber(s) will receive this notification', 'pressnative' ),
+							esc_html__( '%s subscriber(s) will receive this notification', 'pressnative-apps' ),
 							esc_html( number_format_i18n( $stats['total'] ) )
 						);
 						?>
@@ -1967,7 +1972,7 @@ class PressNative_Admin {
 							<?php
 							printf(
 								/* translators: 1: Android count, 2: iOS count */
-								esc_html__( 'Android: %1$s · iOS: %2$s', 'pressnative' ),
+								esc_html__( 'Android: %1$s · iOS: %2$s', 'pressnative-apps' ),
 								esc_html( number_format_i18n( $stats['android'] ) ),
 								esc_html( number_format_i18n( $stats['ios'] ) )
 							);
@@ -1978,7 +1983,7 @@ class PressNative_Admin {
 								<?php
 								printf(
 									/* translators: 1: engaged in 7 days count, 2: engaged in 30 days count */
-									esc_html__( 'Engaged (viewed/clicked): %1$s in last 7 days · %2$s in last 30 days', 'pressnative' ),
+									esc_html__( 'Engaged (viewed/clicked): %1$s in last 7 days · %2$s in last 30 days', 'pressnative-apps' ),
 									esc_html( number_format_i18n( $stats['engaged_7d'] ?? 0 ) ),
 									esc_html( number_format_i18n( $stats['engaged_30d'] ?? 0 ) )
 								);
@@ -1990,7 +1995,10 @@ class PressNative_Admin {
 			<?php endif; ?>
 
 			<?php if ( $sent > 0 ) : ?>
-				<div class="notice notice-success is-dismissible"><p><?php echo esc_html( sprintf( __( 'Push sent successfully to %d device(s).', 'pressnative' ), $sent ) ); ?></p></div>
+				<div class="notice notice-success is-dismissible"><p><?php
+				/* translators: %d: number of devices the push was sent to */
+				echo esc_html( sprintf( __( 'Push sent successfully to %d device(s).', 'pressnative-apps' ), $sent ) );
+				?></p></div>
 			<?php endif; ?>
 
 			<?php if ( $error ) : ?>
@@ -1999,22 +2007,22 @@ class PressNative_Admin {
 						<?php
 						switch ( $error ) {
 							case 'nonce':
-								esc_html_e( 'Security check failed. Please try again.', 'pressnative' );
+								esc_html_e( 'Security check failed. Please try again.', 'pressnative-apps' );
 								break;
 							case 'no_api_key':
-								esc_html_e( 'API Key and Registry URL must be configured in PressNative Settings.', 'pressnative' );
+								esc_html_e( 'API Key and Registry URL must be configured in PressNative Settings.', 'pressnative-apps' );
 								break;
 							case 'missing_fields':
-								esc_html_e( 'Title and body are required.', 'pressnative' );
+								esc_html_e( 'Title and body are required.', 'pressnative-apps' );
 								break;
 							case 'request_failed':
-								esc_html_e( 'Failed to reach the Registry. Check your connection and Registry URL.', 'pressnative' );
+								esc_html_e( 'Failed to reach the Registry. Check your connection and Registry URL.', 'pressnative-apps' );
 								break;
 							case 'registry':
-								echo esc_html( $err_msg ?: __( 'Registry returned an error.', 'pressnative' ) );
+								echo esc_html( $err_msg ?: __( 'Registry returned an error.', 'pressnative-apps' ) );
 								break;
 							default:
-								esc_html_e( 'An error occurred. Please try again.', 'pressnative' );
+								esc_html_e( 'An error occurred. Please try again.', 'pressnative-apps' );
 						}
 						?>
 					</p>
@@ -2022,62 +2030,62 @@ class PressNative_Admin {
 			<?php endif; ?>
 
 			<?php if ( ! $has_config ) : ?>
-				<div class="notice notice-warning"><p><?php esc_html_e( 'Configure your API Key and Registry URL in PressNative Settings to send push notifications.', 'pressnative' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative' ) ); ?>"><?php esc_html_e( 'Go to Settings', 'pressnative' ); ?></a></p></div>
+				<div class="notice notice-warning"><p><?php esc_html_e( 'Configure your API Key and Registry URL in PressNative Settings to send push notifications.', 'pressnative-apps' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative' ) ); ?>"><?php esc_html_e( 'Go to Settings', 'pressnative-apps' ); ?></a></p></div>
 			<?php else : ?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pressnative-push-form" style="max-width: 600px; margin-top: 20px;">
 					<input type="hidden" name="action" value="pressnative_send_push" />
 					<?php wp_nonce_field( 'pressnative_send_push', 'pressnative_push_nonce' ); ?>
 					<table class="form-table">
 						<tr>
-							<th scope="row"><label for="pressnative-push-device-type"><?php esc_html_e( 'Deliver to', 'pressnative' ); ?></label></th>
+							<th scope="row"><label for="pressnative-push-device-type"><?php esc_html_e( 'Deliver to', 'pressnative-apps' ); ?></label></th>
 							<td>
 								<fieldset id="pressnative-push-device-type" style="margin: 0; padding: 0; border: none;">
 									<label style="margin-right: 16px;">
 										<input type="radio" name="device_type" value="all" checked />
-										<?php esc_html_e( 'All devices', 'pressnative' ); ?>
+										<?php esc_html_e( 'All devices', 'pressnative-apps' ); ?>
 									</label>
 									<label style="margin-right: 16px;">
 										<input type="radio" name="device_type" value="android" />
-										<?php esc_html_e( 'Android only', 'pressnative' ); ?>
+										<?php esc_html_e( 'Android only', 'pressnative-apps' ); ?>
 									</label>
 									<label>
 										<input type="radio" name="device_type" value="ios" />
-										<?php esc_html_e( 'iOS only', 'pressnative' ); ?>
+										<?php esc_html_e( 'iOS only', 'pressnative-apps' ); ?>
 									</label>
 								</fieldset>
-								<p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Filter which devices receive this notification.', 'pressnative' ); ?></p>
+								<p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Filter which devices receive this notification.', 'pressnative-apps' ); ?></p>
 							</td>
 						</tr>
 						<tr>
-							<th scope="row"><label for="pressnative-push-engaged"><?php esc_html_e( 'Engagement filter', 'pressnative' ); ?></label></th>
+							<th scope="row"><label for="pressnative-push-engaged"><?php esc_html_e( 'Engagement filter', 'pressnative-apps' ); ?></label></th>
 							<td>
 								<select id="pressnative-push-engaged" name="engaged_since_days" style="min-width: 200px;">
-									<option value=""><?php esc_html_e( 'All subscribers', 'pressnative' ); ?></option>
-									<option value="7"><?php esc_html_e( 'Viewed or clicked in last 7 days', 'pressnative' ); ?></option>
-									<option value="30"><?php esc_html_e( 'Viewed or clicked in last 30 days', 'pressnative' ); ?></option>
+									<option value=""><?php esc_html_e( 'All subscribers', 'pressnative-apps' ); ?></option>
+									<option value="7"><?php esc_html_e( 'Viewed or clicked in last 7 days', 'pressnative-apps' ); ?></option>
+									<option value="30"><?php esc_html_e( 'Viewed or clicked in last 30 days', 'pressnative-apps' ); ?></option>
 								</select>
-								<p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Target only subscribers who have opened the app and viewed content recently.', 'pressnative' ); ?></p>
+								<p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Target only subscribers who have opened the app and viewed content recently.', 'pressnative-apps' ); ?></p>
 							</td>
 						</tr>
 						<tr>
-							<th scope="row"><label for="pressnative-push-title"><?php esc_html_e( 'Title', 'pressnative' ); ?></label></th>
-							<td><input type="text" id="pressnative-push-title" name="title" class="regular-text" required maxlength="100" placeholder="<?php esc_attr_e( 'e.g. Breaking News', 'pressnative' ); ?>" /></td>
+							<th scope="row"><label for="pressnative-push-title"><?php esc_html_e( 'Title', 'pressnative-apps' ); ?></label></th>
+							<td><input type="text" id="pressnative-push-title" name="title" class="regular-text" required maxlength="100" placeholder="<?php esc_attr_e( 'e.g. Breaking News', 'pressnative-apps' ); ?>" /></td>
 						</tr>
 						<tr>
-							<th scope="row"><label for="pressnative-push-body"><?php esc_html_e( 'Message', 'pressnative' ); ?></label></th>
-							<td><textarea id="pressnative-push-body" name="body" rows="4" class="large-text" required maxlength="200" placeholder="<?php esc_attr_e( 'Your notification message...', 'pressnative' ); ?>"></textarea></td>
+							<th scope="row"><label for="pressnative-push-body"><?php esc_html_e( 'Message', 'pressnative-apps' ); ?></label></th>
+							<td><textarea id="pressnative-push-body" name="body" rows="4" class="large-text" required maxlength="200" placeholder="<?php esc_attr_e( 'Your notification message...', 'pressnative-apps' ); ?>"></textarea></td>
 						</tr>
 						<tr>
-							<th scope="row"><label for="pressnative-push-link"><?php esc_html_e( 'Link (optional)', 'pressnative' ); ?></label></th>
-							<td><input type="url" id="pressnative-push-link" name="link" class="regular-text" placeholder="<?php esc_attr_e( 'https://...', 'pressnative' ); ?>" /></td>
+							<th scope="row"><label for="pressnative-push-link"><?php esc_html_e( 'Link (optional)', 'pressnative-apps' ); ?></label></th>
+							<td><input type="url" id="pressnative-push-link" name="link" class="regular-text" placeholder="<?php esc_attr_e( 'https://...', 'pressnative-apps' ); ?>" /></td>
 						</tr>
 						<tr>
-							<th scope="row"><label for="pressnative-push-image"><?php esc_html_e( 'Image URL (optional)', 'pressnative' ); ?></label></th>
-							<td><input type="url" id="pressnative-push-image" name="image_url" class="regular-text" placeholder="<?php esc_attr_e( 'https://...', 'pressnative' ); ?>" /></td>
+							<th scope="row"><label for="pressnative-push-image"><?php esc_html_e( 'Image URL (optional)', 'pressnative-apps' ); ?></label></th>
+							<td><input type="url" id="pressnative-push-image" name="image_url" class="regular-text" placeholder="<?php esc_attr_e( 'https://...', 'pressnative-apps' ); ?>" /></td>
 						</tr>
 					</table>
 					<p class="submit">
-						<button type="submit" class="button button-primary"><?php esc_html_e( 'Send Push Notification', 'pressnative' ); ?></button>
+						<button type="submit" class="button button-primary"><?php esc_html_e( 'Send Push Notification', 'pressnative-apps' ); ?></button>
 					</p>
 				</form>
 
@@ -2098,9 +2106,9 @@ class PressNative_Admin {
 		$preferences = PressNative_Options::get_notification_preferences();
 		?>
 		<div style="margin-top: 40px; padding: 20px; background: #fff; border: 1px solid #c3c4c7; max-width: 600px;">
-			<h2 style="margin-top: 0;"><?php esc_html_e( 'Default Notification Preferences', 'pressnative' ); ?></h2>
+			<h2 style="margin-top: 0;"><?php esc_html_e( 'Default Notification Preferences', 'pressnative-apps' ); ?></h2>
 			<p class="description" style="margin-bottom: 20px;">
-				<?php esc_html_e( 'Configure the default notification preferences for new app users. Users can customize these settings in their mobile app.', 'pressnative' ); ?>
+				<?php esc_html_e( 'Configure the default notification preferences for new app users. Users can customize these settings in their mobile app.', 'pressnative-apps' ); ?>
 			</p>
 
 			<form method="post" action="options.php">
@@ -2108,17 +2116,17 @@ class PressNative_Admin {
 				
 				<table class="form-table" style="margin-top: 0;">
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Enable Notifications', 'pressnative' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Enable Notifications', 'pressnative-apps' ); ?></th>
 						<td>
 							<label>
 								<input type="checkbox" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[enabled]" value="1" <?php checked( $preferences['enabled'] ); ?> />
-								<?php esc_html_e( 'Enable push notifications by default', 'pressnative' ); ?>
+								<?php esc_html_e( 'Enable push notifications by default', 'pressnative-apps' ); ?>
 							</label>
 						</td>
 					</tr>
 				</table>
 
-				<h3><?php esc_html_e( 'Notification Types', 'pressnative' ); ?></h3>
+				<h3><?php esc_html_e( 'Notification Types', 'pressnative-apps' ); ?></h3>
 				<table class="form-table">
 					<?php foreach ( $preferences['types'] as $type => $config ) : ?>
 						<tr>
@@ -2133,55 +2141,55 @@ class PressNative_Admin {
 					<?php endforeach; ?>
 				</table>
 
-				<h3><?php esc_html_e( 'Category Filtering', 'pressnative' ); ?></h3>
+				<h3><?php esc_html_e( 'Category Filtering', 'pressnative-apps' ); ?></h3>
 				<table class="form-table">
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Categories', 'pressnative' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Categories', 'pressnative-apps' ); ?></th>
 						<td>
 							<label>
 								<input type="checkbox" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[categories][all_categories]" value="1" <?php checked( $preferences['categories']['all_categories'] ); ?> />
-								<?php esc_html_e( 'Notify for all categories by default', 'pressnative' ); ?>
+								<?php esc_html_e( 'Notify for all categories by default', 'pressnative-apps' ); ?>
 							</label>
-							<p class="description"><?php esc_html_e( 'When disabled, users can select specific categories in the mobile app.', 'pressnative' ); ?></p>
+							<p class="description"><?php esc_html_e( 'When disabled, users can select specific categories in the mobile app.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 				</table>
 
-				<h3><?php esc_html_e( 'Quiet Hours', 'pressnative' ); ?></h3>
+				<h3><?php esc_html_e( 'Quiet Hours', 'pressnative-apps' ); ?></h3>
 				<table class="form-table">
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Enable Quiet Hours', 'pressnative' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Enable Quiet Hours', 'pressnative-apps' ); ?></th>
 						<td>
 							<label>
 								<input type="checkbox" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[quiet_hours][enabled]" value="1" <?php checked( $preferences['quiet_hours']['enabled'] ); ?> />
-								<?php esc_html_e( 'Enable quiet hours by default', 'pressnative' ); ?>
+								<?php esc_html_e( 'Enable quiet hours by default', 'pressnative-apps' ); ?>
 							</label>
 						</td>
 					</tr>
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Start Time', 'pressnative' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Start Time', 'pressnative-apps' ); ?></th>
 						<td>
 							<input type="time" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[quiet_hours][start_time]" value="<?php echo esc_attr( $preferences['quiet_hours']['start_time'] ); ?>" />
 						</td>
 					</tr>
 					<tr>
-						<th scope="row"><?php esc_html_e( 'End Time', 'pressnative' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'End Time', 'pressnative-apps' ); ?></th>
 						<td>
 							<input type="time" name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[quiet_hours][end_time]" value="<?php echo esc_attr( $preferences['quiet_hours']['end_time'] ); ?>" />
 						</td>
 					</tr>
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Timezone', 'pressnative' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Timezone', 'pressnative-apps' ); ?></th>
 						<td>
 							<select name="<?php echo esc_attr( PressNative_Options::OPTION_NOTIFICATION_PREFERENCES ); ?>[quiet_hours][timezone]">
-								<option value="auto" <?php selected( $preferences['quiet_hours']['timezone'], 'auto' ); ?>><?php esc_html_e( 'Auto (User\'s timezone)', 'pressnative' ); ?></option>
-								<option value="UTC" <?php selected( $preferences['quiet_hours']['timezone'], 'UTC' ); ?>><?php esc_html_e( 'UTC', 'pressnative' ); ?></option>
+								<option value="auto" <?php selected( $preferences['quiet_hours']['timezone'], 'auto' ); ?>><?php esc_html_e( 'Auto (User\'s timezone)', 'pressnative-apps' ); ?></option>
+								<option value="UTC" <?php selected( $preferences['quiet_hours']['timezone'], 'UTC' ); ?>><?php esc_html_e( 'UTC', 'pressnative-apps' ); ?></option>
 							</select>
 						</td>
 					</tr>
 				</table>
 
-				<?php submit_button( __( 'Save Notification Preferences', 'pressnative' ) ); ?>
+				<?php submit_button( __( 'Save Notification Preferences', 'pressnative-apps' ) ); ?>
 			</form>
 		</div>
 		<?php
@@ -2198,63 +2206,63 @@ class PressNative_Admin {
 		}
 		?>
 		<div class="wrap pressnative-analytics-wrap">
-			<h1><?php esc_html_e( 'Analytics', 'pressnative' ); ?></h1>
-			<p class="description"><?php esc_html_e( 'App usage and content views from the PressNative mobile app. Views are counted when the app loads content from the server; when the app serves cached content it can send a track event so those views are included.', 'pressnative' ); ?></p>
+			<h1><?php esc_html_e( 'Analytics', 'pressnative-apps' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'App usage and content views from the PressNative mobile app. Views are counted when the app loads content from the server; when the app serves cached content it can send a track event so those views are included.', 'pressnative-apps' ); ?></p>
 
 			<div class="pressnative-analytics-toolbar">
-				<label for="pressnative-analytics-days"><?php esc_html_e( 'Date range:', 'pressnative' ); ?></label>
+				<label for="pressnative-analytics-days"><?php esc_html_e( 'Date range:', 'pressnative-apps' ); ?></label>
 				<select id="pressnative-analytics-days" class="pressnative-analytics-days">
-					<option value="7"><?php esc_html_e( 'Last 7 days', 'pressnative' ); ?></option>
-					<option value="30" selected><?php esc_html_e( 'Last 30 days', 'pressnative' ); ?></option>
-					<option value="90"><?php esc_html_e( 'Last 90 days', 'pressnative' ); ?></option>
+					<option value="7"><?php esc_html_e( 'Last 7 days', 'pressnative-apps' ); ?></option>
+					<option value="30" selected><?php esc_html_e( 'Last 30 days', 'pressnative-apps' ); ?></option>
+					<option value="90"><?php esc_html_e( 'Last 90 days', 'pressnative-apps' ); ?></option>
 				</select>
 			</div>
 
 			<div class="pressnative-analytics-kpis" id="pressnative-analytics-kpis">
-				<div class="pressnative-kpi-card pressnative-kpi-highlight"><span class="pressnative-kpi-value" data-kpi="favorites">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Downloads', 'pressnative' ); ?></span></div>
-				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="total">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Total Views', 'pressnative' ); ?></span></div>
-				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="post">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Post Views', 'pressnative' ); ?></span></div>
-				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="page">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Page Views', 'pressnative' ); ?></span></div>
-				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="category">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Category Views', 'pressnative' ); ?></span></div>
+				<div class="pressnative-kpi-card pressnative-kpi-highlight"><span class="pressnative-kpi-value" data-kpi="favorites">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Downloads', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="total">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Total Views', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="post">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Post Views', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="page">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Page Views', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="category">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Category Views', 'pressnative-apps' ); ?></span></div>
 			</div>
-			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Downloads = users who have favorited your site in the app.', 'pressnative' ); ?></p>
+			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Downloads = users who have favorited your site in the app.', 'pressnative-apps' ); ?></p>
 			<div class="pressnative-analytics-push-kpis">
-				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_received">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Received', 'pressnative' ); ?></span></div>
-				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_clicked">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Clicks', 'pressnative' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_received">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Received', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_clicked">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Clicks', 'pressnative-apps' ); ?></span></div>
 			</div>
-			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Push Received = notifications delivered to devices. Push Clicks = users who tapped a notification.', 'pressnative' ); ?></p>
+			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Push Received = notifications delivered to devices. Push Clicks = users who tapped a notification.', 'pressnative-apps' ); ?></p>
 
 			<div class="pressnative-analytics-charts">
 				<div class="pressnative-chart-container">
-					<h3><?php esc_html_e( 'Views over time', 'pressnative' ); ?></h3>
-					<canvas id="pressnative-chart-views-over-time" aria-label="<?php esc_attr_e( 'Views over time', 'pressnative' ); ?>"></canvas>
+					<h3><?php esc_html_e( 'Views over time', 'pressnative-apps' ); ?></h3>
+					<canvas id="pressnative-chart-views-over-time" aria-label="<?php esc_attr_e( 'Views over time', 'pressnative-apps' ); ?>"></canvas>
 				</div>
 				<div class="pressnative-chart-container">
-					<h3><?php esc_html_e( 'Content type breakdown', 'pressnative' ); ?></h3>
-					<canvas id="pressnative-chart-content-type" aria-label="<?php esc_attr_e( 'Content type breakdown', 'pressnative' ); ?>"></canvas>
+					<h3><?php esc_html_e( 'Content type breakdown', 'pressnative-apps' ); ?></h3>
+					<canvas id="pressnative-chart-content-type" aria-label="<?php esc_attr_e( 'Content type breakdown', 'pressnative-apps' ); ?>"></canvas>
 				</div>
 				<div class="pressnative-chart-container">
-					<h3><?php esc_html_e( 'Device breakdown', 'pressnative' ); ?></h3>
-					<p class="pressnative-chart-description"><?php esc_html_e( 'Views by device. "Other" may include emulators or requests without a standard User-Agent. Emulator traffic is now detected as Android.', 'pressnative' ); ?></p>
-					<canvas id="pressnative-chart-device" aria-label="<?php esc_attr_e( 'Device breakdown', 'pressnative' ); ?>"></canvas>
+					<h3><?php esc_html_e( 'Device breakdown', 'pressnative-apps' ); ?></h3>
+					<p class="pressnative-chart-description"><?php esc_html_e( 'Views by device. "Other" may include emulators or requests without a standard User-Agent. Emulator traffic is now detected as Android.', 'pressnative-apps' ); ?></p>
+					<canvas id="pressnative-chart-device" aria-label="<?php esc_attr_e( 'Device breakdown', 'pressnative-apps' ); ?>"></canvas>
 				</div>
 			</div>
 
 			<div class="pressnative-analytics-tables">
 				<div class="pressnative-table-container">
-					<h3><?php esc_html_e( 'Most viewed posts', 'pressnative' ); ?></h3>
+					<h3><?php esc_html_e( 'Most viewed posts', 'pressnative-apps' ); ?></h3>
 					<div id="pressnative-table-top-posts" class="pressnative-table-wrapper"></div>
 				</div>
 				<div class="pressnative-table-container">
-					<h3><?php esc_html_e( 'Most viewed pages', 'pressnative' ); ?></h3>
+					<h3><?php esc_html_e( 'Most viewed pages', 'pressnative-apps' ); ?></h3>
 					<div id="pressnative-table-top-pages" class="pressnative-table-wrapper"></div>
 				</div>
 				<div class="pressnative-table-container">
-					<h3><?php esc_html_e( 'Top categories', 'pressnative' ); ?></h3>
+					<h3><?php esc_html_e( 'Top categories', 'pressnative-apps' ); ?></h3>
 					<div id="pressnative-table-top-categories" class="pressnative-table-wrapper"></div>
 				</div>
 				<div class="pressnative-table-container">
-					<h3><?php esc_html_e( 'Top search queries', 'pressnative' ); ?></h3>
+					<h3><?php esc_html_e( 'Top search queries', 'pressnative-apps' ); ?></h3>
 					<div id="pressnative-table-top-searches" class="pressnative-table-wrapper"></div>
 				</div>
 			</div>
@@ -2354,12 +2362,12 @@ class PressNative_Admin {
 		$is_pro     = $sub_status && in_array( $sub_status['plan'] ?? '', array( 'pro', 'native_pro', 'enterprise' ), true );
 		?>
 		<div class="wrap">
-			<h1><?php esc_html_e( 'Get Started — Why Go Native?', 'pressnative' ); ?></h1>
-			<p class="description"><?php esc_html_e( 'Business metrics and insights that show the value of a native mobile app for your WordPress site.', 'pressnative' ); ?></p>
+			<h1><?php esc_html_e( 'Get Started — Why Go Native?', 'pressnative-apps' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'Business metrics and insights that show the value of a native mobile app for your WordPress site.', 'pressnative-apps' ); ?></p>
 
 			<?php if ( ! $pitch ) : ?>
 				<div class="notice notice-warning" style="max-width:700px;margin-top:20px;">
-					<p><?php esc_html_e( 'Could not load pitch data from the PressNative Registry. Ensure the Registry is running.', 'pressnative' ); ?></p>
+					<p><?php esc_html_e( 'Could not load pitch data from the PressNative Registry. Ensure the Registry is running.', 'pressnative-apps' ); ?></p>
 				</div>
 			<?php else : ?>
 
@@ -2518,20 +2526,20 @@ class PressNative_Admin {
 			<?php endif; ?>
 
 			<?php if ( ! empty( $pitch['benefits'] ) && is_array( $pitch['benefits'] ) ) : ?>
-				<h2 style="margin-top:32px;"><?php esc_html_e( 'Native Advantages', 'pressnative' ); ?></h2>
+				<h2 style="margin-top:32px;"><?php esc_html_e( 'Native Advantages', 'pressnative-apps' ); ?></h2>
 				<div class="pressnative-benefit-grid">
 					<?php
 					$icon_map = array(
-						'bolt'        => '&#9889;',
-						'fingerprint' => '&#128274;',
-						'wifi'        => '&#128246;',
-						'palette'     => '&#127912;',
+						'bolt'        => "\u{26A1}",   // ⚡
+						'fingerprint' => "\u{1F512}",  // 🔒
+						'wifi'        => "\u{1F4F6}",  // 📶
+						'palette'     => "\u{1F3A8}",  // 🎨
 					);
 					foreach ( $pitch['benefits'] as $benefit ) :
-						$icon_char = isset( $icon_map[ $benefit['icon'] ?? '' ] ) ? $icon_map[ $benefit['icon'] ] : '&#9733;';
+						$icon_char = isset( $icon_map[ $benefit['icon'] ?? '' ] ) ? $icon_map[ $benefit['icon'] ] : "\u{2605}"; // ★
 						?>
 						<div class="pressnative-benefit-card">
-							<div class="pressnative-benefit-icon"><?php echo $icon_char; ?></div>
+							<div class="pressnative-benefit-icon"><?php echo esc_html( $icon_char ); ?></div>
 							<h4><?php echo esc_html( $benefit['title'] ?? '' ); ?></h4>
 							<p><?php echo esc_html( $benefit['description'] ?? '' ); ?></p>
 						</div>
@@ -2542,11 +2550,11 @@ class PressNative_Admin {
 			<?php if ( ! $is_pro && ! empty( $pitch['cta'] ) ) : ?>
 				<div class="pressnative-cta-banner">
 					<div>
-						<h3><?php echo esc_html( $pitch['cta']['label'] ?? __( 'Upgrade to Native Pro', 'pressnative' ) ); ?></h3>
+						<h3><?php echo esc_html( $pitch['cta']['label'] ?? __( 'Upgrade to Native Pro', 'pressnative-apps' ) ); ?></h3>
 						<p><?php echo esc_html( $pitch['cta']['description'] ?? '' ); ?></p>
 					</div>
 					<a href="<?php echo esc_url( $pitch['cta']['url'] ?? 'https://pressnative.app/#pricing' ); ?>" class="button" target="_blank" rel="noopener noreferrer">
-						<?php esc_html_e( 'Learn More', 'pressnative' ); ?>
+						<?php esc_html_e( 'Learn More', 'pressnative-apps' ); ?>
 					</a>
 				</div>
 			<?php endif; ?>
@@ -2602,7 +2610,7 @@ class PressNative_Admin {
 
 		$portal_url = self::get_stripe_portal_url();
 		if ( $portal_url ) {
-			wp_redirect( $portal_url );
+			wp_safe_redirect( $portal_url );
 			exit;
 		}
 		// If portal URL failed, redirect back with an error.
@@ -2675,7 +2683,7 @@ class PressNative_Admin {
 	 */
 	public static function handle_verify_site() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative' ) );
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative-apps' ) );
 		}
 		check_admin_referer( 'pressnative_verify_site' );
 
@@ -2777,7 +2785,7 @@ class PressNative_Admin {
 
 		// Only show on PressNative admin pages
 		$screen = get_current_screen();
-		if ( ! $screen || strpos( $screen->id, 'pressnative' ) === false ) {
+		if ( ! $screen || strpos( $screen->id, 'pressnative-apps' ) === false ) {
 			return;
 		}
 
@@ -2792,11 +2800,11 @@ class PressNative_Admin {
 		?>
 		<div class="notice notice-success is-dismissible">
 			<p>
-				<strong><?php esc_html_e( 'Cache Invalidated!', 'pressnative' ); ?></strong>
+				<strong><?php esc_html_e( 'Cache Invalidated!', 'pressnative-apps' ); ?></strong>
 				<?php
 				printf(
 					/* translators: 1: setting name, 2: old value, 3: new value */
-					esc_html__( '%1$s updated from "%2$s" to "%3$s". Mobile app cache has been invalidated and will refresh automatically.', 'pressnative' ),
+					esc_html__( '%1$s updated from "%2$s" to "%3$s". Mobile app cache has been invalidated and will refresh automatically.', 'pressnative-apps' ),
 					esc_html( $option_display ),
 					esc_html( $old_value ),
 					esc_html( $new_value )
@@ -2816,7 +2824,7 @@ class PressNative_Admin {
 	public static function show_woocommerce_seed_notice() {
 		// Only show on PressNative admin pages
 		$screen = get_current_screen();
-		if ( ! $screen || strpos( $screen->id, 'pressnative' ) === false ) {
+		if ( ! $screen || strpos( $screen->id, 'pressnative-apps' ) === false ) {
 			return;
 		}
 
@@ -2834,15 +2842,15 @@ class PressNative_Admin {
 		?>
 		<div class="notice notice-info is-dismissible" id="pressnative-woocommerce-seed-notice">
 			<p>
-				<strong><?php esc_html_e( 'WooCommerce Demo Data', 'pressnative' ); ?></strong><br>
-				<?php esc_html_e( 'Populate your WooCommerce store with demo products and shoppable blog posts to test the native app integration.', 'pressnative' ); ?>
+				<strong><?php esc_html_e( 'WooCommerce Demo Data', 'pressnative-apps' ); ?></strong><br>
+				<?php esc_html_e( 'Populate your WooCommerce store with demo products and shoppable blog posts to test the native app integration.', 'pressnative-apps' ); ?>
 			</p>
 			<p>
-				<button type="button" class="button button-primary" id="pressnative-seed-woocommerce" data-loading-text="<?php esc_attr_e( 'Creating demo data...', 'pressnative' ); ?>">
-					<?php esc_html_e( 'Create Demo Data', 'pressnative' ); ?>
+				<button type="button" class="button button-primary" id="pressnative-seed-woocommerce" data-loading-text="<?php esc_attr_e( 'Creating demo data...', 'pressnative-apps' ); ?>">
+					<?php esc_html_e( 'Create Demo Data', 'pressnative-apps' ); ?>
 				</button>
 				<button type="button" class="notice-dismiss" onclick="document.getElementById('pressnative-woocommerce-seed-notice').style.display='none';">
-					<span class="screen-reader-text"><?php esc_html_e( 'Dismiss this notice.', 'pressnative' ); ?></span>
+					<span class="screen-reader-text"><?php esc_html_e( 'Dismiss this notice.', 'pressnative-apps' ); ?></span>
 				</button>
 			</p>
 		</div>
@@ -2891,7 +2899,7 @@ class PressNative_Admin {
 	 * @return void
 	 */
 	public static function render_pro_lock( $feature_name ) {
-		$feature_name = is_string( $feature_name ) ? $feature_name : __( 'This feature', 'pressnative' );
+		$feature_name = is_string( $feature_name ) ? $feature_name : __( 'This feature', 'pressnative-apps' );
 		$portal_url   = 'https://pressnative.app/partner-portal';
 		?>
 		<div class="pressnative-pro-lock" style="position:relative;max-width:100%;padding:20px;background:linear-gradient(135deg, rgba(255,255,255,.92) 0%, rgba(248,249,250,.95) 100%);border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.06);opacity:.92;">
@@ -2903,14 +2911,14 @@ class PressNative_Admin {
 						echo esc_html(
 							sprintf(
 								/* translators: %s: feature name */
-								__( '%1$s is available on the PressNative Pro Tier.', 'pressnative' ),
+								__( '%1$s is available on the PressNative Pro Tier.', 'pressnative-apps' ),
 								$feature_name
 							)
 						);
 						?>
 					</p>
 					<a href="<?php echo esc_url( $portal_url ); ?>" class="button button-primary" target="_blank" rel="noopener noreferrer">
-						<?php esc_html_e( 'Manage in Partner Portal', 'pressnative' ); ?>
+						<?php esc_html_e( 'Manage in Partner Portal', 'pressnative-apps' ); ?>
 					</a>
 				</div>
 			</div>

@@ -1,18 +1,18 @@
-=== PressNative - Mobile App Builder ===
+=== PressNative Apps ===
 Contributors: pressnative
-Tags: mobile app, native app, rest api, push notifications, woocommerce, ecommerce, app, no-code, server-driven ui
+Tags: mobile app, native app, rest api, woocommerce, server-driven ui
 Requires at least: 6.0
-Tested up to: 6.4
+Tested up to: 6.9
 Stable tag: 1.1.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-No-code native performance. Turn your WordPress site into a real native mobile app with server-driven UI — no app store resubmissions for content changes. This plugin is the SaaS connector for the PressNative platform and requires a PressNative account.
+No-code native performance. Turn your WordPress site into a real native mobile app with server-driven UI — no app store resubmissions for content changes. SaaS connector for PressNative.
 
 == Description ==
 
-**PressNative - Mobile App Builder** turns your WordPress site into a native Android and iOS app with **no-code native performance**. Content, layout, and branding are driven from your WordPress admin and delivered via a contract-based REST API. The native app renders **server-driven UI** — when you publish or edit posts, change layout, or update products, the app reflects those changes without requiring an app update.
+**PressNative Apps** turns your WordPress site into a native Android and iOS app with **no-code native performance**. Content, layout, and branding are driven from your WordPress admin and delivered via a contract-based REST API. The native app renders **server-driven UI** — when you publish or edit posts, change layout, or update products, the app reflects those changes without requiring an app update.
 
 This plugin is a **SaaS connector**: it connects your WordPress site to **PressNative Cloud**. You need a **PressNative account** to use the full platform (connect flow under **Settings → PressNative**, API key, analytics, push notifications, and optional Pro features).
 
@@ -106,7 +106,7 @@ Deactivating removes the REST API endpoints but keeps your settings. Deleting th
 SaaS connector: connect from Settings → PressNative, premium gating helper, and full WooCommerce native experience (cart, checkout, shoppable content).
 
 = 1.0.0 =
-Initial release of PressNative - Mobile App Builder.
+Initial release of PressNative Apps.
 
 == Privacy ==
 

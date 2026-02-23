@@ -1,16 +1,15 @@
 <?php
 /**
- * Plugin Name: PressNative
- * Plugin URI:  https://pressnative.app
+ * Plugin Name: PressNative Apps
+ * Plugin URI:  https://github.com/PressNative-app/plugin
  * Description: Turn your WordPress site into a native mobile app with WooCommerce support. Serves layout, content, products, and branding via REST API to the PressNative Android and iOS apps.
  * Version:     1.1.0
  * Author:      PressNative
- * Author URI:  https://pressnative.app
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: pressnative
+ * Text Domain: pressnative-apps
  * Domain Path: /languages
- * Requires at least: 5.0
+ * Requires at least: 6.0
  * Requires PHP:      7.4
  */
 
@@ -37,10 +36,11 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-sponsors.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-woocommerce.php';
 
 /**
- * Load plugin text domain for translations.
+ * Load plugin text domain for translations (optional on WordPress.org; kept for self-hosted installs).
  */
 add_action( 'init', function () {
-	load_plugin_textdomain( 'pressnative', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+	// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- kept for self-hosted; .org loads automatically
+	load_plugin_textdomain( 'pressnative-apps', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 } );
 
 /**
@@ -545,7 +545,7 @@ add_action( 'rest_api_init', function () {
 					if ( ! WC()->cart ) {
 						return new WP_Error( 'woocommerce_unavailable', 'Cart not available', array( 'status' => 503 ) );
 					}
-					
+
 					// Find and remove the cart item
 					$removed = false;
 					foreach ( WC()->cart->get_cart() as $cart_item_key => $cart_item ) {
@@ -555,11 +555,11 @@ add_action( 'rest_api_init', function () {
 							break; // Remove only the first match
 						}
 					}
-					
+
 					if ( ! $removed ) {
 						return new WP_Error( 'item_not_found', 'Item not found in cart', array( 'status' => 404 ) );
 					}
-					
+
 					$count = WC()->cart->get_cart_contents_count();
 					return rest_ensure_response( array(
 						'ok'          => true,
@@ -602,7 +602,7 @@ add_action( 'rest_api_init', function () {
 					if ( ! WC()->cart ) {
 						return new WP_Error( 'woocommerce_unavailable', 'Cart not available', array( 'status' => 503 ) );
 					}
-					
+
 					// Find and update the cart item
 					$updated = false;
 					foreach ( WC()->cart->get_cart() as $cart_item_key => $cart_item ) {
@@ -618,11 +618,11 @@ add_action( 'rest_api_init', function () {
 							break; // Update only the first match
 						}
 					}
-					
+
 					if ( ! $updated ) {
 						return new WP_Error( 'item_not_found', 'Item not found in cart', array( 'status' => 404 ) );
 					}
-					
+
 					$count = WC()->cart->get_cart_contents_count();
 					return rest_ensure_response( array(
 						'ok'          => true,
@@ -699,7 +699,9 @@ add_action( 'rest_api_init', function () {
  * scripts and styles — no theme header, footer, sidebars or navigation.
  */
 add_action( 'template_redirect', function () {
-	if ( ! isset( $_GET['pressnative'] ) || $_GET['pressnative'] !== '1' ) {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- URL param from app WebView, not a form.
+	$pn = isset( $_GET['pressnative'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative'] ) ) : '';
+	if ( $pn !== '1' ) {
 		return;
 	}
 
@@ -736,12 +738,14 @@ table { width: 100%; border-collapse: collapse; }
 <?php wp_head(); ?>
 </head>
 <body>
-<?php echo $content; ?>
+<?php echo wp_kses_post( $content ); ?>
 <?php wp_footer(); ?>
 </body>
 </html><?php
 	$output   = ob_get_clean();
 	$site_url = untrailingslashit( site_url() );
+	// Output is built from trusted WordPress APIs and post content (wp_kses_post above).
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo str_replace( $site_url, '', $output );
 	exit;
 } );
@@ -776,11 +780,11 @@ add_action( 'template_redirect', function () {
 	if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'WC' ) ) {
 		return;
 	}
-	
+
 	$raw = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout'] ) );
 	wc_load_cart();
 	WC()->cart->empty_cart();
-	
+
 	if ( ! empty( $raw ) ) {
 		$pairs = explode( ',', $raw );
 		foreach ( $pairs as $pair ) {
@@ -792,7 +796,7 @@ add_action( 'template_redirect', function () {
 			}
 		}
 	}
-	
+
 	wp_safe_redirect( wc_get_checkout_url() );
 	exit;
 }, 1 );
@@ -804,16 +808,16 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 	if ( ! $order_id ) {
 		return;
 	}
-	
+
 	// Check if this checkout was initiated from the app
 	$referer = wp_get_referer();
-	$is_app_checkout = isset( $_GET['pressnative_checkout'] ) || 
+	$is_app_checkout = isset( $_GET['pressnative_checkout'] ) ||
 	                   ( $referer && strpos( $referer, 'pressnative_checkout=' ) !== false );
-	
+
 	if ( ! $is_app_checkout ) {
 		return;
 	}
-	
+
 	// Add JavaScript to redirect to app after a short delay
 	?>
 	<script type="text/javascript">
@@ -825,7 +829,7 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 			returnButton.onclick = function() {
 				window.location.href = 'app.pressnative.hub://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
 			};
-			
+
 			// Find a good place to insert the button
 			var orderDetails = document.querySelector('.woocommerce-order');
 			if (orderDetails) {
@@ -834,7 +838,7 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 				document.body.appendChild(returnButton);
 			}
 		}, 1000);
-		
+
 		// Auto-redirect after 10 seconds
 		setTimeout(function() {
 			window.location.href = 'app.pressnative.hub://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
@@ -848,16 +852,16 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
  */
 add_action( 'woocommerce_after_cart', function () {
 	$referer = wp_get_referer();
-	$is_app_context = isset( $_GET['pressnative_checkout'] ) || 
+	$is_app_context = isset( $_GET['pressnative_checkout'] ) ||
 	                  ( $referer && strpos( $referer, 'pressnative_checkout=' ) !== false );
-	
+
 	if ( ! $is_app_context ) {
 		return;
 	}
-	
+
 	?>
 	<div style="text-align: center; margin: 20px 0;">
-		<a href="app.pressnative.hub://home" 
+		<a href="app.pressnative.hub://home"
 		   style="background: #0073aa; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
 			Return to App
 		</a>
@@ -886,24 +890,24 @@ add_action( 'init', function () {
 		$app_name = get_option( PressNative_Options::OPTION_APP_NAME, get_bloginfo( 'name' ) );
 		$default_text = $atts['text'] ?: "Download {$app_name}";
 		$site_url = untrailingslashit( home_url() );
-		
+
 		// Generate fallback HTML for web browsers with deferred deep linking
 		$html = '<div class="pressnative-download-buttons" style="text-align: center; margin: 20px 0;">';
-		
+
 		if ( $atts['style'] === 'ios' || $atts['style'] === 'both' ) {
 			$ios_base_url = $atts['ios_url'] ?: 'https://apps.apple.com/app/pressnative/id0000000000';
 			$ios_url = $ios_base_url . '?pt=pressnative&ct=' . urlencode( $site_url );
 			$html .= '<a href="' . esc_url( $ios_url ) . '" class="pressnative-ios-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #000; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">📱 Download for iOS</a>';
 		}
-		
+
 		if ( $atts['style'] === 'android' || $atts['style'] === 'both' ) {
 			$android_base_url = $atts['android_url'] ?: 'https://play.google.com/store/apps/details?id=app.pressnative.hub';
 			$android_url = $android_base_url . '&referrer=utm_source%3Dpressnative%26utm_content%3D' . urlencode( $site_url );
 			$html .= '<a href="' . esc_url( $android_url ) . '" class="pressnative-android-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #34A853; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">🤖 Download for Android</a>';
 		}
-		
+
 		$html .= '</div>';
-		
+
 		return $html;
 	} );
 
@@ -919,18 +923,18 @@ add_action( 'init', function () {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return ''; // Only show to admins
 		}
-		
+
 		$site_url = untrailingslashit( home_url() );
 		$deep_link_url = 'https://pressnative.app/open?site=' . rawurlencode( $site_url );
 		$custom_scheme_url = 'app.pressnative.hub://site?url=' . rawurlencode( $site_url );
-		
+
 		$html = '<div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">';
 		$html .= '<h3>🔧 PressNative Debug Links (Admin Only)</h3>';
 		$html .= '<p><strong>Deep Link (HTTPS):</strong><br><a href="' . esc_url( $deep_link_url ) . '" target="_blank">' . esc_html( $deep_link_url ) . '</a></p>';
 		$html .= '<p><strong>Custom Scheme:</strong><br><a href="' . esc_url( $custom_scheme_url ) . '" target="_blank">' . esc_html( $custom_scheme_url ) . '</a></p>';
 		$html .= '<p><em>Click these links on your mobile device to test deep linking.</em></p>';
 		$html .= '</div>';
-		
+
 		return $html;
 	} );
 } );

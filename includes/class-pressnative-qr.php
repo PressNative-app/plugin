@@ -57,7 +57,7 @@ class PressNative_QR {
 		$atts = shortcode_atts(
 			array(
 				'size'  => 200,
-				'label' => __( 'Open in App', 'pressnative' ),
+				'label' => __( 'Open in App', 'pressnative-apps' ),
 			),
 			$atts,
 			self::SHORTCODE_TAG

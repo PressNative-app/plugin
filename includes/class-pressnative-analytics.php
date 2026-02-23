@@ -76,7 +76,9 @@ class PressNative_Analytics {
 		}
 
 		if ( $device_type === null ) {
-			$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) ? wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) : '';
+			$user_agent = isset( $_SERVER['HTTP_USER_AGENT'] ) && is_string( $_SERVER['HTTP_USER_AGENT'] )
+				? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) )
+				: '';
 			$device_type = self::get_device_type_from_user_agent( $user_agent );
 		}
 		$device_type = in_array( $device_type, array( self::DEVICE_IOS, self::DEVICE_ANDROID ), true )
@@ -168,7 +170,7 @@ class PressNative_Analytics {
 
 		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH, self::EVENT_SHOP, self::EVENT_PRODUCT, self::EVENT_PRODUCT_CATEGORY );
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
-			return new WP_Error( 'invalid_event_type', __( 'Invalid event_type.', 'pressnative' ), array( 'status' => 400 ) );
+			return new WP_Error( 'invalid_event_type', __( 'Invalid event_type.', 'pressnative-apps' ), array( 'status' => 400 ) );
 		}
 
 		$ok = self::forward_event_to_registry( $event_type, $resource_id, $resource_title, $device_type, $device_id );

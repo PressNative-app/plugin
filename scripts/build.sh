@@ -15,9 +15,12 @@ echo "Building plugin zip..."
 rm -rf "$STAGING" "$OUT_ZIP"
 mkdir -p "$STAGING"
 
-# Copy plugin files, excluding dev-only paths and legacy code
+# Copy plugin files, excluding dev-only paths and anything not needed for WordPress.org
 rsync -a "$PLUGIN_DIR/" "$STAGING/" \
   --exclude '.git' \
+  --exclude '.github' \
+  --exclude '.env' \
+  --exclude '*.env' \
   --exclude 'node_modules' \
   --exclude 'tests' \
   --exclude 'scripts' \
@@ -26,8 +29,12 @@ rsync -a "$PLUGIN_DIR/" "$STAGING/" \
   --exclude 'package.json' \
   --exclude 'package-lock.json' \
   --exclude 'README.md' \
+  --exclude 'RELEASE_NOTES*.md' \
   --exclude 'pressnative-app' \
-  --exclude '.DS_Store'
+  --exclude '.DS_Store' \
+  --exclude '.gitignore' \
+  --exclude 'docs' \
+  --exclude 'test-*.php'
 
 # Create zip with single top-level folder (required for WordPress upload)
 (cd "$ROOT/.build" && zip -r "$OUT_ZIP" pressnative -x "*.DS_Store")

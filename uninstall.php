@@ -11,7 +11,7 @@
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 // Plugin options to remove.
-$options = array(
+$pressnative_options = array(
 	// Registry settings.
 	'pressnative_registry_url',
 	'pressnative_api_key',
@@ -39,11 +39,12 @@ $options = array(
 	'pressnative_app_enabled_categories',
 );
 
-foreach ( $options as $option ) {
-	delete_option( $option );
+foreach ( $pressnative_options as $pressnative_option ) {
+	delete_option( $pressnative_option );
 }
 
 // Drop the devices table.
 global $wpdb;
-$table = $wpdb->prefix . 'pressnative_devices';
-$wpdb->query( "DROP TABLE IF EXISTS {$table}" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery,WordPress.DB.PreparedSQL
+$pressnative_devices_table = $wpdb->prefix . 'pressnative_devices';
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name from prefix + constant
+$wpdb->query( "DROP TABLE IF EXISTS {$pressnative_devices_table}" );
