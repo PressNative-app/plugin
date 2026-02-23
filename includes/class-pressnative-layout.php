@@ -789,7 +789,7 @@ class PressNative_Layout {
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
 				'id'    => 'posts',
-				'title' => __( 'All Posts', 'pressnative' ),
+				'title' => __( 'All Posts', 'pressnative-apps' ),
 			),
 			'components' => array( $post_grid ),
 		);
@@ -984,6 +984,7 @@ class PressNative_Layout {
 	public function get_page_layout( $slug ) {
 		$page = get_page_by_path( $slug, OBJECT, 'page' );
 		if ( ! $page || $page->post_status !== 'publish' ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only when WP_DEBUG_LOG enabled
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
 				error_log( '[PressNative] get_page_layout: page not found or not published, slug=' . $slug );
 			}
@@ -1199,7 +1200,7 @@ class PressNative_Layout {
 			'type'    => 'ProductCardCompact',
 			'styles'  => $styles,
 			'content' => array(
-				'title'         => __( 'Shop these products', 'pressnative' ),
+				'title'         => __( 'Shop these products', 'pressnative-apps' ),
 				'products'      => $products,
 				'display_style' => $display_style,
 			),
@@ -1545,7 +1546,7 @@ class PressNative_Layout {
 			return array(
 				array(
 					'type' => 'BlockButton',
-					'text' => isset( $parsed['text'] ) ? (string) $parsed['text'] : __( 'Add to cart', 'pressnative' ),
+					'text' => isset( $parsed['text'] ) ? (string) $parsed['text'] : __( 'Add to cart', 'pressnative-apps' ),
 					'action' => array(
 						'type'    => 'add_to_cart',
 						'payload' => array(
@@ -1664,10 +1665,10 @@ class PressNative_Layout {
 		if ( preg_match( '/<blockquote[^>]*>(.*?)<\/blockquote>/s', $html, $bq ) ) {
 			$inner = $bq[1];
 			if ( preg_match( '/<cite>(.*?)<\/cite>/s', $inner, $cite ) ) {
-				$author = trim( strip_tags( $cite[1] ) );
+				$author = trim( wp_strip_all_tags( $cite[1] ) );
 				$inner  = str_replace( $cite[0], '', $inner );
 			}
-			$text = trim( strip_tags( $inner ) );
+			$text = trim( wp_strip_all_tags( $inner ) );
 		}
 
 		if ( empty( $text ) ) {
@@ -1790,7 +1791,7 @@ class PressNative_Layout {
 			if ( $i % 2 === 0 ) {
 				// HTML segment
 				$html_chunk = $parts[ $i ];
-				if ( '' !== trim( strip_tags( $html_chunk ) ) ) {
+				if ( '' !== trim( wp_strip_all_tags( $html_chunk ) ) ) {
 					$segments[] = array( 'type' => 'html', 'content' => $html_chunk );
 				} elseif ( '' !== trim( $html_chunk ) ) {
 					// Keep script/style tags even if no visible text (asset wrapping).
@@ -1885,7 +1886,7 @@ class PressNative_Layout {
 				'type'    => 'ProductCardCompact',
 				'styles'  => $styles,
 				'content' => array(
-					'title'        => __( 'Shop these products', 'pressnative' ),
+					'title'        => __( 'Shop these products', 'pressnative-apps' ),
 					'products'     => $products,
 					'display_style' => $display_style,
 				),
@@ -2140,7 +2141,7 @@ class PressNative_Layout {
 			'branding'   => PressNative_Options::get_branding(),
 			'screen'     => array(
 				'id'    => 'shop',
-				'title' => _x( 'Shop', 'Screen title', 'pressnative' ),
+				'title' => _x( 'Shop', 'Screen title', 'pressnative-apps' ),
 			),
 			'components' => $components,
 		);
@@ -2204,7 +2205,7 @@ class PressNative_Layout {
 				'type'    => 'ProductCardCompact',
 				'styles'  => $styles,
 				'content' => array(
-					'title'    => __( 'Related products', 'pressnative' ),
+					'title'    => __( 'Related products', 'pressnative-apps' ),
 					'products' => $related_products,
 				),
 			);

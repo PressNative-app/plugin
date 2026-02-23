@@ -105,7 +105,7 @@ class PressNative_Search_Api {
 			'branding'   => \PressNative_Options::get_branding(),
 			'screen'     => array(
 				'id'    => 'search',
-				'title' => sprintf( /* translators: search query */ __( 'Search: %s', 'pressnative' ), $query ),
+				'title' => sprintf( /* translators: search query */ __( 'Search: %s', 'pressnative-apps' ), $query ),
 			),
 			'components' => array( $post_grid ),
 		);

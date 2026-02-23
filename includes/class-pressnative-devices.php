@@ -56,10 +56,11 @@ class PressNative_Devices {
 	public static function handle_register_device( WP_REST_Request $request ) {
 		global $wpdb;
 
-		$table = self::get_table_name();
+		$table = self::get_table_name(); // $wpdb->prefix + constant, safe for use in query.
 		$token = $request->get_param( 'fcm_token' );
 		$type  = $request->get_param( 'device_type' );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from get_table_name() (prefix + constant)
 		$existing = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT id FROM {$table} WHERE fcm_token = %s LIMIT 1",
@@ -83,7 +84,7 @@ class PressNative_Devices {
 			if ( false === $updated ) {
 				return new WP_Error(
 					'pressnative_update_failed',
-					__( 'Failed to update device.', 'pressnative' ),
+					__( 'Failed to update device.', 'pressnative-apps' ),
 					array( 'status' => 500 )
 				);
 			}
@@ -91,7 +92,7 @@ class PressNative_Devices {
 			return new WP_REST_Response(
 				array(
 					'success' => true,
-					'message' => __( 'Device updated.', 'pressnative' ),
+					'message' => __( 'Device updated.', 'pressnative-apps' ),
 				),
 				200
 			);
@@ -111,7 +112,7 @@ class PressNative_Devices {
 		if ( ! $inserted ) {
 			return new WP_Error(
 				'pressnative_insert_failed',
-				__( 'Failed to register device.', 'pressnative' ),
+				__( 'Failed to register device.', 'pressnative-apps' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -119,7 +120,7 @@ class PressNative_Devices {
 		return new WP_REST_Response(
 			array(
 				'success' => true,
-				'message'  => __( 'Device registered.', 'pressnative' ),
+				'message'  => __( 'Device registered.', 'pressnative-apps' ),
 			),
 			201
 		);
