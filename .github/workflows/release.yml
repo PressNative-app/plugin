@@ -25,6 +25,7 @@ jobs:
 
       - name: Build / Package
         run: |
+          VER="${{ steps.version.outputs.version }}"
           mkdir -p pressnative
           rsync -a \
             --exclude='.git' \
@@ -32,8 +33,19 @@ jobs:
             --exclude='node_modules' \
             --exclude='.env' \
             --exclude='*.env' \
-            plugin/ pressnative/
-          sed -i "s/^Stable tag: .*/Stable tag: ${{ steps.version.outputs.version }}/" pressnative/readme.txt
+            --exclude='.build' \
+            --exclude='*.zip' \
+            --exclude='.DS_Store' \
+            --exclude='.gitignore' \
+            --exclude='docs' \
+            --exclude='test-*.php' \
+            --exclude='scripts' \
+            --exclude='tests' \
+            . pressnative/
+          # Inject release version into built files (source of truth is the tag)
+          sed -i "s/^ \* Version:     [0-9.]*$/ * Version:     $VER/" pressnative/pressnative.php
+          sed -i "s/define( 'PRESSNATIVE_VERSION', '[0-9.]*' );/define( 'PRESSNATIVE_VERSION', '$VER' );/" pressnative/pressnative.php
+          sed -i "s/^Stable tag: .*/Stable tag: $VER/" pressnative/readme.txt
           zip -r pressnative.zip pressnative
 
       - name: Create Release
