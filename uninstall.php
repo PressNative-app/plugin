@@ -46,5 +46,5 @@ foreach ( $pressnative_options as $pressnative_option ) {
 // Drop the devices table.
 global $wpdb;
 $pressnative_devices_table = $wpdb->prefix . 'pressnative_devices';
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- uninstall: drop table (name from prefix + constant)
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- uninstall: drop table (name from prefix + constant)
 $wpdb->query( "DROP TABLE IF EXISTS {$pressnative_devices_table}" );

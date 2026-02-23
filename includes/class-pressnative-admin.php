@@ -132,6 +132,7 @@ class PressNative_Admin {
 		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth return URL callback; key is validated and capability checked
 		$page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth return URL callback
 		if ( 'pressnative-settings' !== $page || empty( $_GET['pressnative_auth_key'] ) ) {
 			return;
 		}
@@ -1945,10 +1946,11 @@ class PressNative_Admin {
 		$api_key      = get_option( self::OPTION_API_KEY, '' );
 		$registry_url = self::get_registry_url();
 		$has_config   = ! empty( $api_key ) && ! empty( $registry_url );
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only result params from redirect after sending push
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- display-only result params from redirect after sending push
 		$error        = isset( $_GET['pressnative_push_error'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_error'] ) ) : '';
 		$sent         = isset( $_GET['pressnative_push_sent'] ) ? (int) $_GET['pressnative_push_sent'] : 0;
 		$err_msg      = isset( $_GET['pressnative_push_message'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_message'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		$stats        = $has_config ? self::fetch_push_subscriber_stats() : null;
 		$stats        = is_array( $stats ) ? $stats : array( 'total' => 0, 'ios' => 0, 'android' => 0, 'engaged_7d' => 0, 'engaged_30d' => 0 );
 		?>
