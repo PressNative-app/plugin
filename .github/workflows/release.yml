@@ -1,0 +1,46 @@
+# .github/workflows/release.yml
+name: Release WordPress Plugin
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set version from tag
+        id: version
+        run: |
+          VER="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Building plugin version: $VER"
+
+      - name: Build / Package
+        run: |
+          mkdir -p pressnative
+          rsync -a \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            --exclude='*.env' \
+            plugin/ pressnative/
+          sed -i "s/^Stable tag: .*/Stable tag: ${{ steps.version.outputs.version }}/" pressnative/readme.txt
+          zip -r pressnative.zip pressnative
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: pressnative.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
