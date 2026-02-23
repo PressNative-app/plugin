@@ -3,7 +3,7 @@
  * Plugin Name: PressNative Apps
  * Plugin URI:  https://github.com/PressNative-app/plugin
  * Description: Turn your WordPress site into a native mobile app with WooCommerce support. Serves layout, content, products, and branding via REST API to the PressNative Android and iOS apps.
- * Version:     1.1.1
+ * Version:     1.1.2
  * Author:      PressNative
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PRESSNATIVE_VERSION', '1.1.1' );
+define( 'PRESSNATIVE_VERSION', '1.1.2' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
