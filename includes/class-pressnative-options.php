@@ -29,9 +29,6 @@ class PressNative_Options {
 	const OPTION_BASE_FONT_SIZE        = 'pressnative_base_font_size';
 	const OPTION_APP_CATEGORIES        = 'pressnative_app_categories';
 
-	// AdMob monetization settings.
-	const OPTION_ADMOB_BANNER_UNIT_ID = 'pressnative_admob_banner_unit_id';
-
 	// Push notification preferences.
 	const OPTION_NOTIFICATION_PREFERENCES = 'pressnative_notification_preferences';
 
@@ -50,7 +47,6 @@ class PressNative_Options {
 	const DEFAULT_TILE_TEXT_COLOR       = '#111111';
 	const DEFAULT_FONT_FAMILY           = 'sans-serif';
 	const DEFAULT_BASE_FONT_SIZE        = 16;
-	const DEFAULT_ADMOB_BANNER_UNIT_ID  = '';
 
 	const DEFAULT_NOTIFICATION_PREFERENCES = array(
 		'enabled' => true,

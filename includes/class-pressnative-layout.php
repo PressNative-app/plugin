@@ -320,7 +320,6 @@ class PressNative_Layout {
 			'post-grid'      => array( $this, 'build_post_grid' ),
 			'category-list'  => array( $this, 'build_category_list' ),
 			'page-list'      => array( $this, 'build_page_list' ),
-			'ad-slot-1'      => array( $this, 'build_ad_placement' ),
 		);
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
 			$builders['product-grid']          = array( $this, 'build_product_grid' );
@@ -687,33 +686,6 @@ class PressNative_Layout {
 	}
 
 	/**
-	 * AdPlacement component (contract-style).
-	 *
-	 * Uses the AdMob banner unit ID from App Settings. When no unit ID is
-	 * configured, the component falls back to the Google-provided test ad unit
-	 * so the layout always includes a valid placement.
-	 *
-	 * @return array
-	 */
-	private function build_ad_placement() {
-		$unit_id = get_option( PressNative_Options::OPTION_ADMOB_BANNER_UNIT_ID, '' );
-		if ( empty( $unit_id ) ) {
-			$unit_id = 'ca-app-pub-3940256099942544/6300978111';
-		}
-
-		return array(
-			'id'      => 'ad-slot-1',
-			'type'    => 'AdPlacement',
-			'styles'  => $this->get_component_styles( 'tile' ),
-			'content' => array(
-				'ad_unit_id' => $unit_id,
-				'format'     => 'banner',
-				'provider'   => 'admob',
-			),
-		);
-	}
-
-	/**
 	 * Latest published posts via get_posts.
 	 *
 	 * @param int $per_page Number of posts.
@@ -951,6 +923,8 @@ class PressNative_Layout {
 			}
 		}
 
+		$content_blocks = $this->inject_sponsors( $content_blocks );
+
 		// When content_blocks is empty (e.g. parser failed or classic content), send raw HTML so the app can render it in a WebView fallback.
 		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
 			? apply_filters( 'the_content', $content_source_for_html )
@@ -1044,6 +1018,8 @@ class PressNative_Layout {
 			}
 		}
 
+		$content_blocks = $this->inject_sponsors( $content_blocks );
+
 		// When content_blocks is empty, send raw HTML so the app can render it in a WebView fallback.
 		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
 			? apply_filters( 'the_content', $content_source_for_html )
@@ -1093,6 +1069,28 @@ class PressNative_Layout {
 			'components' => $components,
 		);
 		return $this->inject_shop_config( $layout );
+	}
+
+	/**
+	 * Inject BlockSponsor blocks every 5th position in content_blocks.
+	 *
+	 * @param array $content_blocks Existing content blocks.
+	 * @return array Content blocks with sponsors injected.
+	 */
+	private function inject_sponsors( array $content_blocks ): array {
+		$result = array();
+		$count  = 0;
+		foreach ( $content_blocks as $block ) {
+			$result[] = $block;
+			$count++;
+			if ( $count % 5 === 0 ) {
+				$sponsor = PressNative_Sponsors::get_random_active_sponsor();
+				if ( $sponsor !== null ) {
+					$result[] = $sponsor;
+				}
+			}
+		}
+		return $result;
 	}
 
 	// ─── Product Reference Resolution ───────────────────────────────────

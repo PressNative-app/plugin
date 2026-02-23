@@ -227,16 +227,19 @@
 		return html;
 	}
 
-	function renderAdPlacement(component) {
+	function renderBlockSponsor(component) {
 		var styles = component.styles || {};
 		var colors = styles.colors || {};
 		var pad = styles.padding || {};
 		var content = component.content || {};
-		var provider = (content.provider || 'admob').toUpperCase();
-		var format = content.format || 'banner';
+		var imageUrl = content.image_url || '';
+		var sponsorName = content.sponsor_name || 'Sponsor';
 
-		var html = '<div class="pressnative-preview-component pressnative-ad" style="--pn-card-bg:' + escapeHtml(colors.background || '#f6f7f9') + ';--pn-card-text:' + escapeHtml(colors.text || '#111') + ';padding:' + (pad.vertical || 16) + 'px ' + (pad.horizontal || 16) + 'px;">';
-		html += '<div class="pressnative-ad-banner">' + escapeHtml(provider) + ' ' + escapeHtml(format) + ' ad</div>';
+		var html = '<div class="pressnative-preview-component pressnative-sponsor" style="--pn-card-bg:' + escapeHtml(colors.background || '#fff') + ';--pn-card-text:' + escapeHtml(colors.text || '#111') + ';padding:' + (pad.vertical || 8) + 'px ' + (pad.horizontal || 16) + 'px;">';
+		if (imageUrl) {
+			html += '<img class="pressnative-sponsor-img" src="' + escapeHtml(imageUrl) + '" alt="' + escapeHtml(sponsorName) + '" loading="lazy" />';
+		}
+		html += '<span class="pressnative-sponsor-badge">Sponsored</span>';
 		html += '</div>';
 		return html;
 	}
@@ -319,7 +322,7 @@
 			case 'postgrid': return renderPostGrid(component);
 			case 'categorylist': return renderCategoryList(component);
 			case 'pagelist': return renderPageList(component);
-			case 'adplacement': return renderAdPlacement(component);
+			case 'blocksponsor': return renderBlockSponsor(component);
 			case 'productgrid': return renderProductGrid(component);
 			case 'productcategorylist': return renderProductCategoryList(component);
 			case 'productcarousel': return renderProductCarousel(component);
