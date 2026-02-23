@@ -927,8 +927,8 @@ class PressNative_Layout {
 		$content_blocks = $this->inject_sponsors( $content_blocks );
 
 		// When content_blocks is empty (e.g. parser failed or classic content), send raw HTML so the app can render it in a WebView fallback.
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 			? apply_filters( 'the_content', $content_source_for_html )
 			: '';
 		if ( ! empty( $content_html ) && ! empty( $product_ids_from_shortcodes ) ) {
@@ -986,8 +986,8 @@ class PressNative_Layout {
 	public function get_page_layout( $slug ) {
 		$page = get_page_by_path( $slug, OBJECT, 'page' );
 		if ( ! $page || $page->post_status !== 'publish' ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only when WP_DEBUG_LOG enabled
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only when WP_DEBUG_LOG enabled
 				error_log( '[PressNative] get_page_layout: page not found or not published, slug=' . $slug );
 			}
 			return null;
@@ -1024,8 +1024,8 @@ class PressNative_Layout {
 		$content_blocks = $this->inject_sponsors( $content_blocks );
 
 		// When content_blocks is empty, send raw HTML so the app can render it in a WebView fallback.
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 			? apply_filters( 'the_content', $content_source_for_html )
 			: '';
 		if ( ! empty( $content_html ) && ! empty( $product_ids_from_shortcodes ) ) {
