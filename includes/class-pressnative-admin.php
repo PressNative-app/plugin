@@ -130,10 +130,12 @@ class PressNative_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth return URL callback; key is validated and capability checked
 		$page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
 		if ( 'pressnative-settings' !== $page || empty( $_GET['pressnative_auth_key'] ) ) {
 			return;
 		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth return URL callback
 		$raw_key = is_string( $_GET['pressnative_auth_key'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_auth_key'] ) ) : '';
 		if ( '' === $raw_key ) {
 			wp_safe_redirect( admin_url( 'options-general.php?page=pressnative-settings' ) );
@@ -764,6 +766,7 @@ class PressNative_Admin {
 		</div>
 		<?php endif; ?>
 
+			<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only message from redirect ?>
 			<?php if ( ! empty( $_GET['pressnative_portal_error'] ) ) : ?>
 			<div class="notice notice-error is-dismissible" style="max-width:700px;">
 				<p><?php esc_html_e( 'Could not open the subscription management portal. Ensure your API key is valid and the Registry is running.', 'pressnative-apps' ); ?></p>
@@ -895,8 +898,8 @@ class PressNative_Admin {
 			<?php if ( $running ) : ?>
 				<p style="color:#50575e;font-style:italic;margin:0 0 12px;">
 					<?php
-					/* translators: 1: number of items compiled so far, 2: total number of items */
 					echo esc_html( sprintf(
+						/* translators: 1: number of items compiled so far, 2: total number of items */
 						__( 'Background compilation in progress — %1$s of %2$s processed. Reload this page to see updated progress.', 'pressnative-apps' ),
 						number_format_i18n( $progress['compiled'] ),
 						number_format_i18n( $progress['total'] )
@@ -906,8 +909,8 @@ class PressNative_Admin {
 			<?php elseif ( 'complete' === $progress['status'] && $progress['compiled'] > 0 ) : ?>
 				<p style="color:#00a32a;margin:0 0 12px;">
 					<?php
-					/* translators: 1: number of items compiled, 2: date and time of completion */
 					echo esc_html( sprintf(
+						/* translators: 1: number of items compiled, 2: date and time of completion */
 						__( 'Last batch completed: %1$s items compiled on %2$s.', 'pressnative-apps' ),
 						number_format_i18n( $progress['compiled'] ),
 						wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $progress['updated'] )
@@ -1942,6 +1945,7 @@ class PressNative_Admin {
 		$api_key      = get_option( self::OPTION_API_KEY, '' );
 		$registry_url = self::get_registry_url();
 		$has_config   = ! empty( $api_key ) && ! empty( $registry_url );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only result params from redirect after sending push
 		$error        = isset( $_GET['pressnative_push_error'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_error'] ) ) : '';
 		$sent         = isset( $_GET['pressnative_push_sent'] ) ? (int) $_GET['pressnative_push_sent'] : 0;
 		$err_msg      = isset( $_GET['pressnative_push_message'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_push_message'] ) ) : '';
@@ -2597,6 +2601,7 @@ class PressNative_Admin {
 	 * @return void
 	 */
 	public static function handle_stripe_portal_redirect() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- redirect trigger from our settings page; capability checked below
 		if ( empty( $_GET['pressnative_portal'] ) || '1' !== $_GET['pressnative_portal'] ) {
 			return;
 		}
@@ -2604,6 +2609,7 @@ class PressNative_Admin {
 			return;
 		}
 		// Only handle on our settings page.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- page slug check for redirect target
 		if ( empty( $_GET['page'] ) || 'pressnative' !== $_GET['page'] ) {
 			return;
 		}

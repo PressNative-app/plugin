@@ -1,1 +1,3 @@
 .DS_Store
+# Plugin Check report (do not ship in plugin root)
+PLUGIN_CHECK.md

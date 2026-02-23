@@ -16,6 +16,7 @@ use splitbrain\phpQRCode\QRCode;
 /**
  * Class QrEncoder
  */
+// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedClassFound -- thin wrapper around third-party lib (splitbrain/php-qrcode)
 class QrEncoder {
 
 	/**
