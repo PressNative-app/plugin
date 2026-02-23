@@ -33,6 +33,7 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-admin.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-preview.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-registry-notify.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-qr.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-sponsors.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-woocommerce.php';
 
 /**
