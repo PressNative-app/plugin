@@ -24,11 +24,14 @@ class PressNative_Admin {
 	 */
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu' ), 10 );
+		add_action( 'admin_menu', array( __CLASS__, 'add_settings_subpage' ), 11 );
 		add_action( 'admin_menu', array( __CLASS__, 'reorder_menu_by_subscription' ), 999 );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
+		add_action( 'admin_init', array( __CLASS__, 'handle_jetpack_auth_catcher' ), 5 );
 		add_action( 'admin_init', array( __CLASS__, 'handle_stripe_portal_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_app_settings_assets' ) );
 		add_action( 'admin_post_pressnative_send_push', array( __CLASS__, 'handle_send_push' ) );
+		add_action( 'admin_post_pressnative_disconnect', array( __CLASS__, 'handle_disconnect' ) );
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification_on_add' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'clear_subscription_cache' ), 10 );
@@ -101,6 +104,101 @@ class PressNative_Admin {
 			'pressnative-growth',
 			array( __CLASS__, 'render_growth_page' )
 		);
+	}
+
+	/**
+	 * Registers the Settings > PressNative options page (Jetpack-style connect entry).
+	 *
+	 * @return void
+	 */
+	public static function add_settings_subpage() {
+		add_options_page(
+			__( 'PressNative', 'pressnative' ),
+			__( 'PressNative', 'pressnative' ),
+			'manage_options',
+			'pressnative-settings',
+			array( __CLASS__, 'render_pressnative_settings_page' )
+		);
+	}
+
+	/**
+	 * Catches the return from PressNative Cloud with pressnative_auth_key; saves key, runs AOT, redirects.
+	 *
+	 * @return void
+	 */
+	public static function handle_jetpack_auth_catcher() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+		if ( 'pressnative-settings' !== $page || empty( $_GET['pressnative_auth_key'] ) ) {
+			return;
+		}
+		$raw_key = is_string( $_GET['pressnative_auth_key'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_auth_key'] ) ) : '';
+		if ( '' === $raw_key ) {
+			wp_safe_redirect( admin_url( 'options-general.php?page=pressnative-settings' ) );
+			exit;
+		}
+		update_option( self::OPTION_API_KEY, $raw_key );
+		PressNative_AOT_Compiler::run_initial_sweep( 10 );
+		wp_safe_redirect( admin_url( 'options-general.php?page=pressnative-settings' ) );
+		exit;
+	}
+
+	/**
+	 * Handles Disconnect: clears API key and redirects to Settings > PressNative.
+	 *
+	 * @return void
+	 */
+	public static function handle_disconnect() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative' ) );
+		}
+		check_admin_referer( 'pressnative_disconnect' );
+		delete_option( self::OPTION_API_KEY );
+		wp_safe_redirect( admin_url( 'options-general.php?page=pressnative-settings' ) );
+		exit;
+	}
+
+	/**
+	 * Renders the Settings > PressNative page: Connect hero or Connected state with masked key and Disconnect.
+	 *
+	 * @return void
+	 */
+	public static function render_pressnative_settings_page() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		$api_key = get_option( self::OPTION_API_KEY, '' );
+		$connect_url = 'https://pressnative.app/connect?site_url=' . rawurlencode( site_url() ) . '&return_url=' . rawurlencode( admin_url( 'options-general.php?page=pressnative-settings' ) );
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'PressNative', 'pressnative' ); ?></h1>
+			<?php if ( empty( $api_key ) ) : ?>
+				<div class="pressnative-connect-hero" style="max-width:560px;margin:32px 0;padding:32px;background:#fff;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center;">
+					<p style="font-size:1.2em;margin:0 0 16px;color:#1d2327;"><?php esc_html_e( 'Connect your site to PressNative Cloud to power your native app.', 'pressnative' ); ?></p>
+					<p style="margin:0 0 24px;color:#50575e;"><?php esc_html_e( 'You will be redirected to PressNative to sign in or create an account, then returned here automatically.', 'pressnative' ); ?></p>
+					<a href="<?php echo esc_url( $connect_url ); ?>" class="button button-primary button-hero" style="font-size:16px;padding:12px 32px;">
+						<?php esc_html_e( 'Connect to PressNative Cloud', 'pressnative' ); ?>
+					</a>
+				</div>
+			<?php else : ?>
+				<?php
+				$masked = strlen( $api_key ) > 8 ? substr( $api_key, 0, 8 ) . '****' . substr( $api_key, -4 ) : 'pn_live_****' . substr( $api_key, -4 );
+				?>
+				<div class="pressnative-connected-card" style="max-width:560px;margin:32px 0;padding:24px;background:#fff;border:1px solid #c3c4c7;border-left:4px solid #00a32a;border-radius:4px;">
+					<h2 style="margin:0 0 12px;font-size:1.1em;"><?php esc_html_e( 'Successfully Connected', 'pressnative' ); ?></h2>
+					<p style="margin:0 0 16px;color:#50575e;">
+						<?php esc_html_e( 'API Key:', 'pressnative' ); ?>
+						<code style="background:#f0f0f1;padding:2px 8px;border-radius:4px;"><?php echo esc_html( $masked ); ?></code>
+					</p>
+					<p style="margin:0;">
+						<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pressnative_disconnect' ), 'pressnative_disconnect' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Disconnect', 'pressnative' ); ?></a>
+					</p>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php
 	}
 
 	/**
@@ -2785,4 +2883,47 @@ class PressNative_Admin {
 		</script>
 		<?php
 	}
+
+	/**
+	 * Renders a premium (Pro) lock card for gating features.
+	 *
+	 * @param string $feature_name Display name of the gated feature.
+	 * @return void
+	 */
+	public static function render_pro_lock( $feature_name ) {
+		$feature_name = is_string( $feature_name ) ? $feature_name : __( 'This feature', 'pressnative' );
+		$portal_url   = 'https://pressnative.app/partner-portal';
+		?>
+		<div class="pressnative-pro-lock" style="position:relative;max-width:100%;padding:20px;background:linear-gradient(135deg, rgba(255,255,255,.92) 0%, rgba(248,249,250,.95) 100%);border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.06);opacity:.92;">
+			<div style="display:flex;align-items:flex-start;gap:12px;">
+				<span class="dashicons dashicons-lock" style="color:#8c8f94;font-size:24px;width:24px;height:24px;flex-shrink:0;"></span>
+				<div>
+					<p style="margin:0 0 12px;color:#50575e;font-size:14px;">
+						<?php
+						echo esc_html(
+							sprintf(
+								/* translators: %s: feature name */
+								__( '%1$s is available on the PressNative Pro Tier.', 'pressnative' ),
+								$feature_name
+							)
+						);
+						?>
+					</p>
+					<a href="<?php echo esc_url( $portal_url ); ?>" class="button button-primary" target="_blank" rel="noopener noreferrer">
+						<?php esc_html_e( 'Manage in Partner Portal', 'pressnative' ); ?>
+					</a>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+}
+
+/**
+ * Renders a premium (Pro) lock card for gating features. Use in admin screens to show locked Pro features.
+ *
+ * @param string $feature_name Display name of the gated feature (e.g. "Analytics Export").
+ */
+function pressnative_render_pro_lock( $feature_name ) {
+	PressNative_Admin::render_pro_lock( $feature_name );
 }
