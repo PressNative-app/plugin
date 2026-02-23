@@ -1,148 +1,122 @@
-=== PressNative ===
+=== PressNative - Mobile App Builder ===
 Contributors: pressnative
-Tags: mobile app, native app, rest api, push notifications, woocommerce, ecommerce, app
-Requires at least: 5.0
-Tested up to: 6.9
+Tags: mobile app, native app, rest api, push notifications, woocommerce, ecommerce, app, no-code, server-driven ui
+Requires at least: 6.0
+Tested up to: 6.4
 Stable tag: 1.1.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Turn your WordPress site into a native mobile app with WooCommerce support. Serves layout, content, products, and branding via REST API to PressNative Android and iOS apps.
+No-code native performance. Turn your WordPress site into a real native mobile app with server-driven UI — no app store resubmissions for content changes. This plugin is the SaaS connector for the PressNative platform and requires a PressNative account.
 
 == Description ==
 
-PressNative is the WordPress data provider for native mobile apps built on the PressNative platform. Install this plugin to expose your posts, pages, categories, WooCommerce products, and site branding through a contract-driven REST API that the PressNative Android and iOS app shells consume.
+**PressNative - Mobile App Builder** turns your WordPress site into a native Android and iOS app with **no-code native performance**. Content, layout, and branding are driven from your WordPress admin and delivered via a contract-based REST API. The native app renders **server-driven UI** — when you publish or edit posts, change layout, or update products, the app reflects those changes without requiring an app update.
+
+This plugin is a **SaaS connector**: it connects your WordPress site to **PressNative Cloud**. You need a **PressNative account** to use the full platform (connect flow under **Settings → PressNative**, API key, analytics, push notifications, and optional Pro features).
+
+**Why PressNative?**
+
+* **No-code native performance** — Real native screens (Jetpack Compose / SwiftUI), not a WebView wrapper. Your content is rendered as native components.
+* **Server-driven UI** — Layout, components, and content are defined by your WordPress site and the PressNative contract. Change your home screen or post layout in WordPress; the app updates automatically.
+* **One plugin, one contract** — Install the plugin, connect to PressNative Cloud, and configure branding and layout. The Android and iOS apps consume the same API.
 
 **Core Features:**
 
 * **REST API** — Endpoints for home layout, posts, pages, categories, products, and search
+* **Jetpack-style connect** — Connect your site to PressNative Cloud from **Settings → PressNative** (connect button, return with API key, optional initial content cache)
 * **WooCommerce Integration** — Native product grids, product details, cart management, and secure checkout via Chrome Custom Tabs
-* **Native Shopping Cart** — Add to cart from embedded products in blog posts with real-time cart badge updates
-* **Secure Checkout** — Seamless handoff to Chrome Custom Tabs for trusted payment processing
-* **Shoppable Content** — Embed WooCommerce products directly within blog posts and pages
-* **App Branding** — Configure app name, logo, theme colors, and typography directly from the WordPress admin
-* **Theme Presets** — Five built-in themes (Editorial, Midnight, Citrus, Ocean, Minimal) or go fully custom
-* **Layout Builder** — Customize the home screen: hero carousel, post grid, category list, page list, product grids, and ad placement
-* **Component Ordering** — Drag-and-drop component ordering with enable/disable toggles
-* **Push Notifications** — Register devices via FCM and send ad-hoc push notifications from the admin dashboard
-* **Analytics Dashboard** — Track app views, popular posts, search queries, and device breakdown (requires PressNative subscription)
-* **Live Preview** — Preview branding and layout changes on a simulated device frame before saving
-* **WebView Support** — Minimal in-app WebView template for pages with complex shortcodes or embeds
-* **Shortcode Mapping** — Maps WordPress shortcodes to native app components for server-driven UI
-
-**How It Works:**
-
-1. Install and activate PressNative on your WordPress site
-2. Configure branding (app name, logo, colors) under **PressNative → App Settings**
-3. Customize the home screen layout under **PressNative → Layout Settings**
-4. The PressNative mobile app fetches your content from `/wp-json/pressnative/v1/layout/home`
-5. Content updates automatically appear in the app — no app store resubmission needed
+* **App Branding** — App name, logo, theme colors, and typography from **PressNative → App Settings**
+* **Layout Builder** — Hero carousel, post grid, category list, page list, product grids; drag-and-drop ordering
+* **Push Notifications** — Device registration and ad-hoc push from the admin (requires PressNative account)
+* **Analytics Dashboard** — Views, popular posts, search queries (requires PressNative subscription)
+* **Live Preview** — Preview branding and layout in a simulated device frame
+* **Shortcode-to-native mapping** — Server-driven UI: shortcodes map to native app components
 
 **Requirements:**
 
-* WordPress 5.0 or later
+* WordPress 6.0 or later
 * PHP 7.4 or later
+* A **PressNative account** (free or Pro) for connecting your site and using analytics/push
 * PressNative Android or iOS app to display the content
-* Optional: WooCommerce 3.0+ for ecommerce features
-* Optional: PressNative Registry service for analytics, push notifications, and schema verification
+* Optional: WooCommerce for ecommerce features
 
 == Installation ==
 
 1. Upload the `pressnative` folder to `/wp-content/plugins/`, or install via **Plugins → Add New → Upload Plugin**
 2. Activate the plugin through the **Plugins** menu
-3. Navigate to **PressNative → Settings** and enter your Registry URL and API Key (if using the PressNative ecosystem)
-4. Go to **PressNative → App Settings** to customize branding (app name, logo, colors, typography)
-5. Go to **PressNative → Layout Settings** to configure home screen components
+3. Go to **Settings → PressNative** and click **Connect to PressNative Cloud** to link your site to your PressNative account (or enter your API key under **PressNative** in the admin menu)
+4. Configure branding under **PressNative → App Settings** and layout under **PressNative → Layout Settings**
 
 == Frequently Asked Questions ==
 
-= Do I need the PressNative mobile app to use this plugin? =
+= Do I need a PressNative account? =
 
-Yes. This plugin is a data provider only — it serves your WordPress content via REST API. You need the PressNative Android or iOS app to display the content as a native mobile experience.
+Yes. This plugin is the SaaS connector for the PressNative platform. You connect your site from **Settings → PressNative** (or enter an API key). A PressNative account is required for analytics, push notifications, and full functionality.
 
-= Is the PressNative Registry required? =
+= Do I need the PressNative mobile app? =
 
-No. The plugin works without the Registry. The Registry adds optional features: analytics storage, schema verification on activation, and push notification delivery. Without it, the REST API still serves content normally.
+Yes. The plugin serves your content via REST API. The PressNative Android and iOS apps consume that API and render native server-driven UI.
 
-= What content does the API expose? =
+= What is server-driven UI? =
 
-The home layout endpoint includes a hero carousel (featured posts), a post grid (latest posts), a category list, a page list, and an ad placement slot. Individual post, page, and category endpoints are also available. All responses conform to the PressNative contract schema.
-
-= Can I customize which components appear on the home screen? =
-
-Yes. Under **PressNative → Layout Settings**, you can enable/disable each component and drag-and-drop to reorder them. Changes are reflected immediately in the app.
-
-= Does the plugin support push notifications? =
-
-Yes. The plugin registers FCM device tokens from the mobile app and provides an admin page to send ad-hoc push notifications. Push delivery is handled by the PressNative Registry service (requires API key).
-
-= What happens when I deactivate or delete the plugin? =
-
-Deactivating the plugin removes all REST API endpoints but preserves your settings. Deleting the plugin via the WordPress admin removes all saved options and the custom database table. Your WordPress content (posts, pages, media) is never affected.
+Your WordPress site (and the PressNative contract) define what the app shows: layout, components, and content. When you change a post or the home layout in WordPress, the app fetches the updated data and renders it natively — no app store update needed.
 
 = Does the plugin work with WooCommerce? =
 
-Yes. When WooCommerce is installed, the plugin automatically adds native ecommerce features: product grids, product detail pages, native cart management, and secure checkout via Chrome Custom Tabs. Products can also be embedded within blog posts for shoppable content.
+Yes. With WooCommerce installed, you get native product grids, product detail pages, cart management, and secure checkout via Chrome Custom Tabs. Products can be embedded in posts for shoppable content.
 
-= How does the native shopping cart work? =
+= What happens when I deactivate or delete the plugin? =
 
-The plugin provides REST API endpoints for adding items to cart and retrieving cart counts. The native app displays a cart badge that updates in real-time. When users proceed to checkout, the app opens Chrome Custom Tabs with a secure, one-time URL that rebuilds the cart in the browser session.
-
-= Is checkout secure in the mobile app? =
-
-Yes. Checkout opens in Chrome Custom Tabs, which provides the full browser security experience: HTTPS lock icon, address bar, autofill, and saved payment methods. Users never enter payment details within the app itself.
-
-= Does the plugin send data to external services? =
-
-Yes. When configured with a Registry URL and API Key, the plugin communicates with the PressNative Registry service for: analytics event forwarding, push notification delivery, schema verification on activation, and cache invalidation notifications when you update settings or publish content. See the Privacy section below for details.
+Deactivating removes the REST API endpoints but keeps your settings. Deleting the plugin removes saved options and the custom devices table. Your posts, pages, and media are not affected.
 
 == Screenshots ==
 
-1. PressNative settings page — Registry URL and API Key configuration
-2. App Settings page — Branding (app name, colors, logo) with live preview
-3. Layout Settings page — Component ordering and configuration
-4. Analytics dashboard — Views, top posts, device breakdown
-5. Push Notifications page — Send ad-hoc notifications to app users
+1. Settings → PressNative — Connect to PressNative Cloud
+2. PressNative settings — API key and subscription status
+3. App Settings — Branding (app name, colors, logo) with live preview
+4. Layout Settings — Component ordering and configuration
+5. Analytics dashboard — Views, top posts, device breakdown
+6. Push Notifications — Send notifications to app users
 
 == Changelog ==
 
 = 1.1.0 =
-* **WooCommerce Integration:** Native product grids, product details, and shopping cart
-* **Secure Checkout:** Chrome Custom Tabs integration for trusted payment processing
-* **Shoppable Content:** Embed products within blog posts with native add-to-cart buttons
-* **Cart Transfer:** One-time token system for seamless app-to-browser cart handoff
-* **Demo Data API:** Endpoint to populate WooCommerce with sample products for testing
-* **System Page Filtering:** Prevents push notifications for WooCommerce system pages
-* **Real-time Cart Updates:** JavaScript bridge for cart badge updates from embedded products
+* **SaaS Connector MVP:** Settings → PressNative page with Jetpack-style connect flow (connect button, auth catcher, disconnect)
+* **AOT on connect:** Initial sweep of top 10 posts after remote auth
+* **Premium gating helper:** `pressnative_render_pro_lock( $feature_name )` for Pro-tier feature cards
+* **WooCommerce Integration:** Native product grids, product details, shopping cart, secure checkout via Chrome Custom Tabs
+* **Shoppable Content:** Embed products in blog posts with native add-to-cart
+* **Cart Transfer:** One-time token for app-to-browser cart handoff
+* **Demo Data API:** Endpoint for sample WooCommerce products
+* **Real-time Cart Updates:** Cart badge updates from embedded products
 
 = 1.0.0 =
 * Initial release
 * REST API: home layout, post detail, page detail, category archive, search
-* Admin: Registry settings, app branding, layout builder, analytics dashboard, push notifications
-* Theme presets: Editorial, Midnight, Citrus, Ocean, Minimal, Custom
-* Device registration for FCM push notifications
-* Live preview with simulated device frames
-* WebView template for in-app page rendering
+* Admin: Registry settings, app branding, layout builder, analytics, push notifications
+* Theme presets and device registration for FCM
+* Live preview and WebView template
 * Shortcode-to-native component mapping
 
 == Upgrade Notice ==
 
 = 1.1.0 =
-Major WooCommerce integration: native shopping cart, product grids, secure checkout via Chrome Custom Tabs, and shoppable content within blog posts.
+SaaS connector: connect from Settings → PressNative, premium gating helper, and full WooCommerce native experience (cart, checkout, shoppable content).
 
 = 1.0.0 =
-Initial release of PressNative.
+Initial release of PressNative - Mobile App Builder.
 
 == Privacy ==
 
-This plugin optionally communicates with the **PressNative Registry** service when you configure a Registry URL and API Key in the plugin settings. The following data may be transmitted:
+This plugin connects to **PressNative Cloud** when you connect your site (Settings → PressNative) or enter an API key. The following data may be sent:
 
-* **Analytics events** — Content view type (home/post/page/category/search), resource ID, resource title, and device type (iOS/Android). Sent when the API is called or when the app reports cached views.
-* **Push notification tokens** — FCM device tokens are stored locally in your WordPress database. Push delivery requests (title, body, link, image URL) are sent to the Registry.
-* **Configuration notifications** — When you save branding or layout settings, or publish/update content, the plugin notifies the Registry so it can invalidate its cache. This includes your site URL and basic post metadata (title, excerpt, permalink, thumbnail URL).
-* **Schema verification** — On plugin activation, the plugin fetches the contract schema from the Registry to verify compatibility.
+* **Analytics events** — Content view type, resource ID/title, device type (iOS/Android)
+* **Push notification tokens** — FCM device tokens (stored locally); push requests sent to PressNative
+* **Configuration notifications** — Site URL and post/settings metadata for cache invalidation when you publish or change settings
+* **Schema verification** — Contract schema check on activation
 
-No personal user data from your site visitors is collected or transmitted. Analytics are aggregated by content type, not by individual user.
+No personal visitor data is collected. Analytics are aggregated by content type.
 
 For more information, visit [pressnative.app/privacy](https://pressnative.app/privacy).

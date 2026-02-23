@@ -310,6 +310,35 @@ class PressNative_AOT_Compiler {
 	}
 
 	/**
+	 * Run an initial sweep: compile the latest N published posts/pages/products.
+	 * Used after remote auth (e.g. Jetpack-style handshake) to warm the cache.
+	 *
+	 * @param int $limit Number of most recent posts to compile (default 10).
+	 * @return int Number of posts compiled.
+	 */
+	public static function run_initial_sweep( int $limit = 10 ): int {
+		global $wpdb;
+		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
+		$rows  = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts}
+				 WHERE post_status = 'publish'
+				   AND post_type IN ({$types})
+				   AND post_content != ''
+				 ORDER BY post_date DESC
+				 LIMIT %d",
+				$limit
+			)
+		);
+		$compiled = 0;
+		foreach ( array_map( 'intval', $rows ) as $post_id ) {
+			self::compile_on_demand( $post_id );
+			++$compiled;
+		}
+		return $compiled;
+	}
+
+	/**
 	 * Get the current warm-up / recompile progress.
 	 *
 	 * @return array{status:string,total:int,compiled:int,offset:int,started:int,updated:int}
