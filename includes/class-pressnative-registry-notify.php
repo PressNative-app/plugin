@@ -66,6 +66,7 @@ class PressNative_Registry_Notify {
 		// Debug logging for WooCommerce settings
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only when debugging
 		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
 			error_log( "PressNative: WooCommerce setting updated - {$option}: {$old_value} -> {$value}" );
 			// Set a transient to show admin notice
 			set_transient( 'pressnative_cache_invalidated', array(
@@ -103,9 +104,10 @@ class PressNative_Registry_Notify {
 		}
 
 		// Debug logging for WooCommerce settings
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only when debugging
 		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
 			error_log( "PressNative: Sending cache invalidation notification for {$option} to {$url}" );
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
 			error_log( "PressNative: Settings version incremented to {$settings_version}" );
 		}
 

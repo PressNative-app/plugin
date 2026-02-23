@@ -60,7 +60,8 @@ class PressNative_Devices {
 		$token = $request->get_param( 'fcm_token' );
 		$type  = $request->get_param( 'device_type' );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from get_table_name() (prefix + constant)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from get_table_name() (prefix + constant)
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$existing = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT id FROM {$table} WHERE fcm_token = %s LIMIT 1",
@@ -68,8 +69,10 @@ class PressNative_Devices {
 			),
 			ARRAY_A
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		if ( $existing ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single row update by primary key
 			$updated = $wpdb->update(
 				$table,
 				array(
@@ -98,6 +101,7 @@ class PressNative_Devices {
 			);
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- single row insert
 		$inserted = $wpdb->insert(
 			$table,
 			array(

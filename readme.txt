@@ -8,7 +8,7 @@ Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-No-code native performance. Turn your WordPress site into a real native mobile app with server-driven UI — no app store resubmissions for content changes. SaaS connector for PressNative.
+No-code native app from WordPress. Server-driven UI, no app store resubmissions. SaaS connector for PressNative.
 
 == Description ==
 

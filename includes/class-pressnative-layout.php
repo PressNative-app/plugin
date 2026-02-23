@@ -39,6 +39,7 @@ class PressNative_Layout {
 		$wp_the_query = $wp_query;
 
 		// Fire the enqueue hooks so plugins register their scripts for this page.
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress action
 		do_action( 'wp_enqueue_scripts' );
 
 		// Capture wp_head output (scripts, styles, inline JS).
@@ -926,6 +927,7 @@ class PressNative_Layout {
 		$content_blocks = $this->inject_sponsors( $content_blocks );
 
 		// When content_blocks is empty (e.g. parser failed or classic content), send raw HTML so the app can render it in a WebView fallback.
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
 			? apply_filters( 'the_content', $content_source_for_html )
 			: '';
@@ -1022,6 +1024,7 @@ class PressNative_Layout {
 		$content_blocks = $this->inject_sponsors( $content_blocks );
 
 		// When content_blocks is empty, send raw HTML so the app can render it in a WebView fallback.
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
 			? apply_filters( 'the_content', $content_source_for_html )
 			: '';
@@ -1229,6 +1232,7 @@ class PressNative_Layout {
 
 		$is_elementor = (bool) get_post_meta( $post->ID, '_elementor_edit_mode', true );
 		if ( $is_elementor ) {
+			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 			$rendered = apply_filters( 'the_content', $raw_content );
 			if ( ! empty( trim( wp_strip_all_tags( $rendered ) ) ) || ! empty( trim( $rendered ) ) ) {
 				return array(

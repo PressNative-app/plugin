@@ -320,7 +320,8 @@ class PressNative_AOT_Compiler {
 	public static function run_initial_sweep( int $limit = 10 ): int {
 		global $wpdb;
 		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES), cannot use prepare() for IN list
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table/type names from trusted source
 		$rows  = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT ID FROM {$wpdb->posts}
@@ -332,6 +333,7 @@ class PressNative_AOT_Compiler {
 				$limit
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$compiled = 0;
 		foreach ( array_map( 'intval', $rows ) as $post_id ) {
 			self::compile_on_demand( $post_id );
@@ -405,13 +407,16 @@ class PressNative_AOT_Compiler {
 	private static function count_eligible_posts(): int {
 		global $wpdb;
 		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
-		return (int) $wpdb->get_var(
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
+		$result = (int) $wpdb->get_var(
 			"SELECT COUNT(*) FROM {$wpdb->posts}
 			 WHERE post_status = 'publish'
 			   AND post_type IN ({$types})
 			   AND post_content != ''"
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return $result;
 	}
 
 	/**
@@ -422,7 +427,8 @@ class PressNative_AOT_Compiler {
 	private static function count_cached_posts(): int {
 		global $wpdb;
 		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
@@ -433,6 +439,7 @@ class PressNative_AOT_Compiler {
 				self::META_KEY
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	/**
@@ -445,7 +452,8 @@ class PressNative_AOT_Compiler {
 	private static function get_eligible_post_ids( int $limit, int $offset ): array {
 		global $wpdb;
 		$types = self::sql_in_list( self::ALLOWED_POST_TYPES );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $types from sql_in_list(ALLOWED_POST_TYPES)
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, PluginCheck.Security.DirectDB.UnescapedDBParameter
 		$rows = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT ID FROM {$wpdb->posts}
@@ -458,6 +466,7 @@ class PressNative_AOT_Compiler {
 				$offset
 			)
 		);
+		// phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return array_map( 'intval', $rows );
 	}
 

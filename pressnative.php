@@ -719,6 +719,7 @@ add_action( 'template_redirect', function () {
 
 	// Set up post data so shortcodes and the_content work.
 	setup_postdata( $post );
+	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 	$content = apply_filters( 'the_content', $post->post_content );
 
 	// Capture the full output so we can relativize absolute site URLs.
@@ -774,6 +775,7 @@ PressNative_Registry_Notify::init();
  * Handle app-initiated checkout with cart transfer.
  */
 add_action( 'template_redirect', function () {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- URL param from app to transfer cart; capability not applicable
 	if ( ! isset( $_GET['pressnative_checkout'] ) ) {
 		return;
 	}
@@ -781,6 +783,7 @@ add_action( 'template_redirect', function () {
 		return;
 	}
 
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- validated above and used only for cart transfer
 	$raw = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout'] ) );
 	wc_load_cart();
 	WC()->cart->empty_cart();
@@ -811,6 +814,7 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 
 	// Check if this checkout was initiated from the app
 	$referer = wp_get_referer();
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only check for return-to-app UI
 	$is_app_checkout = isset( $_GET['pressnative_checkout'] ) ||
 	                   ( $referer && strpos( $referer, 'pressnative_checkout=' ) !== false );
 
@@ -852,6 +856,7 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
  */
 add_action( 'woocommerce_after_cart', function () {
 	$referer = wp_get_referer();
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only check for return-to-app link
 	$is_app_context = isset( $_GET['pressnative_checkout'] ) ||
 	                  ( $referer && strpos( $referer, 'pressnative_checkout=' ) !== false );
 
