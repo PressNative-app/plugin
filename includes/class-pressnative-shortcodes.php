@@ -22,7 +22,7 @@ class PressNative_Shortcodes {
 	 * @return array
 	 */
 	public static function get_native_shortcodes() {
-		$default = array( 'search_form', 'searchform', 'pressnative_download', 'app_download' );
+		$default = array( 'search_form', 'searchform', 'pressnative_download' );
 		return apply_filters( 'pressnative_native_shortcodes', $default );
 	}
 
@@ -37,7 +37,6 @@ class PressNative_Shortcodes {
 			'search_form'         => 'SearchBar',
 			'searchform'          => 'SearchBar',
 			'pressnative_download' => 'AppDownload',
-			'app_download'        => 'AppDownload',
 		);
 		$map = apply_filters( 'pressnative_shortcode_native_map', $map );
 		return isset( $map[ $tag ] ) ? $map[ $tag ] : null;

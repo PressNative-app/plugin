@@ -36,14 +36,6 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-sponsors.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-woocommerce.php';
 
 /**
- * Load plugin text domain for translations (optional on WordPress.org; kept for self-hosted installs).
- */
-add_action( 'init', function () {
-	// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- kept for self-hosted; .org loads automatically
-	load_plugin_textdomain( 'pressnative-apps', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
-} );
-
-/**
  * Activation: create devices table and verify Registry schema.
  */
 register_activation_hook( __FILE__, function () {
@@ -722,6 +714,14 @@ add_action( 'template_redirect', function () {
 	// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
 	$content = apply_filters( 'the_content', $post->post_content );
 
+	// Enqueue content styles for WebView (output in wp_head).
+	wp_register_style( 'pressnative-webview-content', false );
+	wp_add_inline_style(
+		'pressnative-webview-content',
+		'body{font-family:sans-serif;font-size:16px;line-height:1.5;margin:0;padding:16px;}img{max-width:100%;height:auto;}table{width:100%;border-collapse:collapse;}'
+	);
+	wp_enqueue_style( 'pressnative-webview-content' );
+
 	// Capture the full output so we can relativize absolute site URLs.
 	// This ensures script/style URLs work in the mobile WebView which may
 	// access the site via a different host (e.g. 10.0.2.2 on Android emulator).
@@ -731,11 +731,6 @@ add_action( 'template_redirect', function () {
 <head>
 <meta charset="<?php bloginfo( 'charset' ); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { font-family: sans-serif; font-size: 16px; line-height: 1.5; margin: 0; padding: 16px; }
-img { max-width: 100%; height: auto; }
-table { width: 100%; border-collapse: collapse; }
-</style>
 <?php wp_head(); ?>
 </head>
 <body>
@@ -822,33 +817,20 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 		return;
 	}
 
-	// Add JavaScript to redirect to app after a short delay
-	?>
-	<script type="text/javascript">
-		// Add a "Return to App" button
-		setTimeout(function() {
-			var returnButton = document.createElement('button');
-			returnButton.innerHTML = 'Return to App';
-			returnButton.style.cssText = 'background: #0073aa; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-size: 16px; margin: 20px 0; cursor: pointer;';
-			returnButton.onclick = function() {
-				window.location.href = 'app.pressnative.hub://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
-			};
-
-			// Find a good place to insert the button
-			var orderDetails = document.querySelector('.woocommerce-order');
-			if (orderDetails) {
-				orderDetails.appendChild(returnButton);
-			} else {
-				document.body.appendChild(returnButton);
-			}
-		}, 1000);
-
-		// Auto-redirect after 10 seconds
-		setTimeout(function() {
-			window.location.href = 'app.pressnative.hub://checkout-complete?order_id=<?php echo esc_js( $order_id ); ?>';
-		}, 10000);
-	</script>
-	<?php
+	// Enqueue script to redirect to app after a short delay.
+	wp_enqueue_script( 'jquery' );
+	wp_enqueue_script(
+		'pressnative-return-to-app',
+		false,
+		array( 'jquery' ),
+		PRESSNATIVE_VERSION,
+		true
+	);
+	wp_add_inline_script(
+		'pressnative-return-to-app',
+		'(function(){var o=' . (int) $order_id . ';var u="app.pressnative.hub://checkout-complete?order_id="+o;setTimeout(function(){var b=document.createElement("button");b.innerHTML="Return to App";b.style.cssText="background:#0073aa;color:white;padding:12px 24px;border:none;border-radius:4px;font-size:16px;margin:20px 0;cursor:pointer";b.onclick=function(){window.location.href=u};var d=document.querySelector(".woocommerce-order");(d||document.body).appendChild(b)},1000);setTimeout(function(){window.location.href=u},10000)})();',
+		'after'
+	);
 }, 10, 1 );
 
 /**
@@ -914,13 +896,6 @@ add_action( 'init', function () {
 		$html .= '</div>';
 
 		return $html;
-	} );
-
-	// Alias shortcode for convenience
-	add_shortcode( 'app_download', function ( $atts ) {
-		return do_shortcode( '[pressnative_download ' . implode( ' ', array_map( function ( $k, $v ) {
-			return $k . '="' . esc_attr( $v ) . '"';
-		}, array_keys( $atts ), $atts ) ) . ']' );
 	} );
 
 	// Debug shortcode for testing deep links

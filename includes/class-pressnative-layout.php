@@ -454,7 +454,7 @@ class PressNative_Layout {
 		$daily_briefing = array(
 			'title'     => 'Daily Briefing',
 			'subtitle'  => 'Top stories for your city',
-			'image_url' => 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee',
+			'image_url' => self::get_placeholder_url( 'hero' ),
 		);
 		if ( $first_post_id ) {
 			$daily_briefing['action'] = array(
@@ -473,7 +473,7 @@ class PressNative_Layout {
 			array(
 				'title'     => 'Community Spotlight',
 				'subtitle'  => 'Neighborhood updates',
-				'image_url' => 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa',
+				'image_url' => self::get_placeholder_url( 'hero' ),
 				'action'    => array(
 					'type'    => 'open_category',
 					'payload' => array( 'category_id' => 'community' ),
@@ -512,7 +512,7 @@ class PressNative_Layout {
 					'post_id'       => 'post-101',
 					'title'         => 'Transit upgrades coming this spring',
 					'excerpt'       => 'City planners confirmed a new set of improvements for commuters.',
-					'thumbnail_url' => 'https://images.unsplash.com/photo-1504711434969-e33886168f5c',
+					'thumbnail_url' => self::get_placeholder_url( 'post' ),
 					'action'        => array(
 						'type'    => 'open_post',
 						'payload' => array( 'post_id' => 'post-101' ),
@@ -522,7 +522,7 @@ class PressNative_Layout {
 					'post_id'       => 'post-102',
 					'title'         => 'Local markets see weekend surge',
 					'excerpt'       => 'Shoppers are returning in record numbers.',
-					'thumbnail_url' => 'https://images.unsplash.com/photo-1498050108023-c5249f4df085',
+					'thumbnail_url' => self::get_placeholder_url( 'post' ),
 					'action'        => array(
 						'type'    => 'open_post',
 						'payload' => array( 'post_id' => 'post-102' ),
@@ -583,11 +583,11 @@ class PressNative_Layout {
 		}
 
 		if ( empty( $categories ) ) {
-			$categories = array(
+			$categories = 			array(
 				array(
 					'category_id' => 'events',
 					'name'        => 'Events',
-					'icon_url'    => 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05',
+					'icon_url'    => self::get_placeholder_url( 'category' ),
 					'action'      => array(
 						'type'    => 'open_category',
 						'payload' => array( 'category_id' => 'events' ),
@@ -596,7 +596,7 @@ class PressNative_Layout {
 				array(
 					'category_id' => 'business',
 					'name'        => 'Business',
-					'icon_url'    => 'https://images.unsplash.com/photo-1519389950473-47ba0277781c',
+					'icon_url'    => self::get_placeholder_url( 'category' ),
 					'action'      => array(
 						'type'    => 'open_category',
 						'payload' => array( 'category_id' => 'business' ),
@@ -869,13 +869,24 @@ class PressNative_Layout {
 	}
 
 	/**
+	 * URL for local placeholder images (avoids remote dependencies).
+	 *
+	 * @param string $type 'hero', 'post', or 'category'.
+	 * @return string Full URL to placeholder image.
+	 */
+	private static function get_placeholder_url( $type ) {
+		$file = 'placeholder-' . ( in_array( $type, array( 'hero', 'post', 'category' ), true ) ? $type : 'post' ) . '.svg';
+		return plugins_url( 'assets/images/' . $file, PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' );
+	}
+
+	/**
 	 * Category icon (placeholder or term meta if available).
 	 *
 	 * @param WP_Term $term Category term.
 	 * @return string
 	 */
 	private function get_category_icon_url( $term ) {
-		return get_site_icon_url( 512 ) ?: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05';
+		return get_site_icon_url( 512 ) ?: self::get_placeholder_url( 'category' );
 	}
 
 	/**
