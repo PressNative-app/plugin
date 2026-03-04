@@ -1872,7 +1872,6 @@ class PressNative_Admin {
 							<label><?php esc_html_e( 'Component Order', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
-							<style>.pressnative-sortable-placeholder{height:40px;background:#f0f0f1;border:2px dashed #c3c4c7;margin-bottom:6px;list-style:none;}</style>
 							<p class="description"><?php esc_html_e( 'Drag to reorder. Uncheck to hide a component.', 'pressnative-apps' ); ?></p>
 							<input type="hidden" id="pressnative-component-order-value"
 								   name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_ENABLED_COMPONENTS ); ?>"

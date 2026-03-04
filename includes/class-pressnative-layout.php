@@ -583,7 +583,7 @@ class PressNative_Layout {
 		}
 
 		if ( empty( $categories ) ) {
-			$categories = 			array(
+			$categories = array(
 				array(
 					'category_id' => 'events',
 					'name'        => 'Events',
@@ -876,7 +876,7 @@ class PressNative_Layout {
 	 */
 	private static function get_placeholder_url( $type ) {
 		$file = 'placeholder-' . ( in_array( $type, array( 'hero', 'post', 'category' ), true ) ? $type : 'post' ) . '.svg';
-		return plugins_url( 'assets/images/' . $file, PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' );
+		return plugins_url( 'assets/images/' . $file, PRESSNATIVE_PLUGIN_FILE );
 	}
 
 	/**
