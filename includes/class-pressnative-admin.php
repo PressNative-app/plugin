@@ -96,14 +96,6 @@ class PressNative_Admin {
 			'pressnative-push',
 			array( __CLASS__, 'render_push_page' )
 		);
-		add_submenu_page(
-			'pressnative',
-			__( 'Get Started', 'pressnative-apps' ),
-			__( 'Get Started', 'pressnative-apps' ),
-			'manage_options',
-			'pressnative-growth',
-			array( __CLASS__, 'render_growth_page' )
-		);
 	}
 
 	/**
@@ -205,7 +197,7 @@ class PressNative_Admin {
 	}
 
 	/**
-	 * Reorders PressNative submenu: Dashboard first when subscribed, Get Started first when not.
+	 * Reorders PressNative submenu: Dashboard first when subscribed.
 	 *
 	 * @return void
 	 */
@@ -216,17 +208,17 @@ class PressNative_Admin {
 		}
 		$sub_status = self::fetch_subscription_status();
 		$has_active = $sub_status && in_array( $sub_status['billing_status'] ?? '', array( 'active', 'trial' ), true );
-
-		$items = $submenu['pressnative'];
-		$by_slug = array();
-		foreach ( $items as $item ) {
-			$slug = $item[2];
-			$by_slug[ $slug ] = $item;
+		if ( ! $has_active ) {
+			return;
 		}
 
-		$order_subscribed   = array( 'pressnative-analytics', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-push', 'pressnative-growth' );
-		$order_unsubscribed = array( 'pressnative-growth', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-push', 'pressnative-analytics' );
-		$order              = $has_active ? $order_subscribed : $order_unsubscribed;
+		$items   = $submenu['pressnative'];
+		$by_slug = array();
+		foreach ( $items as $item ) {
+			$by_slug[ $item[2] ] = $item;
+		}
+
+		$order = array( 'pressnative-analytics', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-push' );
 
 		$reordered = array();
 		foreach ( $order as $slug ) {
@@ -240,13 +232,8 @@ class PressNative_Admin {
 			}
 		}
 
-		$submenu['pressnative'] = $reordered;
-
-		if ( $has_active ) {
-			$submenu['pressnative'][0][0] = __( 'Dashboard', 'pressnative-apps' );
-		} else {
-			$submenu['pressnative'][0][0] = __( 'Get Started', 'pressnative-apps' );
-		}
+		$submenu['pressnative']    = $reordered;
+		$submenu['pressnative'][0][0] = __( 'Dashboard', 'pressnative-apps' );
 	}
 
 	/**
@@ -948,10 +935,9 @@ class PressNative_Admin {
 		$app_settings    = ( $hook_suffix === 'pressnative_page_pressnative-app-settings' );
 		$layout_settings = ( $hook_suffix === 'pressnative_page_pressnative-layout-settings' );
 		$analytics_page  = ( $hook_suffix === 'pressnative_page_pressnative-analytics' );
-		$growth_page     = ( $hook_suffix === 'pressnative_page_pressnative-growth' );
 		$push_page       = ( $hook_suffix === 'pressnative_page_pressnative-push' );
 		$main_page       = ( $hook_suffix === 'toplevel_page_pressnative' );
-		$is_pressnative  = ( $app_settings || $layout_settings || $analytics_page || $growth_page || $push_page || $main_page );
+		$is_pressnative  = ( $app_settings || $layout_settings || $analytics_page || $push_page || $main_page );
 		if ( ! $is_pressnative ) {
 			return;
 		}
@@ -1001,9 +987,6 @@ class PressNative_Admin {
 				. '.pressnative-drag-handle{cursor:move;margin-right:8px;color:#787c82;}'
 				. '.pressnative-sortable-item label{cursor:pointer;margin:0;}'
 			);
-		}
-		if ( $growth_page ) {
-			wp_add_inline_style( 'pressnative-preview', self::get_growth_page_css() );
 		}
 		if ( $analytics_page ) {
 			wp_enqueue_script(
@@ -1121,31 +1104,6 @@ class PressNative_Admin {
 		";
 	}
 
-	/**
-	 * Inline CSS for the Growth / Pitch page.
-	 *
-	 * @return string
-	 */
-	private static function get_growth_page_css() {
-		return '.pressnative-growth-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;margin-top:24px;max-width:900px;}'
-			. '.pressnative-growth-card{background:#fff;border:1px solid #c3c4c7;border-radius:8px;padding:24px;position:relative;overflow:hidden;}'
-			. '.pressnative-growth-card::before{content:\'\';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#6366f1,#06b6d4);}'
-			. '.pressnative-growth-card .tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#6366f1;background:rgba(99,102,241,0.1);margin-bottom:12px;}'
-			. '.pressnative-growth-card h3{margin:0 0 8px;font-size:1em;line-height:1.4;}'
-			. '.pressnative-growth-card .stat{font-size:2.5em;font-weight:800;background:linear-gradient(135deg,#6366f1,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:4px;}'
-			. '.pressnative-growth-card .stat-label{font-size:13px;color:#50575e;}'
-			. '.pressnative-growth-card p{color:#50575e;font-size:13px;line-height:1.5;}'
-			. '.pressnative-benefit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-top:24px;max-width:900px;}'
-			. '.pressnative-benefit-card{background:#fff;border:1px solid #c3c4c7;border-radius:8px;padding:20px;}'
-			. '.pressnative-benefit-card h4{margin:0 0 6px;font-size:0.95em;}'
-			. '.pressnative-benefit-card p{margin:0;color:#50575e;font-size:13px;}'
-			. '.pressnative-benefit-icon{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,rgba(99,102,241,0.15),rgba(6,182,212,0.15));display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:18px;}'
-			. '.pressnative-cta-banner{margin-top:32px;max-width:900px;background:linear-gradient(135deg,#6366f1,#06b6d4);border-radius:8px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}'
-			. '.pressnative-cta-banner h3{margin:0;color:#fff;font-size:1.1em;}'
-			. '.pressnative-cta-banner p{margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;}'
-			. '.pressnative-cta-banner .button{background:#fff;color:#6366f1;border:none;font-weight:600;padding:8px 20px;border-radius:6px;text-decoration:none;}'
-			. '.pressnative-cta-banner .button:hover{opacity:0.9;}';
-	}
 
 	/**
 	 * Inline script for logo upload (WP Media Library).
@@ -2387,127 +2345,6 @@ class PressNative_Admin {
 	}
 
 	/**
-	 * Fetches pitch / growth data from the Registry.
-	 *
-	 * @return array|null Pitch data or null on failure.
-	 */
-	public static function fetch_pitch_data() {
-		$registry_url = self::get_registry_url();
-		if ( empty( $registry_url ) ) {
-			return null;
-		}
-
-		$url      = rtrim( $registry_url, '/' ) . '/api/v1/pitch';
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout' => 10,
-				'headers' => array(
-					'Accept' => 'application/json',
-				),
-			)
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return null;
-		}
-		$code = wp_remote_retrieve_response_code( $response );
-		if ( 200 !== $code ) {
-			return null;
-		}
-		$body = wp_remote_retrieve_body( $response );
-		$data = json_decode( $body, true );
-		return is_array( $data ) ? $data : null;
-	}
-
-	/**
-	 * Renders the Growth / Pitch page showing business metrics to site owners.
-	 *
-	 * @return void
-	 */
-	public static function render_growth_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-
-		$pitch      = self::fetch_pitch_data();
-		$sub_status = self::fetch_subscription_status();
-		$is_pro     = $sub_status && in_array( $sub_status['plan'] ?? '', array( 'pro', 'native_pro', 'enterprise' ), true );
-		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'Get Started — Why Go Native?', 'pressnative-apps' ); ?></h1>
-			<p class="description"><?php esc_html_e( 'Business metrics and insights that show the value of a native mobile app for your WordPress site.', 'pressnative-apps' ); ?></p>
-
-			<?php if ( ! $pitch ) : ?>
-				<div class="notice notice-warning" style="max-width:700px;margin-top:20px;">
-					<p><?php esc_html_e( 'Could not load pitch data from the PressNative Registry. Ensure the Registry is running.', 'pressnative-apps' ); ?></p>
-				</div>
-			<?php else : ?>
-
-			<?php if ( ! empty( $pitch['headline'] ) ) : ?>
-				<h2 style="margin-top:28px;"><?php echo esc_html( $pitch['headline'] ); ?></h2>
-			<?php endif; ?>
-
-			<?php if ( ! empty( $pitch['slides'] ) && is_array( $pitch['slides'] ) ) : ?>
-				<div class="pressnative-growth-grid">
-					<?php foreach ( $pitch['slides'] as $slide ) : ?>
-						<div class="pressnative-growth-card">
-							<?php if ( ! empty( $slide['tag'] ) ) : ?>
-								<span class="tag"><?php echo esc_html( $slide['tag'] ); ?></span>
-							<?php endif; ?>
-							<?php if ( ! empty( $slide['stat'] ) ) : ?>
-								<div class="stat"><?php echo esc_html( $slide['stat'] ); ?></div>
-								<?php if ( ! empty( $slide['stat_label'] ) ) : ?>
-									<div class="stat-label"><?php echo esc_html( $slide['stat_label'] ); ?></div>
-								<?php endif; ?>
-							<?php endif; ?>
-							<h3><?php echo esc_html( $slide['headline'] ?? '' ); ?></h3>
-							<p><?php echo esc_html( $slide['description'] ?? '' ); ?></p>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			<?php endif; ?>
-
-			<?php if ( ! empty( $pitch['benefits'] ) && is_array( $pitch['benefits'] ) ) : ?>
-				<h2 style="margin-top:32px;"><?php esc_html_e( 'Native Advantages', 'pressnative-apps' ); ?></h2>
-				<div class="pressnative-benefit-grid">
-					<?php
-					$icon_map = array(
-						'bolt'        => "\u{26A1}",   // ⚡
-						'fingerprint' => "\u{1F512}",  // 🔒
-						'wifi'        => "\u{1F4F6}",  // 📶
-						'palette'     => "\u{1F3A8}",  // 🎨
-					);
-					foreach ( $pitch['benefits'] as $benefit ) :
-						$icon_char = isset( $icon_map[ $benefit['icon'] ?? '' ] ) ? $icon_map[ $benefit['icon'] ] : "\u{2605}"; // ★
-						?>
-						<div class="pressnative-benefit-card">
-							<div class="pressnative-benefit-icon"><?php echo esc_html( $icon_char ); ?></div>
-							<h4><?php echo esc_html( $benefit['title'] ?? '' ); ?></h4>
-							<p><?php echo esc_html( $benefit['description'] ?? '' ); ?></p>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			<?php endif; ?>
-
-			<?php if ( ! $is_pro && ! empty( $pitch['cta'] ) ) : ?>
-				<div class="pressnative-cta-banner">
-					<div>
-						<h3><?php echo esc_html( $pitch['cta']['label'] ?? __( 'Upgrade to Native Pro', 'pressnative-apps' ) ); ?></h3>
-						<p><?php echo esc_html( $pitch['cta']['description'] ?? '' ); ?></p>
-					</div>
-					<a href="<?php echo esc_url( $pitch['cta']['url'] ?? 'https://pressnative.app/#pricing' ); ?>" class="button" target="_blank" rel="noopener noreferrer">
-						<?php esc_html_e( 'Learn More', 'pressnative-apps' ); ?>
-					</a>
-				</div>
-			<?php endif; ?>
-
-			<?php endif; ?>
-		</div>
-		<?php
-	}
-
-	/**
 	 * Returns the configured Registry URL.
 	 * Production default is https://pressnative.app.
 	 * On localhost, uses the user-configured value (which defaults to localhost:3000 for dev).
@@ -2802,46 +2639,4 @@ class PressNative_Admin {
 		<?php
 	}
 
-	/**
-	 * Renders a premium (Pro) lock card for gating features.
-	 *
-	 * @param string $feature_name Display name of the gated feature.
-	 * @return void
-	 */
-	public static function render_pro_lock( $feature_name ) {
-		$feature_name = is_string( $feature_name ) ? $feature_name : __( 'This feature', 'pressnative-apps' );
-		$portal_url   = 'https://pressnative.app/partner-portal';
-		?>
-		<div class="pressnative-pro-lock" style="position:relative;max-width:100%;padding:20px;background:linear-gradient(135deg, rgba(255,255,255,.92) 0%, rgba(248,249,250,.95) 100%);border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.06);opacity:.92;">
-			<div style="display:flex;align-items:flex-start;gap:12px;">
-				<span class="dashicons dashicons-lock" style="color:#8c8f94;font-size:24px;width:24px;height:24px;flex-shrink:0;"></span>
-				<div>
-					<p style="margin:0 0 12px;color:#50575e;font-size:14px;">
-						<?php
-						echo esc_html(
-							sprintf(
-								/* translators: %s: feature name */
-								__( '%1$s is available on the PressNative Pro Tier.', 'pressnative-apps' ),
-								$feature_name
-							)
-						);
-						?>
-					</p>
-					<a href="<?php echo esc_url( $portal_url ); ?>" class="button button-primary" target="_blank" rel="noopener noreferrer">
-						<?php esc_html_e( 'Manage in Partner Portal', 'pressnative-apps' ); ?>
-					</a>
-				</div>
-			</div>
-		</div>
-		<?php
-	}
-}
-
-/**
- * Renders a premium (Pro) lock card for gating features. Use in admin screens to show locked Pro features.
- *
- * @param string $feature_name Display name of the gated feature (e.g. "Analytics Export").
- */
-function pressnative_render_pro_lock( $feature_name ) {
-	PressNative_Admin::render_pro_lock( $feature_name );
 }

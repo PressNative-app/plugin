@@ -49,18 +49,18 @@ jobs:
 
       - name: Verify and stage zip
         run: |
-          ZIP_PATH="$(cd .. && pwd)/pressnative.zip"
+          ZIP_PATH="$(cd .. && pwd)/pressnative-apps.zip"
           if [ ! -f "$ZIP_PATH" ]; then
             echo "::error::Plugin zip was not created at $ZIP_PATH"
             exit 1
           fi
           echo "Plugin zip created successfully"
           ls -lh "$ZIP_PATH"
-          cp "$ZIP_PATH" "$GITHUB_WORKSPACE/pressnative.zip"
+          cp "$ZIP_PATH" "$GITHUB_WORKSPACE/pressnative-apps.zip"
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pressnative-plugin
-          path: pressnative.zip
+          name: pressnative-apps-plugin
+          path: pressnative-apps.zip
           retention-days: 7

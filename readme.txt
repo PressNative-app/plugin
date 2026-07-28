@@ -44,7 +44,7 @@ This plugin is a **SaaS connector**: it connects your WordPress site to **PressN
 
 == Installation ==
 
-1. Upload the `pressnative` folder to `/wp-content/plugins/`, or install via **Plugins → Add New → Upload Plugin**
+1. Upload the `pressnative-apps` folder to `/wp-content/plugins/`, or install via **Plugins → Add New → Upload Plugin**
 2. Activate the plugin through the **Plugins** menu
 3. Go to **Settings → PressNative** and click **Connect to PressNative Cloud** to link your site to your PressNative account (or enter your API key under **PressNative** in the admin menu)
 4. Configure branding under **PressNative → App Settings** and layout under **PressNative → Layout Settings**
@@ -82,13 +82,25 @@ Deactivating removes the REST API endpoints but keeps your settings. Deleting th
 
 == Changelog ==
 
+= 1.1.3 =
+* WordPress.org compliance: no external Registry contact until the site is connected
+* Removed marketing/upsell admin page and Pro lock helper
+* Cart mutations require Store API nonce; checkout uses short-lived transfer tokens
+* Removed remote Unsplash placeholder images from empty layouts
+* Aligned plugin folder/slug with text domain `pressnative-apps`
+
+= 1.1.2 =
+* Plugin Check and packaging fixes
+
+= 1.1.1 =
+* Plugin Check and i18n / coding standards fixes
+
 = 1.1.0 =
 * **SaaS Connector MVP:** Settings → PressNative page with Jetpack-style connect flow (connect button, auth catcher, disconnect)
 * **AOT on connect:** Initial sweep of top 10 posts after remote auth
-* **Premium gating helper:** `pressnative_render_pro_lock( $feature_name )` for Pro-tier feature cards
 * **WooCommerce Integration:** Native product grids, product details, shopping cart, secure checkout via Chrome Custom Tabs
 * **Shoppable Content:** Embed products in blog posts with native add-to-cart
-* **Cart Transfer:** One-time token for app-to-browser cart handoff
+* **Cart Transfer:** Short-lived token for app-to-browser cart handoff
 * **Demo Data API:** Endpoint for sample WooCommerce products
 * **Real-time Cart Updates:** Cart badge updates from embedded products
 
@@ -102,20 +114,22 @@ Deactivating removes the REST API endpoints but keeps your settings. Deleting th
 
 == Upgrade Notice ==
 
+= 1.1.3 =
+WordPress.org compliance release: connect before any cloud contact; hardened cart/checkout; no remote placeholder images.
+
 = 1.1.0 =
-SaaS connector: connect from Settings → PressNative, premium gating helper, and full WooCommerce native experience (cart, checkout, shoppable content).
+SaaS connector: connect from Settings → PressNative, and full WooCommerce native experience (cart, checkout, shoppable content).
 
 = 1.0.0 =
 Initial release of PressNative Apps.
 
 == Privacy ==
 
-This plugin connects to **PressNative Cloud** when you connect your site (Settings → PressNative) or enter an API key. The following data may be sent:
+This plugin connects to **PressNative Cloud** only after you connect your site (Settings → PressNative) or enter an API key. Until then, no data is sent to external servers. After connecting, the following data may be sent:
 
 * **Analytics events** — Content view type, resource ID/title, device type (iOS/Android)
 * **Push notification tokens** — FCM device tokens (stored locally); push requests sent to PressNative
 * **Configuration notifications** — Site URL and post/settings metadata for cache invalidation when you publish or change settings
-* **Schema verification** — Contract schema check on activation
 
 No personal visitor data is collected. Analytics are aggregated by content type.
 

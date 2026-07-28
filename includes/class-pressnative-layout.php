@@ -448,38 +448,8 @@ class PressNative_Layout {
 	 * @return array
 	 */
 	private function get_default_hero_items() {
-		$latest = $this->get_latest_posts( 1 );
-		$first_post_id = ! empty( $latest ) ? (string) $latest[0]->ID : null;
-
-		$daily_briefing = array(
-			'title'     => 'Daily Briefing',
-			'subtitle'  => 'Top stories for your city',
-			'image_url' => self::get_placeholder_url( 'hero' ),
-		);
-		if ( $first_post_id ) {
-			$daily_briefing['action'] = array(
-				'type'    => 'open_post',
-				'payload' => array( 'post_id' => $first_post_id ),
-			);
-		} else {
-			$daily_briefing['action'] = array(
-				'type'    => 'open_url',
-				'payload' => array( 'url' => home_url( '/' ) ),
-			);
-		}
-
-		return array(
-			$daily_briefing,
-			array(
-				'title'     => 'Community Spotlight',
-				'subtitle'  => 'Neighborhood updates',
-				'image_url' => self::get_placeholder_url( 'hero' ),
-				'action'    => array(
-					'type'    => 'open_category',
-					'payload' => array( 'category_id' => 'community' ),
-				),
-			),
-		);
+		// No remote placeholder images (WordPress.org guideline #7). Empty until real content exists.
+		return array();
 	}
 
 	/**
@@ -506,30 +476,7 @@ class PressNative_Layout {
 			);
 		}
 
-		if ( empty( $posts ) ) {
-			$posts = array(
-				array(
-					'post_id'       => 'post-101',
-					'title'         => 'Transit upgrades coming this spring',
-					'excerpt'       => 'City planners confirmed a new set of improvements for commuters.',
-					'thumbnail_url' => self::get_placeholder_url( 'post' ),
-					'action'        => array(
-						'type'    => 'open_post',
-						'payload' => array( 'post_id' => 'post-101' ),
-					),
-				),
-				array(
-					'post_id'       => 'post-102',
-					'title'         => 'Local markets see weekend surge',
-					'excerpt'       => 'Shoppers are returning in record numbers.',
-					'thumbnail_url' => self::get_placeholder_url( 'post' ),
-					'action'        => array(
-						'type'    => 'open_post',
-						'payload' => array( 'post_id' => 'post-102' ),
-					),
-				),
-			);
-		}
+		// No fake placeholder posts when the site has no content.
 
 		$content = array(
 			'columns' => $cols,
@@ -582,28 +529,7 @@ class PressNative_Layout {
 			}
 		}
 
-		if ( empty( $categories ) ) {
-			$categories = array(
-				array(
-					'category_id' => 'events',
-					'name'        => 'Events',
-					'icon_url'    => self::get_placeholder_url( 'category' ),
-					'action'      => array(
-						'type'    => 'open_category',
-						'payload' => array( 'category_id' => 'events' ),
-					),
-				),
-				array(
-					'category_id' => 'business',
-					'name'        => 'Business',
-					'icon_url'    => self::get_placeholder_url( 'category' ),
-					'action'      => array(
-						'type'    => 'open_category',
-						'payload' => array( 'category_id' => 'business' ),
-					),
-				),
-			);
-		}
+		// No fake placeholder categories when none exist.
 
 		$styles = $this->get_component_styles();
 		$styles['padding']['vertical'] = 12;
@@ -2353,9 +2279,7 @@ class PressNative_Layout {
 									'• Native mobile shells (Android/iOS)' . "\n" .
 									'• RESTful API with JSON schema validation' . "\n" .
 									'• Offline-first data persistence' . "\n" .
-									'• Real-time push notifications via Firebase' . "\n" .
-									'• Custom update system for premium features' . "\n" .
-									'• Freemium distribution model',
+									'• Real-time push notifications via Firebase',
 					),
 					array(
 						'id'      => 'setup',
@@ -2363,10 +2287,10 @@ class PressNative_Layout {
 						'icon'    => 'settings',
 						'content' => 'Quick setup in 5 steps:' . "\n\n" .
 									'1. Install the PressNative WordPress plugin' . "\n" .
-									'2. Configure your app branding and colors' . "\n" .
-									'3. Set up home screen layout components' . "\n" .
-									'4. Enable WooCommerce integration (optional)' . "\n" .
-									'5. Download and configure the mobile apps' . "\n\n" .
+									'2. Connect your site to PressNative Cloud (Settings → PressNative)' . "\n" .
+									'3. Configure your app branding and colors' . "\n" .
+									'4. Set up home screen layout components' . "\n" .
+									'5. Enable WooCommerce integration (optional)' . "\n\n" .
 									'For WooCommerce sites:' . "\n" .
 									'• Ensure WooCommerce Store API is enabled' . "\n" .
 									'• Configure product categories and featured products' . "\n" .
@@ -2374,16 +2298,14 @@ class PressNative_Layout {
 									'• Test the cart and checkout flow',
 					),
 					array(
-						'id'      => 'distribution',
-						'title'   => 'Plugin Distribution',
+						'id'      => 'cloud',
+						'title'   => 'PressNative Cloud',
 						'icon'    => 'info',
-						'content' => 'PressNative uses a hybrid distribution strategy:' . "\n\n" .
-									'• Lite version available on WordPress.org (GPL licensed)' . "\n" .
-									'• Premium version with full features via custom update system' . "\n" .
-									'• License key validation for premium features' . "\n" .
-									'• Automatic updates for premium users' . "\n" .
-									'• Revenue generation through premium subscriptions' . "\n" .
-									'• Maximum reach while protecting business logic',
+						'content' => 'This plugin is a SaaS connector for PressNative Cloud:' . "\n\n" .
+									'• Connect from Settings → PressNative to link your site' . "\n" .
+									'• Analytics and push notifications are provided by the cloud service' . "\n" .
+									'• The plugin code is GPL licensed and fully available' . "\n" .
+									'• Optional paid cloud features are provided by the service, not by locking plugin code',
 					),
 					array(
 						'id'      => 'support',
