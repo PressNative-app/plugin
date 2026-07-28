@@ -17,6 +17,11 @@ if ( ! defined( 'ABSPATH' ) && ! defined( 'WP_CLI' ) ) {
 $site_title   = 'PressNative';
 $site_tagline = 'Turn Your WordPress Site Into a Native Mobile App';
 
+/* ─── Placeholder image (local, no remote deps) ───────────────────────── */
+$placeholder_image = function_exists( 'plugins_url' )
+	? plugins_url( 'assets/images/placeholder-post.svg', dirname( __DIR__ ) . '/pressnative.php' )
+	: '';
+
 /* ─── Categories ────────────────────────────────────────────────────── */
 $categories = array(
 	array( 'name' => 'Featured',            'slug' => 'featured',            'description' => 'Editor\'s picks for the hero carousel' ),
@@ -374,7 +379,7 @@ $posts = array(
 
 <p>If your WordPress site has an audience worth retaining — whether that\'s 1,000 readers or 1,000,000 — a native app is no longer a luxury. It\'s the difference between renting attention in a browser and owning the relationship on a home screen.</p>',
 		'cats'    => array( 'featured', 'mobile-strategy' ),
-		'image'   => 'https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'Push Notifications: The Engagement Channel You\'re Ignoring',
@@ -411,7 +416,7 @@ $posts = array(
 
 <p>Your readers installed your app because they value your content. Push notifications are how you honor that relationship with timely, relevant delivery.</p>',
 		'cats'    => array( 'featured', 'mobile-strategy' ),
-		'image'   => 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'Mobile-First vs. Mobile-Friendly: Why the Distinction Matters',
@@ -445,7 +450,7 @@ $posts = array(
 
 <p>Your readers get an app that feels like it belongs on their phone. You get to keep publishing in WordPress. That\'s what mobile-first looks like for publishers in 2026.</p>',
 		'cats'    => array( 'mobile-strategy' ),
-		'image'   => 'https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => '5 Metrics That Prove Your Readers Want an App',
@@ -476,7 +481,7 @@ $posts = array(
 
 <p>If three or more of these signals are present, your audience is telling you something. They want your content on their terms — fast, native, and always accessible from their home screen. The question isn\'t whether to launch an app. It\'s how soon.</p>',
 		'cats'    => array( 'mobile-strategy', 'industry-insights' ),
-		'image'   => 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800',
+		'image'   => $placeholder_image,
 	),
 
 	/* ── Case Studies ─────────────────────────────────────────────── */
@@ -511,7 +516,7 @@ $posts = array(
 
 <p>"The app didn\'t change what we publish," Dean said. "It changed how our readers experience it. Same stories, same WordPress workflow, completely different relationship with our audience."</p>',
 		'cats'    => array( 'featured', 'case-studies' ),
-		'image'   => 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'From Blog to App: A Food Blogger\'s Journey to 50,000 Downloads',
@@ -549,7 +554,7 @@ $posts = array(
 
 <p>"Don\'t wait until you have a million readers. If people come back to your site regularly, they\'ll download an app. The bar is lower than you think — they just need a reason. Push notifications are that reason."</p>',
 		'cats'    => array( 'featured', 'case-studies' ),
-		'image'   => 'https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'How a Church Community Stayed Connected Through Their App',
@@ -581,7 +586,7 @@ $posts = array(
 
 <p>For organizations that run on community — churches, clubs, local nonprofits — a native app isn\'t about technology. It\'s about connection.</p>',
 		'cats'    => array( 'case-studies' ),
-		'image'   => 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=800',
+		'image'   => $placeholder_image,
 	),
 
 	/* ── Product Updates ──────────────────────────────────────────── */
@@ -627,7 +632,7 @@ $posts = array(
 
 <p>We\'re excited to put this in your hands. Install the plugin and see your content in a new light.</p>',
 		'cats'    => array( 'featured', 'product-updates' ),
-		'image'   => 'https://images.unsplash.com/photo-1551650975-87deedd944c3?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'New: Real-Time Analytics Dashboard for Your App',
@@ -673,7 +678,7 @@ $posts = array(
 
 <p>The analytics dashboard is available now under PressNative → Analytics in your WordPress admin. Data begins populating as soon as users interact with your app. No configuration required.</p>',
 		'cats'    => array( 'product-updates' ),
-		'image'   => 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'Branding Customization: Make Your App Uniquely Yours',
@@ -702,7 +707,7 @@ $posts = array(
 
 <p>Every change you make is reflected in a live device frame preview showing how the app looks on both iPhone and Android. Adjust, preview, and save — your app updates on the next user launch.</p>',
 		'cats'    => array( 'product-updates' ),
-		'image'   => 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800',
+		'image'   => $placeholder_image,
 	),
 
 	/* ── Developer Resources ──────────────────────────────────────── */
@@ -774,7 +779,7 @@ $posts = array(
 
 <p>After approval, share your app links everywhere: blog posts, email signatures, social media bios, and QR codes using the <code>[pressnative_qr]</code> shortcode.</p>',
 		'cats'    => array( 'developer-resources' ),
-		'image'   => 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'Optimizing Your WordPress Content for Mobile Apps',
@@ -818,7 +823,7 @@ Less useful: "Uncategorized," "Q1 2026," "Draft Ideas"</p>
 
 <p>After configuring your layout, use the PressNative live preview in WordPress admin to see exactly how your content appears. Check the hero carousel, post grid, and individual article views on both device frames.</p>',
 		'cats'    => array( 'developer-resources' ),
-		'image'   => 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800',
+		'image'   => $placeholder_image,
 	),
 
 	/* ── Industry Insights ────────────────────────────────────────── */
@@ -854,7 +859,7 @@ Less useful: "Uncategorized," "Q1 2026," "Draft Ideas"</p>
 
 <p>The question for publishers in 2026 isn\'t "should we have an app?" It\'s "how long can we afford not to?"</p>',
 		'cats'    => array( 'featured', 'industry-insights' ),
-		'image'   => 'https://images.unsplash.com/photo-1526628953301-3e589a6a8b74?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'Why Progressive Web Apps Aren\'t Enough for Publishers',
@@ -883,7 +888,7 @@ Less useful: "Uncategorized," "Q1 2026," "Draft Ideas"</p>
 
 <p>You don\'t need to choose one or the other in theory — but you should invest where the returns are highest. For publishers, that\'s native. PressNative lets you get there without sacrificing your WordPress workflow or hiring a mobile development team.</p>',
 		'cats'    => array( 'industry-insights' ),
-		'image'   => 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800',
+		'image'   => $placeholder_image,
 	),
 	array(
 		'title'   => 'The Hidden Cost of Not Having a Mobile App',
@@ -914,7 +919,7 @@ Less useful: "Uncategorized," "Q1 2026," "Draft Ideas"</p>
 
 <p>The best time to launch was last year. The second-best time is now.</p>',
 		'cats'    => array( 'mobile-strategy', 'industry-insights' ),
-		'image'   => 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=800',
+		'image'   => $placeholder_image,
 	),
 );
 

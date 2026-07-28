@@ -936,7 +936,9 @@ class PressNative_Admin {
 		$layout_settings = ( $hook_suffix === 'pressnative_page_pressnative-layout-settings' );
 		$analytics_page  = ( $hook_suffix === 'pressnative_page_pressnative-analytics' );
 		$push_page       = ( $hook_suffix === 'pressnative_page_pressnative-push' );
-		if ( ! $app_settings && ! $layout_settings && ! $analytics_page && ! $push_page ) {
+		$main_page       = ( $hook_suffix === 'toplevel_page_pressnative' );
+		$is_pressnative  = ( $app_settings || $layout_settings || $analytics_page || $push_page || $main_page );
+		if ( ! $is_pressnative ) {
 			return;
 		}
 
@@ -977,13 +979,21 @@ class PressNative_Admin {
 				self::get_component_order_script(),
 				'after'
 			);
+			wp_add_inline_style(
+				'pressnative-preview',
+				'.pressnative-sortable-placeholder{height:40px;background:#f0f0f1;border:2px dashed #c3c4c7;margin-bottom:6px;list-style:none;}'
+				. '.pressnative-sortable-list{list-style:none;margin:0;padding:0;}'
+				. '.pressnative-sortable-item{margin-bottom:6px;padding:8px;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;}'
+				. '.pressnative-drag-handle{cursor:move;margin-right:8px;color:#787c82;}'
+				. '.pressnative-sortable-item label{cursor:pointer;margin:0;}'
+			);
 		}
 		if ( $analytics_page ) {
 			wp_enqueue_script(
 				'chartjs',
 				plugins_url( 'assets/js/vendor/chart.umd.min.js', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
 				array(),
-				'4.4.1',
+				'4.5.1',
 				true
 			);
 			$analytics_js = PRESSNATIVE_PLUGIN_DIR . 'assets/js/analytics-dashboard.js';
@@ -1029,6 +1039,35 @@ class PressNative_Admin {
 				'after'
 			);
 		}
+
+		// WooCommerce seed demo notice script (when notice may be shown).
+		if ( class_exists( 'WooCommerce' ) && current_user_can( 'manage_woocommerce' ) ) {
+			$product_count = wp_count_posts( 'product' );
+			$show_seed_script = ! $product_count || (int) $product_count->publish <= 5;
+			if ( $show_seed_script ) {
+				wp_enqueue_script( 'jquery' );
+				wp_enqueue_script(
+					'pressnative-seed-woocommerce',
+					false,
+					array( 'jquery' ),
+					PRESSNATIVE_VERSION,
+					true
+				);
+				wp_localize_script(
+					'pressnative-seed-woocommerce',
+					'pressnativeSeed',
+					array(
+						'restUrl'    => rest_url( 'pressnative/v1/woocommerce/seed-demo' ),
+						'nonce'      => wp_create_nonce( 'wp_rest' ),
+						'loadingText' => __( 'Creating demo data...', 'pressnative-apps' ),
+					)
+				);
+				wp_add_inline_script(
+					'pressnative-seed-woocommerce',
+					'jQuery(function($){$("#pressnative-seed-woocommerce").on("click",function(){var b=$(this),o=b.text(),l=(pressnativeSeed&&pressnativeSeed.loadingText)||"Creating demo data...";b.prop("disabled",true).text(l);$.ajax({url:(pressnativeSeed&&pressnativeSeed.restUrl)||"",method:"POST",beforeSend:function(xhr){xhr.setRequestHeader("X-WP-Nonce",(pressnativeSeed&&pressnativeSeed.nonce)||"");},success:function(r){var m="Demo data created successfully!";if(r.categories_created||r.products_created||r.posts_created){m+=" Created: "+(r.categories_created||0)+" categories, "+(r.products_created||0)+" products, "+(r.posts_created||0)+" posts.";}if(r.errors&&r.errors.length){m+=" Some errors occurred: "+r.errors.join(", ");}alert(m);$("#pressnative-woocommerce-seed-notice").fadeOut();},error:function(x,s,e){alert("Error creating demo data: "+(x.responseJSON?x.responseJSON.message:e));b.prop("disabled",false).text(o);}});});});'
+				);
+			}
+		}
 	}
 
 	/**
@@ -1064,6 +1103,7 @@ class PressNative_Admin {
 		});
 		";
 	}
+
 
 	/**
 	 * Inline script for logo upload (WP Media Library).
@@ -1790,25 +1830,24 @@ class PressNative_Admin {
 							<label><?php esc_html_e( 'Component Order', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
-							<style>.pressnative-sortable-placeholder{height:40px;background:#f0f0f1;border:2px dashed #c3c4c7;margin-bottom:6px;list-style:none;}</style>
 							<p class="description"><?php esc_html_e( 'Drag to reorder. Uncheck to hide a component.', 'pressnative-apps' ); ?></p>
 							<input type="hidden" id="pressnative-component-order-value"
 								   name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_ENABLED_COMPONENTS ); ?>"
 								   value="<?php echo esc_attr( implode( ',', $enabled_comp ) ); ?>" />
-							<ul id="pressnative-component-order" style="list-style:none;margin:0;padding:0;">
+							<ul id="pressnative-component-order" class="pressnative-sortable-list">
 								<?php foreach ( $enabled_comp as $cid ) : ?>
-									<li style="margin-bottom:6px;padding:8px;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;">
-										<span class="pressnative-drag-handle" style="cursor:move;margin-right:8px;color:#787c82;">&#9776;</span>
-										<label style="cursor:pointer;margin:0;">
+									<li class="pressnative-sortable-item">
+										<span class="pressnative-drag-handle" aria-hidden="true">&#9776;</span>
+										<label>
 											<input type="checkbox" value="<?php echo esc_attr( $cid ); ?>" checked="checked" />
 											<?php echo esc_html( $component_labels[ $cid ] ?? $cid ); ?>
 										</label>
 									</li>
 								<?php endforeach; ?>
 								<?php foreach ( array_diff( PressNative_Layout_Options::COMPONENT_IDS, $enabled_comp ) as $cid ) : ?>
-									<li style="margin-bottom:6px;padding:8px;background:#f6f7f7;border:1px solid #c3c4c7;border-radius:4px;">
-										<span class="pressnative-drag-handle" style="cursor:move;margin-right:8px;color:#787c82;">&#9776;</span>
-										<label style="cursor:pointer;margin:0;">
+									<li class="pressnative-sortable-item">
+										<span class="pressnative-drag-handle" aria-hidden="true">&#9776;</span>
+										<label>
 											<input type="checkbox" value="<?php echo esc_attr( $cid ); ?>" />
 											<?php echo esc_html( $component_labels[ $cid ] ?? $cid ); ?>
 										</label>
@@ -2589,7 +2628,7 @@ class PressNative_Admin {
 				<?php esc_html_e( 'Populate your WooCommerce store with demo products and shoppable blog posts to test the native app integration.', 'pressnative-apps' ); ?>
 			</p>
 			<p>
-				<button type="button" class="button button-primary" id="pressnative-seed-woocommerce" data-loading-text="<?php esc_attr_e( 'Creating demo data...', 'pressnative-apps' ); ?>">
+				<button type="button" class="button button-primary" id="pressnative-seed-woocommerce">
 					<?php esc_html_e( 'Create Demo Data', 'pressnative-apps' ); ?>
 				</button>
 				<button type="button" class="notice-dismiss" onclick="document.getElementById('pressnative-woocommerce-seed-notice').style.display='none';">
@@ -2597,41 +2636,6 @@ class PressNative_Admin {
 				</button>
 			</p>
 		</div>
-		<script>
-		jQuery(document).ready(function($) {
-			$('#pressnative-seed-woocommerce').on('click', function() {
-				var $btn = $(this);
-				var originalText = $btn.text();
-				var loadingText = $btn.data('loading-text');
-				
-				$btn.prop('disabled', true).text(loadingText);
-				
-				$.ajax({
-					url: '<?php echo esc_url( rest_url( 'pressnative/v1/woocommerce/seed-demo' ) ); ?>',
-					method: 'POST',
-					beforeSend: function(xhr) {
-						xhr.setRequestHeader('X-WP-Nonce', '<?php echo esc_js( wp_create_nonce( 'wp_rest' ) ); ?>');
-					},
-					success: function(response) {
-						var message = 'Demo data created successfully!';
-						if (response.categories_created || response.products_created || response.posts_created) {
-							message += ' Created: ' + response.categories_created + ' categories, ' + 
-								response.products_created + ' products, ' + response.posts_created + ' posts.';
-						}
-						if (response.errors && response.errors.length > 0) {
-							message += ' Some errors occurred: ' + response.errors.join(', ');
-						}
-						alert(message);
-						$('#pressnative-woocommerce-seed-notice').fadeOut();
-					},
-					error: function(xhr, status, error) {
-						alert('Error creating demo data: ' + (xhr.responseJSON ? xhr.responseJSON.message : error));
-						$btn.prop('disabled', false).text(originalText);
-					}
-				});
-			});
-		});
-		</script>
 		<?php
 	}
 

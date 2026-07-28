@@ -476,7 +476,7 @@ class PressNative_Layout {
 			);
 		}
 
-		// No fake remote placeholder posts when the site has no content.
+		// No fake placeholder posts when the site has no content.
 
 		$content = array(
 			'columns' => $cols,
@@ -529,7 +529,7 @@ class PressNative_Layout {
 			}
 		}
 
-		// No fake remote placeholder categories when none exist.
+		// No fake placeholder categories when none exist.
 
 		$styles = $this->get_component_styles();
 		$styles['padding']['vertical'] = 12;
@@ -795,13 +795,24 @@ class PressNative_Layout {
 	}
 
 	/**
+	 * URL for local placeholder images (avoids remote dependencies).
+	 *
+	 * @param string $type 'hero', 'post', or 'category'.
+	 * @return string Full URL to placeholder image.
+	 */
+	private static function get_placeholder_url( $type ) {
+		$file = 'placeholder-' . ( in_array( $type, array( 'hero', 'post', 'category' ), true ) ? $type : 'post' ) . '.svg';
+		return plugins_url( 'assets/images/' . $file, PRESSNATIVE_PLUGIN_FILE );
+	}
+
+	/**
 	 * Category icon (placeholder or term meta if available).
 	 *
 	 * @param WP_Term $term Category term.
 	 * @return string
 	 */
 	private function get_category_icon_url( $term ) {
-		return get_site_icon_url( 512 ) ?: '';
+		return get_site_icon_url( 512 ) ?: self::get_placeholder_url( 'category' );
 	}
 
 	/**
