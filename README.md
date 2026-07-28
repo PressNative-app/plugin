@@ -13,9 +13,9 @@ This plugin exposes REST endpoints that serve page layouts, content, and WooComm
 
 ## Installation
 
-1. Copy the entire plugin folder (containing `pressnative.php`) to `wp-content/plugins/pressnative/`, or install via Plugins → Add New → Upload Plugin
+1. Copy the entire plugin folder (containing `pressnative.php`) to `wp-content/plugins/pressnative-apps/`, or install via Plugins → Add New → Upload Plugin (use the zip from `scripts/build.sh`)
 2. Activate the plugin in WordPress Admin → Plugins
-3. Configure the Registry URL under PressNative → Settings
+3. Connect your site under Settings → PressNative
 4. Customize branding under PressNative → App Settings
 5. Configure home screen layout under PressNative → Layout Settings
 

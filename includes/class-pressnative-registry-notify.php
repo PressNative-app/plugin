@@ -63,22 +63,27 @@ class PressNative_Registry_Notify {
 			return;
 		}
 
+		// Always bump local settings version for cache invalidation.
+		$settings_version = PressNative_Options::increment_settings_version();
+
 		// Debug logging for WooCommerce settings
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only when debugging
 		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
 			error_log( "PressNative: WooCommerce setting updated - {$option}: {$old_value} -> {$value}" );
-			// Set a transient to show admin notice
 			set_transient( 'pressnative_cache_invalidated', array(
-				'option' => $option,
+				'option'    => $option,
 				'old_value' => $old_value,
 				'new_value' => $value,
-				'timestamp' => time()
+				'timestamp' => time(),
 			), 30 );
 		}
 
-		// Increment settings version for cache invalidation
-		$settings_version = PressNative_Options::increment_settings_version();
+		// Only contact the Registry after the site owner has connected (API key).
+		$api_key = get_option( PressNative_Admin::OPTION_API_KEY, '' );
+		if ( empty( $api_key ) ) {
+			return;
+		}
 
 		$registry_url = PressNative_Admin::get_registry_url();
 		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/config-changed';
@@ -103,7 +108,6 @@ class PressNative_Registry_Notify {
 			}
 		}
 
-		// Debug logging for WooCommerce settings
 		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
 			error_log( "PressNative: Sending cache invalidation notification for {$option} to {$url}" );
@@ -114,13 +118,14 @@ class PressNative_Registry_Notify {
 		wp_remote_post(
 			$url,
 			array(
-				'timeout'    => 5,
-				'blocking'   => false,
-				'sslverify'  => true,
-				'headers'    => array(
-					'Content-Type' => 'application/json',
+				'timeout'   => 5,
+				'blocking'  => false,
+				'sslverify' => true,
+				'headers'   => array(
+					'Content-Type'          => 'application/json',
+					'X-PressNative-API-Key' => $api_key,
 				),
-				'body'       => wp_json_encode( $body ),
+				'body'      => wp_json_encode( $body ),
 			)
 		);
 	}
@@ -143,6 +148,13 @@ class PressNative_Registry_Notify {
 		if ( self::is_woocommerce_system_page( $post ) ) {
 			return;
 		}
+
+		// Only contact the Registry after the site owner has connected (API key).
+		$api_key = get_option( PressNative_Admin::OPTION_API_KEY, '' );
+		if ( empty( $api_key ) ) {
+			return;
+		}
+
 		$registry_url = PressNative_Admin::get_registry_url();
 		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/content-changed';
 		$site_url     = home_url( '/' );
@@ -157,26 +169,27 @@ class PressNative_Registry_Notify {
 		}
 
 		$body = array(
-			'site_url'        => $site_url,
-			'post_id'         => $post->ID,
-			'post_type'       => $post->post_type,
-			'slug'            => $post->post_name,
-			'title'           => get_the_title( $post ),
-			'excerpt'         => has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( $post->post_content, 30 ),
-			'link'            => get_permalink( $post ),
-			'thumbnail_url'   => $thumbnail_url,
+			'site_url'      => $site_url,
+			'post_id'       => $post->ID,
+			'post_type'     => $post->post_type,
+			'slug'          => $post->post_name,
+			'title'         => get_the_title( $post ),
+			'excerpt'       => has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( $post->post_content, 30 ),
+			'link'          => get_permalink( $post ),
+			'thumbnail_url' => $thumbnail_url,
 		);
 
 		wp_remote_post(
 			$url,
 			array(
-				'timeout'    => 5,
-				'blocking'   => false,
-				'sslverify'  => true,
-				'headers'    => array(
-					'Content-Type' => 'application/json',
+				'timeout'   => 5,
+				'blocking'  => false,
+				'sslverify' => true,
+				'headers'   => array(
+					'Content-Type'          => 'application/json',
+					'X-PressNative-API-Key' => $api_key,
 				),
-				'body'       => wp_json_encode( $body ),
+				'body'      => wp_json_encode( $body ),
 			)
 		);
 	}

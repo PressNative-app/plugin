@@ -26,7 +26,8 @@ jobs:
       - name: Build / Package
         run: |
           VER="${{ steps.version.outputs.version }}"
-          mkdir -p pressnative
+          SLUG="pressnative-apps"
+          mkdir -p "$SLUG"
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
@@ -41,18 +42,19 @@ jobs:
             --exclude='test-*.php' \
             --exclude='scripts' \
             --exclude='tests' \
-            . pressnative/
+            --exclude='README.md' \
+            . "$SLUG"/
           # Inject release version into built files (source of truth is the tag)
-          sed -i "s/^ \* Version:     [0-9.]*$/ * Version:     $VER/" pressnative/pressnative.php
-          sed -i "s/define( 'PRESSNATIVE_VERSION', '[0-9.]*' );/define( 'PRESSNATIVE_VERSION', '$VER' );/" pressnative/pressnative.php
-          sed -i "s/^Stable tag: .*/Stable tag: $VER/" pressnative/readme.txt
-          zip -r pressnative.zip pressnative
+          sed -i "s/^ \* Version:     [0-9.]*$/ * Version:     $VER/" "$SLUG/pressnative.php"
+          sed -i "s/define( 'PRESSNATIVE_VERSION', '[0-9.]*' );/define( 'PRESSNATIVE_VERSION', '$VER' );/" "$SLUG/pressnative.php"
+          sed -i "s/^Stable tag: .*/Stable tag: $VER/" "$SLUG/readme.txt"
+          zip -r pressnative-apps.zip "$SLUG"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
-          files: pressnative.zip
+          files: pressnative-apps.zip
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

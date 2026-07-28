@@ -3,7 +3,7 @@
  * Plugin Name: PressNative Apps
  * Plugin URI:  https://github.com/PressNative-app/plugin
  * Description: Turn your WordPress site into a native mobile app with WooCommerce support. Serves layout, content, products, and branding via REST API to the PressNative Android and iOS apps.
- * Version:     1.1.2
+ * Version:     1.1.3
  * Author:      PressNative
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PRESSNATIVE_VERSION', '1.1.2' );
+define( 'PRESSNATIVE_VERSION', '1.1.3' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
@@ -44,11 +44,10 @@ add_action( 'init', function () {
 } );
 
 /**
- * Activation: create devices table and verify Registry schema.
+ * Activation: create devices table. Registry contact happens only after the site owner connects (API key).
  */
 register_activation_hook( __FILE__, function () {
 	PressNative_Devices::create_table();
-	PressNative_Admin::verify_registry_schema();
 
 	// Schedule async AOT warm-up so existing content is pre-compiled.
 	PressNative_AOT_Compiler::schedule_warmup();
@@ -504,7 +503,7 @@ add_action( 'rest_api_init', function () {
 						'cart_count'  => $count,
 					) );
 				},
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( 'PressNative_WooCommerce', 'permission_check_cart_mutate' ),
 				'args'                => array(
 					'product_id'   => array(
 						'required'          => true,
@@ -566,7 +565,7 @@ add_action( 'rest_api_init', function () {
 						'cart_count'  => $count,
 					) );
 				},
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( 'PressNative_WooCommerce', 'permission_check_cart_mutate' ),
 				'args'                => array(
 					'product_id' => array(
 						'required'          => true,
@@ -629,7 +628,7 @@ add_action( 'rest_api_init', function () {
 						'cart_count'  => $count,
 					) );
 				},
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( 'PressNative_WooCommerce', 'permission_check_cart_mutate' ),
 				'args'                => array(
 					'product_id' => array(
 						'required'          => true,
@@ -772,39 +771,6 @@ PressNative_AOT_Compiler::init();
 PressNative_Registry_Notify::init();
 
 /**
- * Handle app-initiated checkout with cart transfer.
- */
-add_action( 'template_redirect', function () {
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- URL param from app to transfer cart; capability not applicable
-	if ( ! isset( $_GET['pressnative_checkout'] ) ) {
-		return;
-	}
-	if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'WC' ) ) {
-		return;
-	}
-
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- validated above and used only for cart transfer
-	$raw = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout'] ) );
-	wc_load_cart();
-	WC()->cart->empty_cart();
-
-	if ( ! empty( $raw ) ) {
-		$pairs = explode( ',', $raw );
-		foreach ( $pairs as $pair ) {
-			$parts      = explode( ':', $pair );
-			$product_id = isset( $parts[0] ) ? absint( $parts[0] ) : 0;
-			$quantity   = isset( $parts[1] ) ? absint( $parts[1] ) : 1;
-			if ( $product_id > 0 && $quantity > 0 ) {
-				WC()->cart->add_to_cart( $product_id, $quantity );
-			}
-		}
-	}
-
-	wp_safe_redirect( wc_get_checkout_url() );
-	exit;
-}, 1 );
-
-/**
  * Handle checkout completion and return to app.
  */
 add_action( 'woocommerce_thankyou', function ( $order_id ) {
@@ -815,8 +781,8 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 	// Check if this checkout was initiated from the app
 	$referer = wp_get_referer();
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only check for return-to-app UI
-	$is_app_checkout = isset( $_GET['pressnative_checkout'] ) ||
-	                   ( $referer && strpos( $referer, 'pressnative_checkout=' ) !== false );
+	$is_app_checkout = isset( $_GET['pressnative_checkout_token'] ) ||
+	                   ( $referer && strpos( $referer, 'pressnative_checkout_token=' ) !== false );
 
 	if ( ! $is_app_checkout ) {
 		return;
@@ -857,8 +823,8 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 add_action( 'woocommerce_after_cart', function () {
 	$referer = wp_get_referer();
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only check for return-to-app link
-	$is_app_context = isset( $_GET['pressnative_checkout'] ) ||
-	                  ( $referer && strpos( $referer, 'pressnative_checkout=' ) !== false );
+	$is_app_context = isset( $_GET['pressnative_checkout_token'] ) ||
+	                  ( $referer && strpos( $referer, 'pressnative_checkout_token=' ) !== false );
 
 	if ( ! $is_app_context ) {
 		return;

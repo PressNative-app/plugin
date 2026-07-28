@@ -24,39 +24,147 @@ class PressNative_WooCommerce {
 	}
 
 	/**
-	 * Handle checkout from the native app.
+	 * Permission callback for cart mutation endpoints.
+	 * Requires the WooCommerce Store API nonce from shop_config (Nonce / X-WC-Store-API-Nonce header).
 	 *
-	 * The app opens: https://site.com/?pressnative_checkout=PID:QTY,PID:QTY
-	 * This hook parses the items, adds them to a fresh WC cart, and redirects
-	 * to the real checkout page. No sessions or tokens required.
+	 * @param WP_REST_Request $request Request.
+	 * @return true|WP_Error
+	 */
+	public static function permission_check_cart_mutate( $request ) {
+		$nonce = $request->get_header( 'Nonce' );
+		if ( empty( $nonce ) ) {
+			$nonce = $request->get_header( 'X-WC-Store-API-Nonce' );
+		}
+		if ( empty( $nonce ) ) {
+			$nonce = $request->get_param( 'store_api_nonce' );
+		}
+		$nonce = is_string( $nonce ) ? sanitize_text_field( $nonce ) : '';
+		if ( '' === $nonce || ! wp_verify_nonce( $nonce, 'wc_store_api' ) ) {
+			return new WP_Error(
+				'pressnative_cart_forbidden',
+				__( 'Valid cart nonce required.', 'pressnative-apps' ),
+				array( 'status' => 403 )
+			);
+		}
+		return true;
+	}
+
+	/**
+	 * Create a short-lived checkout transfer token for the given cart items.
+	 *
+	 * @param array $items List of array{ product_id: int, quantity: int }.
+	 * @return string Token string.
+	 */
+	public static function create_checkout_token( array $items ) {
+		$token = wp_generate_password( 32, false, false );
+		$clean = array();
+		foreach ( $items as $item ) {
+			$product_id = isset( $item['product_id'] ) ? absint( $item['product_id'] ) : 0;
+			$quantity   = isset( $item['quantity'] ) ? absint( $item['quantity'] ) : 0;
+			if ( $product_id > 0 && $quantity > 0 ) {
+				$clean[] = array(
+					'product_id' => $product_id,
+					'quantity'   => $quantity,
+				);
+			}
+		}
+		set_transient( 'pressnative_co_' . $token, $clean, 10 * MINUTE_IN_SECONDS );
+		return $token;
+	}
+
+	/**
+	 * Handle checkout from the native app via a short-lived signed token.
+	 *
+	 * The app requests POST /cart/checkout-token (with Store API nonce), then opens:
+	 * https://site.com/?pressnative_checkout_token=TOKEN
 	 */
 	public static function handle_app_checkout() {
-		if ( ! isset( $_GET['pressnative_checkout'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- one-time transfer token looked up server-side
+		if ( empty( $_GET['pressnative_checkout_token'] ) ) {
 			return;
 		}
 		if ( ! self::is_active() ) {
 			return;
 		}
 
-		$raw = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- validated via transient lookup
+		$token = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout_token'] ) );
+		if ( '' === $token || strlen( $token ) > 64 ) {
+			return;
+		}
+
+		$key   = 'pressnative_co_' . $token;
+		$items = get_transient( $key );
+		delete_transient( $key );
+
+		if ( ! is_array( $items ) ) {
+			wp_die(
+				esc_html__( 'This checkout link has expired. Please return to the app and try again.', 'pressnative-apps' ),
+				esc_html__( 'Checkout expired', 'pressnative-apps' ),
+				array( 'response' => 403 )
+			);
+		}
 
 		wc_load_cart();
 		WC()->cart->empty_cart();
 
-		if ( ! empty( $raw ) ) {
-			$pairs = explode( ',', $raw );
-			foreach ( $pairs as $pair ) {
-				$parts      = explode( ':', $pair );
-				$product_id = isset( $parts[0] ) ? absint( $parts[0] ) : 0;
-				$quantity   = isset( $parts[1] ) ? absint( $parts[1] ) : 1;
-				if ( $product_id > 0 && $quantity > 0 ) {
-					WC()->cart->add_to_cart( $product_id, $quantity );
+		foreach ( $items as $item ) {
+			$product_id = isset( $item['product_id'] ) ? absint( $item['product_id'] ) : 0;
+			$quantity   = isset( $item['quantity'] ) ? absint( $item['quantity'] ) : 0;
+			if ( $product_id > 0 && $quantity > 0 ) {
+				WC()->cart->add_to_cart( $product_id, $quantity );
+			}
+		}
+
+		$checkout_url = add_query_arg( 'pressnative_checkout_token', '1', wc_get_checkout_url() );
+		wp_safe_redirect( $checkout_url );
+		exit;
+	}
+
+	/**
+	 * REST: create a checkout transfer URL from cart items (requires Store API nonce).
+	 *
+	 * @param WP_REST_Request $request Request with optional items[]; otherwise uses WC cart.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function handle_create_checkout_token( $request ) {
+		if ( ! self::is_active() || ! function_exists( 'WC' ) ) {
+			return new WP_Error( 'woocommerce_unavailable', __( 'WooCommerce not available', 'pressnative-apps' ), array( 'status' => 503 ) );
+		}
+
+		$items = $request->get_param( 'items' );
+		if ( ! is_array( $items ) || empty( $items ) ) {
+			if ( ! WC()->cart ) {
+				wc_load_cart();
+				if ( method_exists( WC()->cart, 'get_cart_from_session' ) ) {
+					WC()->cart->get_cart_from_session();
+				}
+			}
+			$items = array();
+			if ( WC()->cart ) {
+				foreach ( WC()->cart->get_cart() as $cart_item ) {
+					$items[] = array(
+						'product_id' => (int) $cart_item['product_id'],
+						'quantity'   => (int) $cart_item['quantity'],
+					);
 				}
 			}
 		}
 
-		wp_safe_redirect( wc_get_checkout_url() );
-		exit;
+		if ( empty( $items ) ) {
+			return new WP_Error( 'empty_cart', __( 'No cart items to check out.', 'pressnative-apps' ), array( 'status' => 400 ) );
+		}
+
+		$token = self::create_checkout_token( $items );
+		$url   = add_query_arg( 'pressnative_checkout_token', rawurlencode( $token ), home_url( '/' ) );
+
+		return rest_ensure_response(
+			array(
+				'ok'           => true,
+				'checkout_url' => $url,
+				'expires_in'   => 600,
+			)
+		);
 	}
 
 	/**
@@ -67,7 +175,6 @@ class PressNative_WooCommerce {
 			return;
 		}
 
-		// Seed demo data endpoint
 		register_rest_route(
 			'pressnative/v1',
 			'/woocommerce/seed-demo',
@@ -77,6 +184,22 @@ class PressNative_WooCommerce {
 				'permission_callback' => function () {
 					return current_user_can( 'manage_woocommerce' );
 				},
+			)
+		);
+
+		register_rest_route(
+			'pressnative/v1',
+			'/cart/checkout-token',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'handle_create_checkout_token' ),
+				'permission_callback' => array( __CLASS__, 'permission_check_cart_mutate' ),
+				'args'                => array(
+					'items' => array(
+						'required' => false,
+						'type'     => 'array',
+					),
+				),
 			)
 		);
 	}
@@ -140,7 +263,7 @@ class PressNative_WooCommerce {
 
 	/**
 	 * Get checkout URL for the site.
-	 * The app builds the actual checkout URL with ?pressnative_checkout=ID:QTY,ID:QTY to transfer cart and redirect here.
+	 * Apps should obtain a transfer URL via POST /cart/checkout-token (requires Store API nonce).
 	 *
 	 * @return string
 	 */
