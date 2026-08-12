@@ -404,6 +404,40 @@ class PressNative_Admin {
 			)
 		);
 
+		register_setting(
+			'pressnative_commerce_settings',
+			PressNative_Cart_Recovery::OPTION_ENABLED,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => function ( $v ) {
+					return '0' === (string) $v ? '0' : '1';
+				},
+				'default'           => '1',
+			)
+		);
+		register_setting(
+			'pressnative_commerce_settings',
+			PressNative_Cart_Recovery::OPTION_DELAY_MINUTES,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => function ( $v ) {
+					return max( 15, min( 24 * 60, absint( $v ) ) );
+				},
+				'default'           => 60,
+			)
+		);
+		register_setting(
+			'pressnative_commerce_settings',
+			PressNative_Cart_Recovery::OPTION_BACK_IN_STOCK_ENABLED,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => function ( $v ) {
+					return '0' === (string) $v ? '0' : '1';
+				},
+				'default'           => '1',
+			)
+		);
+
 		// Product Display Settings (WooCommerce)
 		register_setting(
 			'pressnative_app_settings',
@@ -2122,6 +2156,7 @@ class PressNative_Admin {
 
 				<!-- Notification Preferences Section -->
 				<?php self::render_notification_preferences_section(); ?>
+				<?php self::render_cart_recovery_section(); ?>
 
 			<?php endif; ?>
 		</div>
@@ -2221,6 +2256,61 @@ class PressNative_Admin {
 				</table>
 
 				<?php submit_button( __( 'Save Notification Preferences', 'pressnative-apps' ) ); ?>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Cart recovery and back-in-stock settings for store owners.
+	 *
+	 * @return void
+	 */
+	private static function render_cart_recovery_section() {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return;
+		}
+		$enabled       = get_option( PressNative_Cart_Recovery::OPTION_ENABLED, '1' );
+		$delay         = PressNative_Cart_Recovery::get_delay_minutes();
+		$back_in_stock = get_option( PressNative_Cart_Recovery::OPTION_BACK_IN_STOCK_ENABLED, '1' );
+		?>
+		<div style="margin-top: 40px; padding: 20px; background: #fff; border: 1px solid #c3c4c7; max-width: 600px;">
+			<h2 style="margin-top: 0;"><?php esc_html_e( 'Cart Recovery', 'pressnative-apps' ); ?></h2>
+			<p class="description" style="margin-bottom: 20px;">
+				<?php esc_html_e( 'Remind the device that added items to the cart if checkout is not completed. App users can opt out via the Cart reminders toggle. Back-in-stock alerts go to all subscribers who enabled Product Updates.', 'pressnative-apps' ); ?>
+			</p>
+			<form method="post" action="options.php">
+				<?php settings_fields( 'pressnative_commerce_settings' ); ?>
+				<table class="form-table" style="margin-top: 0;">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Abandoned cart reminders', 'pressnative-apps' ); ?></th>
+						<td>
+							<label>
+								<input type="hidden" name="<?php echo esc_attr( PressNative_Cart_Recovery::OPTION_ENABLED ); ?>" value="0" />
+								<input type="checkbox" name="<?php echo esc_attr( PressNative_Cart_Recovery::OPTION_ENABLED ); ?>" value="1" <?php checked( '1', (string) $enabled ); ?> />
+								<?php esc_html_e( 'Send a push to the abandoning device after the delay below', 'pressnative-apps' ); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Reminder delay (minutes)', 'pressnative-apps' ); ?></th>
+						<td>
+							<input type="number" min="15" max="1440" name="<?php echo esc_attr( PressNative_Cart_Recovery::OPTION_DELAY_MINUTES ); ?>" value="<?php echo esc_attr( (string) $delay ); ?>" />
+							<p class="description"><?php esc_html_e( 'Minimum 15 minutes, maximum 24 hours. Default is 60.', 'pressnative-apps' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Back in stock', 'pressnative-apps' ); ?></th>
+						<td>
+							<label>
+								<input type="hidden" name="<?php echo esc_attr( PressNative_Cart_Recovery::OPTION_BACK_IN_STOCK_ENABLED ); ?>" value="0" />
+								<input type="checkbox" name="<?php echo esc_attr( PressNative_Cart_Recovery::OPTION_BACK_IN_STOCK_ENABLED ); ?>" value="1" <?php checked( '1', (string) $back_in_stock ); ?> />
+								<?php esc_html_e( 'Notify subscribers when a product comes back in stock', 'pressnative-apps' ); ?>
+							</label>
+						</td>
+					</tr>
+				</table>
+				<?php submit_button( __( 'Save Cart Recovery Settings', 'pressnative-apps' ) ); ?>
 			</form>
 		</div>
 		<?php

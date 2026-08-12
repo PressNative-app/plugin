@@ -3,7 +3,7 @@ Contributors: pressnative
 Tags: mobile app, native app, rest api, woocommerce, server-driven ui
 Requires at least: 6.0
 Tested up to: 6.9
-Stable tag: 1.1.4
+Stable tag: 1.2.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -81,6 +81,13 @@ Deactivating removes the REST API endpoints but keeps your settings. Deleting th
 6. Push Notifications — Send notifications to app users
 
 == Changelog ==
+
+= 1.2.0 =
+* Abandoned-cart reminders target the device that added items, with a separate Cart reminders preference
+* Normalized product variations for native pickers
+* Fresh Store API nonce endpoint for cart retries
+* CartPromoBanner when the WooCommerce cart is non-empty
+* Admin Cart Recovery settings (delay, back-in-stock)
 
 = 1.1.3 =
 * WordPress.org compliance: no external Registry contact until the site is connected

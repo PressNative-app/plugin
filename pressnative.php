@@ -3,7 +3,7 @@
  * Plugin Name: PressNative Apps
  * Plugin URI:  https://github.com/PressNative-app/plugin
  * Description: Turn your WordPress site into a native mobile app with WooCommerce support. Serves layout, content, products, and branding via REST API to the PressNative Android and iOS apps.
- * Version:     1.1.4
+ * Version:     1.2.0
  * Author:      PressNative
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PRESSNATIVE_VERSION', '1.1.4' );
+define( 'PRESSNATIVE_VERSION', '1.2.0' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
@@ -34,6 +34,7 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-registry-notif
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-qr.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-sponsors.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-woocommerce.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-cart-recovery.php';
 
 /**
  * Load plugin text domain for translations (optional on WordPress.org; kept for self-hosted installs).
@@ -492,6 +493,13 @@ add_action( 'rest_api_init', function () {
 					if ( ! WC()->cart ) {
 						return new WP_Error( 'woocommerce_unavailable', 'Cart not available', array( 'status' => 503 ) );
 					}
+					$device_id = $request->get_param( 'device_id' );
+					if ( empty( $device_id ) ) {
+						$device_id = $request->get_header( 'X-Device-Id' );
+					}
+					if ( is_string( $device_id ) && '' !== $device_id && class_exists( 'PressNative_Cart_Recovery' ) ) {
+						PressNative_Cart_Recovery::bind_device( $device_id );
+					}
 					$variation_id = is_numeric( $variation_id ) ? (int) $variation_id : 0;
 					$added        = WC()->cart->add_to_cart( $product_id, $quantity, $variation_id );
 					if ( $added === false ) {
@@ -518,6 +526,10 @@ add_action( 'rest_api_init', function () {
 						'required' => false,
 						'type'     => 'integer',
 						'default'  => 1,
+					),
+					'device_id'    => array(
+						'required' => false,
+						'type'     => 'string',
 					),
 				),
 			)
@@ -772,6 +784,11 @@ PressNative_AOT_Compiler::init();
  * Notify Registry when branding/layout options are saved (invalidates site branding cache).
  */
 PressNative_Registry_Notify::init();
+
+/**
+ * WooCommerce abandoned-cart / back-in-stock push.
+ */
+PressNative_Cart_Recovery::init();
 
 /**
  * Handle checkout completion and return to app.

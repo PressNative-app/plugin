@@ -54,6 +54,7 @@ $test_preferences = array(
         'new_products' => array('enabled' => true, 'title' => 'New Products', 'description' => 'Get notified when new products are added to the store'),
         'product_updates' => array('enabled' => false, 'title' => 'Product Updates', 'description' => 'Get notified when existing products are updated'),
         'sales_promotions' => array('enabled' => false, 'title' => 'Sales & Promotions', 'description' => 'Get notified about special offers and discounts'),
+        'abandoned_cart' => array('enabled' => true, 'title' => 'Cart reminders', 'description' => 'Get reminded when you leave items in your cart'),
         'order_updates' => array('enabled' => true, 'title' => 'Order Updates', 'description' => 'Get notified about your order status changes'),
     ),
     'categories' => array(
