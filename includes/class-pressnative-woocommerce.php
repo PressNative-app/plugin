@@ -202,6 +202,30 @@ class PressNative_WooCommerce {
 				),
 			)
 		);
+
+		register_rest_route(
+			'pressnative/v1',
+			'/shop/nonce',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'handle_shop_nonce' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+	}
+
+	/**
+	 * Fresh Store API nonce so clients can retry cart mutations after 403.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function handle_shop_nonce() {
+		return rest_ensure_response(
+			array(
+				'store_api_nonce' => self::generate_cart_session_nonce(),
+				'session_token'   => self::get_session_token(),
+			)
+		);
 	}
 
 	/**
@@ -287,12 +311,14 @@ class PressNative_WooCommerce {
 		$currency = get_woocommerce_currency();
 		$symbol  = get_woocommerce_currency_symbol();
 		return array(
-			'cart_url'          => self::get_cart_url(),
-			'checkout_url'      => self::get_checkout_url(),
-			'store_api_nonce'   => self::generate_cart_session_nonce(),
-			'session_token'     => self::get_session_token(),
-			'currency'          => $currency,
-			'currency_symbol'   => $symbol,
+			'cart_url'                => self::get_cart_url(),
+			'checkout_url'            => self::get_checkout_url(),
+			'store_api_nonce'         => self::generate_cart_session_nonce(),
+			'session_token'           => self::get_session_token(),
+			'currency'                => $currency,
+			'currency_symbol'         => $symbol,
+			'supports_variations'     => true,
+			'cart_recovery_enabled'   => class_exists( 'PressNative_Cart_Recovery' ) && PressNative_Cart_Recovery::is_enabled(),
 			'product_display_preferences' => self::get_product_display_preferences(),
 		);
 	}
@@ -498,10 +524,7 @@ class PressNative_WooCommerce {
 		if ( empty( $desc ) ) {
 			$desc = $product->get_description();
 		}
-		$variations = array();
-		if ( $product->is_type( 'variable' ) && method_exists( $product, 'get_available_variations' ) ) {
-			$variations = $product->get_available_variations();
-		}
+		$variations = self::variations_to_contract( $product );
 		// Collect category names.
 		$category_names = array();
 		$terms = get_the_terms( $id, 'product_cat' );
@@ -526,6 +549,54 @@ class PressNative_WooCommerce {
 			),
 			'variations'          => $variations,
 		);
+	}
+
+	/**
+	 * Normalize WooCommerce variations into a client-friendly contract shape.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @return array
+	 */
+	private static function variations_to_contract( $product ) {
+		if ( ! $product->is_type( 'variable' ) || ! method_exists( $product, 'get_available_variations' ) ) {
+			return array();
+		}
+		$raw = $product->get_available_variations();
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $raw as $variation ) {
+			if ( ! is_array( $variation ) ) {
+				continue;
+			}
+			$attributes = array();
+			if ( ! empty( $variation['attributes'] ) && is_array( $variation['attributes'] ) ) {
+				foreach ( $variation['attributes'] as $key => $value ) {
+					$attr_name = str_replace( 'attribute_', '', (string) $key );
+					$label     = function_exists( 'wc_attribute_label' ) ? wc_attribute_label( $attr_name ) : $attr_name;
+					$attributes[ $label ] = (string) $value;
+				}
+			}
+			$image_url = '';
+			if ( ! empty( $variation['image']['src'] ) ) {
+				$image_url = (string) $variation['image']['src'];
+			} elseif ( ! empty( $variation['image']['url'] ) ) {
+				$image_url = (string) $variation['image']['url'];
+			}
+			$display_price = isset( $variation['display_price'] ) ? $variation['display_price'] : ( isset( $variation['display_regular_price'] ) ? $variation['display_regular_price'] : 0 );
+			$price_html    = isset( $variation['price_html'] ) ? $variation['price_html'] : '';
+			$price         = $price_html ? self::strip_price_html( $price_html ) : ( function_exists( 'wc_price' ) ? self::strip_price_html( wc_price( $display_price ) ) : (string) $display_price );
+			$out[]         = array(
+				'variation_id' => isset( $variation['variation_id'] ) ? (int) $variation['variation_id'] : 0,
+				'attributes'   => $attributes,
+				'price'        => $price,
+				'price_raw'    => is_numeric( $display_price ) ? (float) $display_price : 0,
+				'in_stock'     => ! empty( $variation['is_in_stock'] ),
+				'image_url'    => $image_url,
+			);
+		}
+		return $out;
 	}
 
 	/**

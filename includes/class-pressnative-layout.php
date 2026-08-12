@@ -374,8 +374,71 @@ class PressNative_Layout {
 	private function inject_shop_config( $layout ) {
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
 			$layout['shop_config'] = PressNative_WooCommerce::get_shop_config();
+			$layout = $this->maybe_prepend_cart_promo_banner( $layout );
 		}
 		return $layout;
+	}
+
+	/**
+	 * Prepend a CartPromoBanner when the WooCommerce session cart is non-empty.
+	 *
+	 * @param array $layout Layout array.
+	 * @return array
+	 */
+	private function maybe_prepend_cart_promo_banner( $layout ) {
+		$banner = $this->build_cart_promo_banner();
+		if ( ! $banner ) {
+			return $layout;
+		}
+		if ( ! isset( $layout['components'] ) || ! is_array( $layout['components'] ) ) {
+			$layout['components'] = array();
+		}
+		foreach ( $layout['components'] as $component ) {
+			if ( isset( $component['type'] ) && 'CartPromoBanner' === $component['type'] ) {
+				return $layout;
+			}
+		}
+		array_unshift( $layout['components'], $banner );
+		return $layout;
+	}
+
+	/**
+	 * CartPromoBanner component when the current WC cart has items.
+	 *
+	 * @return array|null
+	 */
+	private function build_cart_promo_banner() {
+		if ( ! PressNative_WooCommerce::is_active() || ! function_exists( 'WC' ) ) {
+			return null;
+		}
+		if ( ! WC()->cart ) {
+			if ( function_exists( 'wc_load_cart' ) ) {
+				wc_load_cart();
+			}
+		}
+		if ( ! WC()->cart || WC()->cart->is_empty() ) {
+			return null;
+		}
+		$count = (int) WC()->cart->get_cart_contents_count();
+		if ( $count < 1 ) {
+			return null;
+		}
+		$message = sprintf(
+			/* translators: %d: number of cart items */
+			_n( 'You have %d item in your cart', 'You have %d items in your cart', $count, 'pressnative-apps' ),
+			$count
+		);
+		return array(
+			'id'      => 'cart-promo-banner',
+			'type'    => 'CartPromoBanner',
+			'styles'  => $this->get_component_styles(),
+			'content' => array(
+				'item_count'                 => $count,
+				'message'                    => $message,
+				'open_cart_action'           => array( 'type' => 'open_cart', 'payload' => array() ),
+				'proceed_to_checkout_action' => array( 'type' => 'proceed_to_checkout', 'payload' => array() ),
+			),
+		);
 	}
 
 	/**
