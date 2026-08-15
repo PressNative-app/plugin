@@ -146,7 +146,8 @@ graph TD
     Components --> CL["CategoryList<br/>Browsable categories"]
     Components --> PL["PageList<br/>Static pages"]
     Components --> SB["ShortcodeBlock<br/>Native shortcode rendering"]
-    Components --> AD["AdPlacement<br/>Ad slot placeholder"]
+    Components --> BS["BlockSponsor<br/>Native sponsorship banner"]
+    Components --> NM["NavMenu<br/>WP menu chip row"]
 ```
 
 ### Contract JSON Example

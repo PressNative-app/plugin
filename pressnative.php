@@ -2,7 +2,7 @@
 /**
  * Plugin Name: PressNative Apps
  * Plugin URI:  https://github.com/PressNative-app/plugin
- * Description: Turn your WordPress site into a native mobile app with WooCommerce support. Serves layout, content, products, and branding via REST API to the PressNative Android and iOS apps.
+ * Description: Native iOS & Android apps from WordPress — not a WebView. Publish once; own the lock screen. WooCommerce, push, Hub.
  * Version:     1.2.0
  * Author:      PressNative
  * License:     GPL-2.0-or-later
@@ -22,6 +22,7 @@ define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-options.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout-options.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-http-cache.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-dom-parser.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-aot-compiler.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-shortcodes.php';
@@ -34,6 +35,8 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-registry-notif
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-qr.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-sponsors.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-woocommerce.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-launch-kits.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-editorial-push.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-cart-recovery.php';
 
 /**
@@ -79,7 +82,7 @@ add_action( 'rest_api_init', function () {
 				$data     = $layout->get_home_layout();
 				$response = rest_ensure_response( $data );
 				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
-				$response->header( 'Last-Updated', gmdate( 'c' ) );
+				$response = PressNative_Http_Cache::apply( $request, $response, $data );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 					$device_id = $request->get_param( 'device_id' );
 					PressNative_Analytics::forward_event_to_registry( 'home', 'home', get_bloginfo( 'name' ), null, $device_id );
@@ -107,6 +110,7 @@ add_action( 'rest_api_init', function () {
 				$data     = $layout->get_posts_list_layout( $page, $per_page );
 				$response = rest_ensure_response( $data );
 				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+				$response = PressNative_Http_Cache::apply( $request, $response, $data );
 				return $response;
 			},
 			'permission_callback' => '__return_true',
@@ -144,7 +148,11 @@ add_action( 'rest_api_init', function () {
 				if ( ! $data ) {
 					return new WP_Error( 'not_found', 'Post not found', array( 'status' => 404 ) );
 				}
+				$post     = get_post( $post_id );
+				$modified = ( $post instanceof WP_Post ) ? $post->post_modified_gmt : null;
 				$response = rest_ensure_response( $data );
+				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+				$response = PressNative_Http_Cache::apply( $request, $response, $data, $modified );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : get_the_title( $post_id );
 					$device_id = $request->get_param( 'device_id' );
@@ -167,7 +175,11 @@ add_action( 'rest_api_init', function () {
 				if ( ! $data ) {
 					return new WP_Error( 'not_found', 'Page not found', array( 'status' => 404 ) );
 				}
-				$response = rest_ensure_response( $data );
+				$page_post = get_page_by_path( $slug );
+				$modified  = ( $page_post instanceof WP_Post ) ? $page_post->post_modified_gmt : null;
+				$response  = rest_ensure_response( $data );
+				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+				$response = PressNative_Http_Cache::apply( $request, $response, $data, $modified );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
 					$device_id = $request->get_param( 'device_id' );
@@ -190,6 +202,8 @@ add_action( 'rest_api_init', function () {
 					return new WP_Error( 'not_found', 'Category not found', array( 'status' => 404 ) );
 				}
 				$response = rest_ensure_response( $data );
+				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+				$response = PressNative_Http_Cache::apply( $request, $response, $data );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 					$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
 					$device_id = $request->get_param( 'device_id' );
@@ -214,6 +228,8 @@ add_action( 'rest_api_init', function () {
 						return new WP_Error( 'not_found', 'Shop not available', array( 'status' => 404 ) );
 					}
 					$response = rest_ensure_response( $data );
+					$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+					$response = PressNative_Http_Cache::apply( $request, $response, $data );
 					if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 						$device_id = $request->get_param( 'device_id' );
 						PressNative_Analytics::forward_event_to_registry( 'shop', 'shop', isset( $data['screen']['title'] ) ? $data['screen']['title'] : 'Shop', null, $device_id );
@@ -229,15 +245,20 @@ add_action( 'rest_api_init', function () {
 			array(
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
-					$data = $layout->get_product_layout( (int) $request['id'] );
+					$product_id = (int) $request['id'];
+					$data       = $layout->get_product_layout( $product_id );
 					if ( ! $data ) {
 						return new WP_Error( 'not_found', 'Product not found', array( 'status' => 404 ) );
 					}
+					$product  = get_post( $product_id );
+					$modified = ( $product instanceof WP_Post ) ? $product->post_modified_gmt : null;
 					$response = rest_ensure_response( $data );
+					$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+					$response = PressNative_Http_Cache::apply( $request, $response, $data, $modified );
 					if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 						$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
 						$device_id = $request->get_param( 'device_id' );
-						PressNative_Analytics::forward_event_to_registry( 'product', (string) $request['id'], $title, null, $device_id );
+						PressNative_Analytics::forward_event_to_registry( 'product', (string) $product_id, $title, null, $device_id );
 					}
 					return $response;
 				},
@@ -255,6 +276,8 @@ add_action( 'rest_api_init', function () {
 						return new WP_Error( 'not_found', 'Product category not found', array( 'status' => 404 ) );
 					}
 					$response = rest_ensure_response( $data );
+					$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
+					$response = PressNative_Http_Cache::apply( $request, $response, $data );
 					if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 						$title     = isset( $data['screen']['title'] ) ? $data['screen']['title'] : '';
 						$device_id = $request->get_param( 'device_id' );
@@ -449,10 +472,10 @@ add_action( 'rest_api_init', function () {
 		array(
 			'methods'             => WP_REST_Server::READABLE,
 			'callback'            => function ( WP_REST_Request $request ) use ( $layout ) {
-				$data = $layout->get_documentation_layout();
+				$data     = $layout->get_documentation_layout();
 				$response = rest_ensure_response( $data );
 				$response->header( 'X-PressNative-Version', PRESSNATIVE_VERSION );
-				$response->header( 'Last-Updated', gmdate( 'c' ) );
+				$response = PressNative_Http_Cache::apply( $request, $response, $data );
 				if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
 					$device_id = $request->get_param( 'device_id' );
 					PressNative_Analytics::forward_event_to_registry( 'documentation', 'documentation', 'PressNative Documentation', null, $device_id );
@@ -784,6 +807,11 @@ PressNative_AOT_Compiler::init();
  * Notify Registry when branding/layout options are saved (invalidates site branding cache).
  */
 PressNative_Registry_Notify::init();
+
+/**
+ * Editorial push metabox (notify on publish).
+ */
+PressNative_Editorial_Push::init();
 
 /**
  * WooCommerce abandoned-cart / back-in-stock push.

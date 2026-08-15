@@ -34,13 +34,13 @@ class PressNative_Layout_Options {
 	const DEFAULT_PRODUCT_GRID_PER_PAGE = 12;
 
 	/** Base component IDs (always available). */
-	const BASE_COMPONENT_IDS = array( 'hero-carousel', 'post-grid', 'category-list', 'page-list' );
+	const BASE_COMPONENT_IDS = array( 'nav-menu', 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'block-sponsor' );
 
 	/** WooCommerce component IDs (only used when WooCommerce is active). */
 	const WOOCOMMERCE_COMPONENT_IDS = array( 'product-grid', 'product-category-list', 'product-carousel' );
 
 	/** All component IDs in default order. */
-	const COMPONENT_IDS = array( 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'product-grid', 'product-category-list', 'product-carousel' );
+	const COMPONENT_IDS = array( 'nav-menu', 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'block-sponsor', 'product-grid', 'product-category-list', 'product-carousel' );
 
 	/**
 	 * Featured category slug for hero carousel.

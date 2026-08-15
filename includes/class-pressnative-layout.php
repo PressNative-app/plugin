@@ -280,12 +280,65 @@ class PressNative_Layout {
 	}
 
 	/**
+	 * True when SDUI blocks include interactive HTML that needs a micro-WebView
+	 * (forms, iframes, scripts) — typical for third-party plugin UIs.
+	 *
+	 * @param array $blocks Content blocks from AOT/DOM parser.
+	 * @return bool
+	 */
+	private function blocks_need_plugin_webview( array $blocks ) {
+		foreach ( $blocks as $block ) {
+			if ( ( $block['type'] ?? '' ) !== 'BlockHtml' ) {
+				continue;
+			}
+			$html = (string) ( $block['html'] ?? '' );
+			if ( $html === '' ) {
+				continue;
+			}
+			if ( preg_match( '/<(form|iframe|input|select|textarea|script)\b/i', $html ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * For plugin-driven pages/posts, prefer a single asset-backed HTML WebView
+	 * over shredded BlockHtml text (forms lose CSS/JS when parsed to native blocks).
+	 *
+	 * @param array   $content_blocks Existing blocks.
+	 * @param string  $raw_content    Raw post_content (may already be stripped of product shortcodes).
+	 * @param WP_Post $post           Post/page.
+	 * @return array{0: array, 1: string} [ content_blocks, content_html ]
+	 */
+	private function resolve_plugin_webview_content( array $content_blocks, $raw_content, $post ) {
+		if ( ! $this->blocks_need_plugin_webview( $content_blocks ) ) {
+			$content_html = ( count( $content_blocks ) === 0 && ! empty( $raw_content ) )
+				// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
+				? apply_filters( 'the_content', $raw_content )
+				: '';
+			return array( $content_blocks, $content_html );
+		}
+
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
+		$rendered = apply_filters( 'the_content', $raw_content );
+		if ( empty( $rendered ) ) {
+			$content_html = '';
+			return array( $content_blocks, $content_html );
+		}
+
+		$wrapped = $this->wrap_content_with_assets( $rendered, $post );
+		// Empty content_blocks so clients use PostBodyHtmlFallback / full HTML WebView.
+		return array( array(), $wrapped );
+	}
+
+	/**
 	 * Returns component styles from branding theme (live from App Settings).
 	 *
 	 * @param string $surface 'base' (screen background) or 'tile' (card/tile surfaces).
 	 * @return array
 	 */
-	private function get_component_styles( $surface = 'base' ) {
+	public function get_component_styles( $surface = 'base' ) {
 		$branding = PressNative_Options::get_branding();
 		$theme   = $branding['theme'] ?? array();
 		$surface = in_array( $surface, array( 'base', 'tile' ), true ) ? $surface : 'base';
@@ -317,10 +370,12 @@ class PressNative_Layout {
 	 */
 	public function get_home_layout() {
 		$builders = array(
+			'nav-menu'       => array( $this, 'build_nav_menu' ),
 			'hero-carousel'  => array( $this, 'build_hero_carousel' ),
 			'post-grid'      => array( $this, 'build_post_grid' ),
 			'category-list'  => array( $this, 'build_category_list' ),
 			'page-list'      => array( $this, 'build_page_list' ),
+			'block-sponsor'  => array( $this, 'build_block_sponsor' ),
 		);
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
 			$builders['product-grid']          = array( $this, 'build_product_grid' );
@@ -349,7 +404,25 @@ class PressNative_Layout {
 				continue; // Already added above.
 			}
 			if ( isset( $builders[ $id ] ) ) {
-				$components[] = call_user_func( $builders[ $id ] );
+				$built = call_user_func( $builders[ $id ] );
+				if ( is_array( $built ) ) {
+					$components[] = $built;
+				}
+			}
+		}
+
+		// Always surface an active sponsor on home when one exists (even if not enabled).
+		$has_sponsor = false;
+		foreach ( $components as $c ) {
+			if ( ( $c['type'] ?? '' ) === 'BlockSponsor' ) {
+				$has_sponsor = true;
+				break;
+			}
+		}
+		if ( ! $has_sponsor ) {
+			$sponsor_comp = $this->build_block_sponsor();
+			if ( is_array( $sponsor_comp ) ) {
+				$components[] = $sponsor_comp;
 			}
 		}
 
@@ -366,12 +439,18 @@ class PressNative_Layout {
 	}
 
 	/**
-	 * Append shop_config to layout when WooCommerce is active (cart_url, checkout_url, nonce, session).
+	 * Finalize layout: top-level notification_preferences (compat: also under branding)
+	 * and shop_config when WooCommerce is active.
 	 *
 	 * @param array $layout Layout array with branding, screen, components.
 	 * @return array
 	 */
 	private function inject_shop_config( $layout ) {
+		if ( isset( $layout['branding']['notification_preferences'] ) ) {
+			$layout['notification_preferences'] = $layout['branding']['notification_preferences'];
+		} else {
+			$layout['notification_preferences'] = PressNative_Options::get_notification_preferences();
+		}
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
 			$layout['shop_config'] = PressNative_WooCommerce::get_shop_config();
 			$layout = $this->maybe_prepend_cart_promo_banner( $layout );
@@ -628,6 +707,128 @@ class PressNative_Layout {
 		}
 		$wc_slugs = array( 'shop', 'cart', 'checkout', 'my-account', 'woocommerce' );
 		return in_array( $page->post_name, $wc_slugs, true );
+	}
+
+	/**
+	 * Home-level BlockSponsor from an active sponsor CPT, or null when none.
+	 *
+	 * @return array|null
+	 */
+	private function build_block_sponsor() {
+		if ( ! class_exists( 'PressNative_Sponsors' ) ) {
+			return null;
+		}
+		$sponsor = PressNative_Sponsors::get_random_active_sponsor();
+		if ( ! is_array( $sponsor ) ) {
+			return null;
+		}
+		$content = $sponsor;
+		unset( $content['type'] );
+		$styles = $this->get_component_styles();
+		$styles['padding']['vertical'] = 8;
+		return array(
+			'id'      => 'block-sponsor',
+			'type'    => 'BlockSponsor',
+			'styles'  => $styles,
+			'content' => $content,
+		);
+	}
+
+	/**
+	 * NavMenu from the WP primary menu (or first registered / first menu).
+	 *
+	 * @return array|null
+	 */
+	private function build_nav_menu() {
+		$menu_id = 0;
+		$locations = get_nav_menu_locations();
+		if ( ! empty( $locations['primary'] ) ) {
+			$menu_id = (int) $locations['primary'];
+		} elseif ( ! empty( $locations ) ) {
+			$menu_id = (int) reset( $locations );
+		}
+		if ( $menu_id < 1 ) {
+			$menus = wp_get_nav_menus();
+			if ( ! empty( $menus ) && ! is_wp_error( $menus ) ) {
+				$menu_id = (int) $menus[0]->term_id;
+			}
+		}
+		if ( $menu_id < 1 ) {
+			return null;
+		}
+
+		$menu_items = wp_get_nav_menu_items( $menu_id );
+		if ( empty( $menu_items ) || is_wp_error( $menu_items ) ) {
+			return null;
+		}
+
+		$items = array();
+		foreach ( $menu_items as $item ) {
+			// Top-level items only (keep the chip row simple).
+			if ( (int) $item->menu_item_parent !== 0 ) {
+				continue;
+			}
+			$title = $item->title ?: '';
+			if ( '' === $title ) {
+				continue;
+			}
+			$action = $this->nav_menu_item_action( $item );
+			if ( ! $action ) {
+				continue;
+			}
+			$items[] = array(
+				'title'  => $title,
+				'url'    => $item->url ?: '',
+				'action' => $action,
+			);
+		}
+		if ( empty( $items ) ) {
+			return null;
+		}
+
+		$styles = $this->get_component_styles();
+		$styles['padding']['vertical'] = 8;
+		return array(
+			'id'      => 'nav-menu',
+			'type'    => 'NavMenu',
+			'styles'  => $styles,
+			'content' => array( 'items' => $items ),
+		);
+	}
+
+	/**
+	 * Map a WP nav menu item to a PressNative action.
+	 *
+	 * @param object $item Menu item from wp_get_nav_menu_items.
+	 * @return array|null
+	 */
+	private function nav_menu_item_action( $item ) {
+		$object = isset( $item->object ) ? (string) $item->object : '';
+		$object_id = isset( $item->object_id ) ? (int) $item->object_id : 0;
+
+		if ( 'post' === $object && $object_id > 0 ) {
+			return array(
+				'type'    => 'open_post',
+				'payload' => array( 'post_id' => (string) $object_id ),
+			);
+		}
+		if ( 'page' === $object && $object_id > 0 ) {
+			$page = get_post( $object_id );
+			$slug = ( $page && $page->post_name ) ? $page->post_name : ( 'page-' . $object_id );
+			return array(
+				'type'    => 'open_page',
+				'payload' => array( 'page_slug' => $slug ),
+			);
+		}
+
+		$url = isset( $item->url ) ? (string) $item->url : '';
+		if ( '' === $url ) {
+			return null;
+		}
+		return array(
+			'type'    => 'open_url',
+			'payload' => array( 'url' => $url ),
+		);
 	}
 
 	/**
@@ -926,11 +1127,11 @@ class PressNative_Layout {
 
 		$content_blocks = $this->inject_sponsors( $content_blocks );
 
-		// When content_blocks is empty (e.g. parser failed or classic content), send raw HTML so the app can render it in a WebView fallback.
-		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
-			? apply_filters( 'the_content', $content_source_for_html )
-			: '';
+		list( $content_blocks, $content_html ) = $this->resolve_plugin_webview_content(
+			$content_blocks,
+			$content_source_for_html,
+			$post
+		);
 		if ( ! empty( $content_html ) && ! empty( $product_ids_from_shortcodes ) ) {
 			$content_html = $this->strip_wc_product_html( $content_html, $product_ids_from_shortcodes );
 		}
@@ -1023,11 +1224,11 @@ class PressNative_Layout {
 
 		$content_blocks = $this->inject_sponsors( $content_blocks );
 
-		// When content_blocks is empty, send raw HTML so the app can render it in a WebView fallback.
-		$content_html = ( count( $content_blocks ) === 0 && ! empty( $content_source_for_html ) )
-			// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- core WordPress filter
-			? apply_filters( 'the_content', $content_source_for_html )
-			: '';
+		list( $content_blocks, $content_html ) = $this->resolve_plugin_webview_content(
+			$content_blocks,
+			$content_source_for_html,
+			$page
+		);
 		if ( ! empty( $content_html ) && ! empty( $product_ids_from_shortcodes ) ) {
 			$content_html = $this->strip_wc_product_html( $content_html, $product_ids_from_shortcodes );
 		}
@@ -2402,11 +2603,6 @@ class PressNative_Layout {
 			'components' => array( $documentation ),
 		);
 
-		// Include shop config if WooCommerce is active.
-		if ( PressNative_WooCommerce::is_active() ) {
-			return $this->inject_shop_config( $layout );
-		}
-
-		return $layout;
+		return $this->inject_shop_config( $layout );
 	}
 }

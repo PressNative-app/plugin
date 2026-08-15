@@ -52,10 +52,20 @@
 		var categoryEl = kpis.querySelector('[data-kpi="category"]');
 		var pushReceivedEl = document.querySelector('[data-kpi="push_received"]');
 		var pushClickedEl = document.querySelector('[data-kpi="push_clicked"]');
+		var pushCtrEl = document.querySelector('[data-kpi="push_ctr"]');
+		var proofScoreEl = document.querySelector('[data-kpi="proof_score"]');
 		if (favoritesEl) favoritesEl.textContent = formatNumber(summary.favorites ?? 0);
 		if (totalEl) totalEl.textContent = formatNumber(summary.total);
-		if (pushReceivedEl) pushReceivedEl.textContent = formatNumber(summary.push_received ?? 0);
-		if (pushClickedEl) pushClickedEl.textContent = formatNumber(summary.push_clicked ?? 0);
+		var pushReceived = summary.push_received ?? 0;
+		var pushClicked = summary.push_clicked ?? 0;
+		if (pushReceivedEl) pushReceivedEl.textContent = formatNumber(pushReceived);
+		if (pushClickedEl) pushClickedEl.textContent = formatNumber(pushClicked);
+		if (pushCtrEl) {
+			pushCtrEl.textContent = pushReceived > 0
+				? ((pushClicked / pushReceived) * 100).toFixed(1) + '%'
+				: '—';
+		}
+		if (proofScoreEl) proofScoreEl.textContent = formatNumber(pushReceived);
 		if (postEl) postEl.textContent = formatNumber(byType.post || 0);
 		if (pageEl) pageEl.textContent = formatNumber(byType.page || 0);
 		if (categoryEl) categoryEl.textContent = formatNumber(byType.category || 0);

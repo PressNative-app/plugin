@@ -114,13 +114,25 @@ class PressNative_Sponsors {
 	}
 
 	/**
+	 * Request-scoped cache for the random sponsor pick (avoids repeated rand queries).
+	 *
+	 * @var array|null|false false = not fetched; null = no sponsor; array = content.
+	 */
+	private static $request_sponsor_cache = false;
+
+	/**
 	 * Get one random published sponsor as a BlockSponsor content array, or null.
 	 *
 	 * Uses featured image for image_url, title for sponsor_name, and meta for click_url.
+	 * Caches one pick per PHP request so home + content injection share the same sponsor.
 	 *
 	 * @return array|null BlockSponsor content array (type, image_url, click_url, sponsor_name, height_aspect_ratio) or null.
 	 */
 	public static function get_random_active_sponsor() {
+		if ( false !== self::$request_sponsor_cache ) {
+			return self::$request_sponsor_cache;
+		}
+
 		$posts = get_posts(
 			array(
 				'post_type'      => self::POST_TYPE,
@@ -131,11 +143,13 @@ class PressNative_Sponsors {
 			)
 		);
 		if ( empty( $posts ) ) {
+			self::$request_sponsor_cache = null;
 			return null;
 		}
 		$post_id = $posts[0];
 		$url     = get_post_meta( $post_id, self::META_KEY_URL, true );
 		if ( empty( $url ) ) {
+			self::$request_sponsor_cache = null;
 			return null;
 		}
 		$thumb_id = get_post_thumbnail_id( $post_id );
@@ -147,17 +161,19 @@ class PressNative_Sponsors {
 			}
 		}
 		if ( empty( $image_url ) ) {
+			self::$request_sponsor_cache = null;
 			return null;
 		}
 		$post = get_post( $post_id );
 		$sponsor_name = $post ? get_the_title( $post ) : '';
-		return array(
-			'type'               => 'BlockSponsor',
-			'image_url'          => $image_url,
-			'click_url'          => $url,
-			'sponsor_name'       => $sponsor_name,
+		self::$request_sponsor_cache = array(
+			'type'                => 'BlockSponsor',
+			'image_url'           => $image_url,
+			'click_url'           => $url,
+			'sponsor_name'        => $sponsor_name,
 			'height_aspect_ratio' => (float) self::HEIGHT_ASPECT_RATIO,
 		);
+		return self::$request_sponsor_cache;
 	}
 }
 

@@ -244,6 +244,21 @@
 		return html;
 	}
 
+	function renderNavMenu(component) {
+		var styles = component.styles || {};
+		var colors = styles.colors || {};
+		var pad = styles.padding || {};
+		var items = (component.content && component.content.items) || [];
+
+		var html = '<div class="pressnative-preview-component pressnative-navmenu" style="--pn-card-bg:' + escapeHtml(colors.background || '#fff') + ';--pn-card-text:' + escapeHtml(colors.text || '#111') + ';padding:' + (pad.vertical || 8) + 'px ' + (pad.horizontal || 16) + 'px;">';
+		html += '<div class="pressnative-navmenu-list" style="display:flex;flex-wrap:wrap;gap:8px;">';
+		items.forEach(function (item) {
+			html += '<span class="pressnative-navmenu-chip" style="display:inline-block;padding:8px 14px;border-radius:20px;background:var(--pn-card-bg);color:var(--pn-card-text);font-size:13px;">' + escapeHtml(item.title || '') + '</span>';
+		});
+		html += '</div></div>';
+		return html;
+	}
+
 	function renderProductGrid(component) {
 		var styles = component.styles || {};
 		var colors = styles.colors || {};
@@ -323,6 +338,7 @@
 			case 'categorylist': return renderCategoryList(component);
 			case 'pagelist': return renderPageList(component);
 			case 'blocksponsor': return renderBlockSponsor(component);
+			case 'navmenu': return renderNavMenu(component);
 			case 'productgrid': return renderProductGrid(component);
 			case 'productcategorylist': return renderProductCategoryList(component);
 			case 'productcarousel': return renderProductCarousel(component);
