@@ -21,11 +21,17 @@ class PressNative_Registry_Notify {
 		PressNative_Options::OPTION_ACCENT_COLOR,
 		PressNative_Options::OPTION_LOGO_ATTACHMENT,
 		PressNative_Options::OPTION_BACKGROUND_COLOR,
+		PressNative_Options::OPTION_BACKGROUND_IMAGE,
 		PressNative_Options::OPTION_TEXT_COLOR,
+		PressNative_Options::OPTION_BORDER_COLOR,
+		PressNative_Options::OPTION_TILE_BACKGROUND_COLOR,
 		PressNative_Options::OPTION_TILE_BACKGROUND,
+		PressNative_Options::OPTION_TILE_TEXT_COLOR,
 		PressNative_Options::OPTION_FONT_FAMILY,
 		PressNative_Options::OPTION_BASE_FONT_SIZE,
 		PressNative_Options::OPTION_APP_CATEGORIES,
+		PressNative_Options::OPTION_THEME_ID,
+		PressNative_Launch_Kits::OPTION_ACTIVE_KIT,
 		// Layout options
 		PressNative_Layout_Options::OPTION_HERO_CATEGORY_SLUG,
 		PressNative_Layout_Options::OPTION_HERO_MAX_ITEMS,
@@ -33,6 +39,9 @@ class PressNative_Registry_Notify {
 		PressNative_Layout_Options::OPTION_POST_GRID_PER_PAGE,
 		PressNative_Layout_Options::OPTION_ENABLED_CATEGORIES,
 		PressNative_Layout_Options::OPTION_ENABLED_COMPONENTS,
+		PressNative_Layout_Options::OPTION_PRODUCT_GRID_COLUMNS,
+		PressNative_Layout_Options::OPTION_PRODUCT_GRID_PER_PAGE,
+		PressNative_Layout_Options::OPTION_FEATURED_PRODUCT_CAT,
 		// Notification preferences
 		PressNative_Options::OPTION_NOTIFICATION_PREFERENCES,
 		// WooCommerce product display settings
@@ -140,12 +149,17 @@ class PressNative_Registry_Notify {
 	 * @return void
 	 */
 	public static function maybe_notify_content_changed( $new_status, $old_status, $post ) {
-		if ( $new_status !== 'publish' || ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page' ), true ) ) {
+		if ( $new_status !== 'publish' || ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page', 'product' ), true ) ) {
 			return;
 		}
 
 		// Don't send push notifications for WooCommerce system pages
 		if ( self::is_woocommerce_system_page( $post ) ) {
+			return;
+		}
+
+		// Editorial metabox + site notification preferences.
+		if ( class_exists( 'PressNative_Editorial_Push' ) && ! PressNative_Editorial_Push::should_notify( $post ) ) {
 			return;
 		}
 
@@ -168,16 +182,32 @@ class PressNative_Registry_Notify {
 			}
 		}
 
+		$notification_type = 'new_posts';
+		if ( 'page' === $post->post_type ) {
+			$notification_type = 'new_pages';
+		} elseif ( 'product' === $post->post_type ) {
+			$notification_type = 'new_products';
+		}
+
+		$categories = null;
+		if ( class_exists( 'PressNative_Editorial_Push' ) ) {
+			$categories = PressNative_Editorial_Push::get_audience_categories( $post );
+		}
+
 		$body = array(
-			'site_url'      => $site_url,
-			'post_id'       => $post->ID,
-			'post_type'     => $post->post_type,
-			'slug'          => $post->post_name,
-			'title'         => get_the_title( $post ),
-			'excerpt'       => has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( $post->post_content, 30 ),
-			'link'          => get_permalink( $post ),
-			'thumbnail_url' => $thumbnail_url,
+			'site_url'           => $site_url,
+			'post_id'            => $post->ID,
+			'post_type'          => $post->post_type,
+			'slug'               => $post->post_name,
+			'title'              => get_the_title( $post ),
+			'excerpt'            => has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( $post->post_content, 30 ),
+			'link'               => get_permalink( $post ),
+			'thumbnail_url'      => $thumbnail_url,
+			'notification_type'  => $notification_type,
 		);
+		if ( is_array( $categories ) ) {
+			$body['categories'] = $categories;
+		}
 
 		wp_remote_post(
 			$url,

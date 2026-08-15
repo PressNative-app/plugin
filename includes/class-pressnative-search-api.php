@@ -64,28 +64,31 @@ class PressNative_Search_Api {
 			$posts = self::run_search( $query, $per_page );
 		}
 
-		$layout  = new \PressNative_Layout();
-		$styles  = array(
-			'colors'  => array(
-				'background' => '#FFFFFF',
-				'text'       => '#111111',
-				'accent'     => '#1A73E8',
-			),
-			'padding' => array( 'horizontal' => 16, 'vertical' => 16 ),
-		);
+		$layout = new \PressNative_Layout();
+		$styles = $layout->get_component_styles( 'tile' );
 
 		$post_items = array();
 		foreach ( $posts as $post ) {
-			$post_items[] = array(
-				'post_id'       => (string) $post->ID,
-				'title'         => get_the_title( $post ),
-				'excerpt'       => trim( wp_strip_all_tags( get_the_excerpt( $post ) ) ) ?: '',
-				'thumbnail_url' => get_the_post_thumbnail_url( $post->ID, 'medium' ) ?: '',
-				'importance_score' => 0.5,
-				'action'        => array(
+			$is_page = ( isset( $post->post_type ) && 'page' === $post->post_type );
+			if ( $is_page ) {
+				$slug   = $post->post_name ?: ( 'page-' . $post->ID );
+				$action = array(
+					'type'    => 'open_page',
+					'payload' => array( 'page_slug' => $slug ),
+				);
+			} else {
+				$action = array(
 					'type'    => 'open_post',
 					'payload' => array( 'post_id' => (string) $post->ID ),
-				),
+				);
+			}
+			$post_items[] = array(
+				'post_id'          => (string) $post->ID,
+				'title'            => get_the_title( $post ),
+				'excerpt'          => trim( wp_strip_all_tags( get_the_excerpt( $post ) ) ) ?: '',
+				'thumbnail_url'    => get_the_post_thumbnail_url( $post->ID, 'medium' ) ?: '',
+				'importance_score' => 0.5,
+				'action'           => $action,
 			);
 		}
 
@@ -109,14 +112,21 @@ class PressNative_Search_Api {
 			),
 			'components' => array( $post_grid ),
 		);
+		$data['notification_preferences'] = isset( $data['branding']['notification_preferences'] )
+			? $data['branding']['notification_preferences']
+			: \PressNative_Options::get_notification_preferences();
 
-		$device_id = $request->get_param( 'device_id' );
-		PressNative_Analytics::forward_event_to_registry( 'search', $query, null, null, $device_id );
-		return rest_ensure_response( $data );
+		$response = rest_ensure_response( $data );
+		$response = \PressNative_Http_Cache::apply( $request, $response, $data );
+		if ( ! is_wp_error( $response ) && $response->get_status() === 200 ) {
+			$device_id = $request->get_param( 'device_id' );
+			PressNative_Analytics::forward_event_to_registry( 'search', $query, null, null, $device_id );
+		}
+		return $response;
 	}
 
 	/**
-	 * Runs WP_Query search.
+	 * Runs WP_Query search across posts and pages.
 	 *
 	 * @param string $query    Search query.
 	 * @param int    $per_page Posts per page.
@@ -126,7 +136,7 @@ class PressNative_Search_Api {
 		$q = new \WP_Query(
 			array(
 				's'              => $query,
-				'post_type'      => 'post',
+				'post_type'      => array( 'post', 'page' ),
 				'post_status'    => 'publish',
 				'posts_per_page' => $per_page,
 				'orderby'        => 'relevance',

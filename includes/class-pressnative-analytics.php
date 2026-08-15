@@ -61,7 +61,7 @@ class PressNative_Analytics {
 	 * @param string|null $resource_title Optional display title.
 	 * @param string|null $device_type   Optional; if null, derived from User-Agent.
 	 * @param string|null $device_id     Optional; links event to push subscriber for engagement filtering.
-	 * @return bool True if the Registry accepted the event (or no key configured and we skipped), false on failure.
+	 * @return bool True when the event was accepted for dispatch (or skipped with no key); always true for fire-and-forget posts.
 	 */
 	public static function forward_event_to_registry( $event_type, $resource_id = '', $resource_title = null, $device_type = null, $device_id = null ) {
 		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH, self::EVENT_SHOP, self::EVENT_PRODUCT, self::EVENT_PRODUCT_CATEGORY );
@@ -100,24 +100,21 @@ class PressNative_Analytics {
 			$body['device_id'] = $device_id;
 		}
 
-		$response = wp_remote_post(
+		// Fire-and-forget: do not block the layout response on Registry analytics.
+		wp_remote_post(
 			$url,
 			array(
 				'timeout'  => 2,
-				'blocking' => true,
+				'blocking' => false,
 				'headers'  => array(
-					'Content-Type'         => 'application/json',
+					'Content-Type'          => 'application/json',
 					'X-PressNative-API-Key' => $api_key,
 				),
-				'body'    => wp_json_encode( $body ),
+				'body'     => wp_json_encode( $body ),
 			)
 		);
 
-		if ( is_wp_error( $response ) ) {
-			return false;
-		}
-		$code = wp_remote_retrieve_response_code( $response );
-		return $code >= 200 && $code < 300;
+		return true;
 	}
 
 	/**

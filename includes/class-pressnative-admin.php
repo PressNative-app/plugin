@@ -32,6 +32,7 @@ class PressNative_Admin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_app_settings_assets' ) );
 		add_action( 'admin_post_pressnative_send_push', array( __CLASS__, 'handle_send_push' ) );
 		add_action( 'admin_post_pressnative_disconnect', array( __CLASS__, 'handle_disconnect' ) );
+		add_action( 'admin_post_pressnative_apply_launch_kit', array( __CLASS__, 'handle_apply_launch_kit' ) );
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification_on_add' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'clear_subscription_cache' ), 10 );
@@ -1368,6 +1369,33 @@ class PressNative_Admin {
 		<div class="wrap">
 			<h1><?php esc_html_e( 'App Settings', 'pressnative-apps' ); ?></h1>
 			<p class="description"><?php esc_html_e( 'Branding shown in the PressNative mobile app (toolbar title, logo, theme colors).', 'pressnative-apps' ); ?></p>
+
+			<?php
+			$active_kit = get_option( PressNative_Launch_Kits::OPTION_ACTIVE_KIT, '' );
+			if ( isset( $_GET['pressnative_kit_applied'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+				echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Launch kit applied. Review colors and layout below, then save if you customize further.', 'pressnative-apps' ) . '</p></div>';
+			}
+			?>
+			<div class="pressnative-launch-kits" style="margin:16px 0 28px;padding:16px;border:1px solid #c3c4c7;border-radius:8px;background:#fff;">
+				<h2 style="margin-top:0;"><?php esc_html_e( 'Launch kits', 'pressnative-apps' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'One-click vertical presets for publishers, shops, and local businesses. Applies branding and home layout — WordPress stays the CMS.', 'pressnative-apps' ); ?></p>
+				<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;">
+					<?php foreach ( PressNative_Launch_Kits::get_kits() as $kit_id => $kit ) : ?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+							<input type="hidden" name="action" value="pressnative_apply_launch_kit" />
+							<input type="hidden" name="kit_id" value="<?php echo esc_attr( $kit_id ); ?>" />
+							<?php wp_nonce_field( 'pressnative_apply_launch_kit' ); ?>
+							<button type="submit" class="button <?php echo $active_kit === $kit_id ? 'button-primary' : ''; ?>" title="<?php echo esc_attr( $kit['description'] ); ?>">
+								<?php echo esc_html( $kit['label'] ); ?>
+								<?php if ( $active_kit === $kit_id ) : ?>
+									✓
+								<?php endif; ?>
+							</button>
+						</form>
+					<?php endforeach; ?>
+				</div>
+			</div>
+
 			<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;">
 				<div style="flex:1;min-width:320px;">
 			<form method="post" action="options.php" class="pressnative-settings-form">
@@ -1763,14 +1791,15 @@ class PressNative_Admin {
 
 		$categories = get_categories( array( 'hide_empty' => false, 'parent' => 0 ) );
 		$component_labels = array(
+			'nav-menu'             => __( 'Nav Menu', 'pressnative-apps' ),
 			'hero-carousel'        => __( 'Hero Carousel', 'pressnative-apps' ),
 			'post-grid'            => __( 'Post Grid', 'pressnative-apps' ),
 			'category-list'        => __( 'Category List', 'pressnative-apps' ),
 			'page-list'            => __( 'Page List', 'pressnative-apps' ),
+			'block-sponsor'        => __( 'Block Sponsor', 'pressnative-apps' ),
 			'product-grid'         => __( 'Product Grid (WooCommerce)', 'pressnative-apps' ),
 			'product-category-list' => __( 'Product Categories (WooCommerce)', 'pressnative-apps' ),
 			'product-carousel'     => __( 'Product Carousel (WooCommerce)', 'pressnative-apps' ),
-			'ad-slot-1'            => __( 'Ad Placement', 'pressnative-apps' ),
 		);
 		?>
 		<div class="wrap">
@@ -1916,6 +1945,32 @@ class PressNative_Admin {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Apply a vertical launch kit from App Settings.
+	 *
+	 * @return void
+	 */
+	public static function handle_apply_launch_kit() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative-apps' ) );
+		}
+		check_admin_referer( 'pressnative_apply_launch_kit' );
+		$kit_id = isset( $_POST['kit_id'] ) ? sanitize_text_field( wp_unslash( $_POST['kit_id'] ) ) : '';
+		$result = PressNative_Launch_Kits::apply_kit( $kit_id );
+		if ( is_wp_error( $result ) ) {
+			wp_safe_redirect(
+				add_query_arg(
+					'pressnative_kit_error',
+					rawurlencode( $result->get_error_message() ),
+					admin_url( 'admin.php?page=pressnative-app-settings' )
+				)
+			);
+			exit;
+		}
+		wp_safe_redirect( add_query_arg( 'pressnative_kit_applied', '1', admin_url( 'admin.php?page=pressnative-app-settings' ) ) );
+		exit;
 	}
 
 	/**
@@ -2270,9 +2325,9 @@ class PressNative_Admin {
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			return;
 		}
-		$enabled       = get_option( PressNative_Cart_Recovery::OPTION_ENABLED, '1' );
-		$delay         = PressNative_Cart_Recovery::get_delay_minutes();
-		$back_in_stock = get_option( PressNative_Cart_Recovery::OPTION_BACK_IN_STOCK_ENABLED, '1' );
+		$enabled          = get_option( PressNative_Cart_Recovery::OPTION_ENABLED, '1' );
+		$delay            = PressNative_Cart_Recovery::get_delay_minutes();
+		$back_in_stock    = get_option( PressNative_Cart_Recovery::OPTION_BACK_IN_STOCK_ENABLED, '1' );
 		?>
 		<div style="margin-top: 40px; padding: 20px; background: #fff; border: 1px solid #c3c4c7; max-width: 600px;">
 			<h2 style="margin-top: 0;"><?php esc_html_e( 'Cart Recovery', 'pressnative-apps' ); ?></h2>
@@ -2350,8 +2405,10 @@ class PressNative_Admin {
 			<div class="pressnative-analytics-push-kpis">
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_received">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Received', 'pressnative-apps' ); ?></span></div>
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_clicked">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Clicks', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card pressnative-kpi-highlight"><span class="pressnative-kpi-value" data-kpi="push_ctr">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push CTR', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="proof_score">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Lock-screen reach', 'pressnative-apps' ); ?></span></div>
 			</div>
-			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Push Received = notifications delivered to devices. Push Clicks = users who tapped a notification.', 'pressnative-apps' ); ?></p>
+			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Proof funnel: Push Received → Push Clicks (CTR). Lock-screen reach = push received this period — the channel you own vs email.', 'pressnative-apps' ); ?></p>
 
 			<div class="pressnative-analytics-charts">
 				<div class="pressnative-chart-container">
