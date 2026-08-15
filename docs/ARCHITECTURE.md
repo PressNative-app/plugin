@@ -2,6 +2,16 @@
 
 The PressNative plugin is the **data provider** layer. It transforms WordPress content into a Server-Driven UI (SDUI) contract that native mobile apps consume, and bridges WordPress with the central Registry service for push notifications, analytics, and billing.
 
+## Intellectual property (provisional filing)
+
+SDUI itself (JSON layouts rendered by native shells) is established prior art and is **not** the claim. If filing a provisional, describe the WordPress compiler, not dual-platform rendering:
+
+1. Ahead-of-time compilation of Gutenberg / HTML / shortcodes into a typed SDUI AST stored in post meta (`_pressnative_sdui_cache`) so REST reads do not re-parse HTML.
+2. Intermediate `ProductReference` nodes that never reach clients; live WooCommerce data hydrates at request time so cached layouts stay commercially current.
+3. Progressive enhancement: native block shredding until interactive HTML is promoted to a micro-WebView.
+
+Do not pause product work for a utility filing. A provisional on those methods preserves a date without changing the architecture.
+
 ---
 
 ## Where the Plugin Fits

@@ -21,6 +21,7 @@ define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-options.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout-options.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-contract.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-http-cache.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-dom-parser.php';
