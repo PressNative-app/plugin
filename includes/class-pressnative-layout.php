@@ -446,6 +446,7 @@ class PressNative_Layout {
 	 * @return array
 	 */
 	private function inject_shop_config( $layout ) {
+		$layout = PressNative_Contract::apply( $layout );
 		if ( isset( $layout['branding']['notification_preferences'] ) ) {
 			$layout['notification_preferences'] = $layout['branding']['notification_preferences'];
 		} else {

@@ -36,6 +36,10 @@ jobs:
           fi
           echo "All PHP files passed syntax check"
 
+      - name: Verify contract version class
+        run: |
+          php -r 'define("ABSPATH", true); require "includes/class-pressnative-contract.php"; if (PressNative_Contract::VERSION === "") { fwrite(STDERR, "empty VERSION\n"); exit(1);} echo PressNative_Contract::VERSION, "\n";'
+
   build:
     name: Build Plugin Zip
     runs-on: ubuntu-latest

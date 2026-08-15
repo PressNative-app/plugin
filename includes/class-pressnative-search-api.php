@@ -112,6 +112,7 @@ class PressNative_Search_Api {
 			),
 			'components' => array( $post_grid ),
 		);
+		$data = \PressNative_Contract::apply( $data );
 		$data['notification_preferences'] = isset( $data['branding']['notification_preferences'] )
 			? $data['branding']['notification_preferences']
 			: \PressNative_Options::get_notification_preferences();
