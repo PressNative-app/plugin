@@ -1,10 +1,23 @@
-# .github/workflows/release.yml
+# Builds pressnative-apps.zip and publishes a GitHub Release.
+# Triggers: v*.*.* tag push, reusable call from bump-version.yml, or manual dispatch.
 name: Release WordPress Plugin
 
 on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_call:
+    inputs:
+      version:
+        description: Version without v prefix
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without v prefix (optional; defaults to the triggering tag)
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -15,11 +28,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version && format('v{0}', inputs.version) || github.sha }}
 
-      - name: Set version from tag
+      - name: Set version
         id: version
         run: |
-          VER="${GITHUB_REF#refs/tags/v}"
+          if [ -n "${{ inputs.version }}" ]; then
+            VER="${{ inputs.version }}"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF#refs/tags/v}"
+          else
+            echo "::error::Unable to determine plugin version"
+            exit 1
+          fi
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "Building plugin version: $VER"
 
@@ -50,10 +72,19 @@ jobs:
           sed -i "s/^Stable tag: .*/Stable tag: $VER/" "$SLUG/readme.txt"
           zip -r pressnative-apps.zip "$SLUG"
 
+      - name: Verify zip structure
+        run: |
+          unzip -l pressnative-apps.zip | grep -q 'pressnative-apps/pressnative.php' || {
+            echo "::error::pressnative-apps.zip is missing pressnative-apps/pressnative.php"
+            unzip -l pressnative-apps.zip
+            exit 1
+          }
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: ${{ github.ref_name }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
           files: pressnative-apps.zip
           generate_release_notes: true
         env:

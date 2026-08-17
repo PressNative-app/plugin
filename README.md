@@ -13,11 +13,31 @@ This plugin exposes REST endpoints that serve page layouts, content, and WooComm
 
 ## Installation
 
-1. Copy the entire plugin folder (containing `pressnative.php`) to `wp-content/plugins/pressnative-apps/`, or install via Plugins → Add New → Upload Plugin (use the zip from `scripts/build.sh`)
-2. Activate the plugin in WordPress Admin → Plugins
-3. Connect your site under Settings → PressNative
-4. Customize branding under PressNative → App Settings
-5. Configure home screen layout under PressNative → Layout Settings
+1. Download [`pressnative-apps.zip`](https://github.com/PressNative-app/plugin/releases/latest/download/pressnative-apps.zip) from GitHub Releases, or run `scripts/build.sh` locally
+2. In WordPress, go to Plugins → Add New → Upload Plugin and upload the ZIP (folder slug must be `pressnative-apps/`)
+3. Activate the plugin in WordPress Admin → Plugins
+4. Connect your site under Settings → PressNative
+5. Customize branding under PressNative → App Settings
+6. Configure home screen layout under PressNative → Layout Settings
+
+Installed sites check `https://pressnative.app/api/v1/plugin/update` and show WordPress core update notices when a newer GitHub Release exists.
+
+## Releases
+
+Merging to `main` publishes a plugin update automatically:
+
+```
+merge to main
+  → bump-version.yml patch-bumps pressnative.php + readme.txt
+  → tags vX.Y.Z
+  → release.yml builds pressnative-apps.zip and attaches it to a GitHub Release
+  → https://github.com/PressNative-app/plugin/releases/latest/download/pressnative-apps.zip serves the new ZIP
+  → pressnative.app /api/v1/plugin/update picks it up within 15 minutes
+```
+
+To land a change on `main` without a public release, include `[no release]` in the merge commit message.
+
+Manual release: `git tag vX.Y.Z && git push origin vX.Y.Z`.
 
 ## Architecture
 
