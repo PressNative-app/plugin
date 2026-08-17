@@ -59,6 +59,7 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-woocommerce.ph
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-launch-kits.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-editorial-push.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-cart-recovery.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-updater.php';
 
 /**
  * Load plugin text domain for translations (optional on WordPress.org; kept for self-hosted installs).
@@ -876,6 +877,11 @@ PressNative_Editorial_Push::init();
  * WooCommerce abandoned-cart / back-in-stock push.
  */
 PressNative_Cart_Recovery::init();
+
+/**
+ * Self-hosted plugin updates via pressnative.app / GitHub Releases.
+ */
+PressNative_Updater::init();
 
 /**
  * Handle checkout completion and return to app.
