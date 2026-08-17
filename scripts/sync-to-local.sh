@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Sync PressNative plugin to Local WordPress site for testing.
-# Target: ~/Local Sites/ctst-local-demo/app/public/wp-content/plugins/pressnative-engine
+# Target: ~/Local Sites/ctst-local-demo/app/public/wp-content/plugins/pressnative-apps
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOCAL_PLUGINS="${HOME}/Local Sites/ctst-local-demo/app/public/wp-content/plugins"
-TARGET="${LOCAL_PLUGINS}/pressnative-engine"
+TARGET="${LOCAL_PLUGINS}/pressnative-apps"
 
 if [[ ! -d "$LOCAL_PLUGINS" ]]; then
   echo "Error: Local WordPress plugins dir not found: $LOCAL_PLUGINS"
