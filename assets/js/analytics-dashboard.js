@@ -113,8 +113,8 @@
 		var canvas = document.getElementById('pressnative-chart-content-type');
 		if (!canvas || typeof Chart === 'undefined') return;
 		if (charts.contentType) charts.contentType.destroy();
-		var labels = ['Home', 'Posts', 'Pages', 'Categories', 'Search'];
-		var keys = ['home', 'post', 'page', 'category', 'search'];
+		var labels = ['Home', 'Posts', 'Pages', 'Categories', 'Search', 'Shop', 'Products'];
+		var keys = ['home', 'post', 'page', 'category', 'search', 'shop', 'product'];
 		var values = keys.map(function (k) { return byType[k] || 0; });
 		var hasData = values.some(function (v) { return v > 0; });
 		if (!hasData) {
@@ -127,7 +127,7 @@
 				labels: labels,
 				datasets: [{
 					data: values,
-					backgroundColor: ['#2271b1', '#00a32a', '#d63638', '#dba617', '#6366f1'],
+					backgroundColor: ['#2271b1', '#00a32a', '#d63638', '#dba617', '#6366f1', '#7c3aed', '#0ea5e9'],
 					borderWidth: 1
 				}]
 			},
@@ -249,6 +249,54 @@
 		container.innerHTML = html;
 	}
 
+	function setText(sel, value) {
+		var el = document.querySelector(sel);
+		if (el) el.textContent = value;
+	}
+
+	function renderEngagementCommerce(engagement, commerce) {
+		engagement = engagement || {};
+		commerce = commerce || {};
+		setText('[data-kpi="read_complete_rate"]', engagement.read_complete_rate != null ? engagement.read_complete_rate.toFixed(1) + '%' : '—');
+		setText('[data-kpi="avg_scroll"]', engagement.avg_scroll_depth_pct != null ? engagement.avg_scroll_depth_pct.toFixed(1) + '%' : '—');
+		setText('[data-kpi="avg_dwell"]', engagement.avg_dwell_seconds != null ? formatNumber(engagement.avg_dwell_seconds) + 's' : '—');
+		setText('[data-kpi="product_views"]', formatNumber(commerce.product_views || 0));
+		setText('[data-kpi="purchases"]', formatNumber(commerce.purchases || 0));
+		var revenue = commerce.revenue_cents != null ? ('$' + (Number(commerce.revenue_cents) / 100).toFixed(2)) : '—';
+		setText('[data-kpi="revenue"]', revenue);
+
+		var engEl = document.getElementById('pressnative-table-engagement-posts');
+		if (engEl) {
+			var tops = engagement.top_posts || [];
+			if (!tops.length) {
+				engEl.innerHTML = '<p class="pressnative-table-empty">No engagement data yet.</p>';
+			} else {
+				var html = '<table class="pressnative-analytics-table"><thead><tr><th>Post</th><th>Read %</th></tr></thead><tbody>';
+				tops.forEach(function (r) {
+					html += '<tr><td>' + escapeHtml(r.resource_title || r.resource_id || '—') + '</td><td>' +
+						(r.read_complete_rate != null ? r.read_complete_rate.toFixed(1) + '%' : '—') + '</td></tr>';
+				});
+				html += '</tbody></table>';
+				engEl.innerHTML = html;
+			}
+		}
+
+		var prodEl = document.getElementById('pressnative-table-top-products');
+		if (prodEl) {
+			var products = commerce.top_products || [];
+			if (!products.length) {
+				prodEl.innerHTML = '<p class="pressnative-table-empty">No product views yet.</p>';
+			} else {
+				var phtml = '<table class="pressnative-analytics-table"><thead><tr><th>Product</th><th>Views</th></tr></thead><tbody>';
+				products.forEach(function (r) {
+					phtml += '<tr><td>' + escapeHtml(r.resource_title || r.resource_id || '—') + '</td><td>' + formatNumber(r.views) + '</td></tr>';
+				});
+				phtml += '</tbody></table>';
+				prodEl.innerHTML = phtml;
+			}
+		}
+	}
+
 	// ——— Load all ———
 	function loadDashboard() {
 		var days = getDays();
@@ -261,7 +309,9 @@
 			fetchApi('/analytics/top-pages' + q),
 			fetchApi('/analytics/top-categories' + q),
 			fetchApi('/analytics/device-breakdown' + '?days=' + days),
-			fetchApi('/analytics/top-searches' + q)
+			fetchApi('/analytics/top-searches' + q),
+			fetchApi('/analytics/engagement' + '?days=' + days).catch(function () { return null; }),
+			fetchApi('/analytics/commerce' + '?days=' + days).catch(function () { return null; })
 		]).then(function (results) {
 			var summary = results[0];
 			var viewsOverTime = results[1];
@@ -270,6 +320,8 @@
 			var topCategories = results[4];
 			var deviceBreakdown = results[5];
 			var topSearches = results[6];
+			var engagement = results[7];
+			var commerce = results[8];
 
 			renderKpis(summary);
 			renderViewsOverTime(viewsOverTime);
@@ -279,6 +331,7 @@
 			renderTopPages(topPages);
 			renderTopCategories(topCategories);
 			renderTopSearches(topSearches);
+			renderEngagementCommerce(engagement, commerce);
 		}).catch(function (err) {
 			console.error('PressNative Analytics:', err);
 			var kpis = document.getElementById('pressnative-analytics-kpis');
