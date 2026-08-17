@@ -515,8 +515,8 @@ class PressNative_Layout {
 			'content' => array(
 				'item_count'                 => $count,
 				'message'                    => $message,
-				'open_cart_action'           => array( 'type' => 'open_cart', 'payload' => array() ),
-				'proceed_to_checkout_action' => array( 'type' => 'proceed_to_checkout', 'payload' => array() ),
+				'open_cart_action'           => array( 'type' => 'open_cart', 'payload' => (object) array() ),
+				'proceed_to_checkout_action' => array( 'type' => 'proceed_to_checkout', 'payload' => (object) array() ),
 			),
 		);
 	}
