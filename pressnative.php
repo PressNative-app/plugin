@@ -3,7 +3,7 @@
  * Plugin Name: PressNative Apps
  * Plugin URI:  https://github.com/PressNative-app/plugin
  * Description: Native iOS & Android apps from WordPress — not a WebView. Publish once; own the lock screen. WooCommerce, push, Hub.
- * Version:     1.2.6
+ * Version:     1.2.7
  * Author:      PressNative
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -35,7 +35,7 @@ if ( class_exists( 'PressNative_Options', false ) ) {
 	return;
 }
 
-define( 'PRESSNATIVE_VERSION', '1.2.6' );
+define( 'PRESSNATIVE_VERSION', '1.2.7' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 

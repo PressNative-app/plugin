@@ -2437,6 +2437,16 @@ class PressNative_Admin {
 			</div>
 			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Proof funnel: Push Received → Push Clicks (CTR). Lock-screen reach = push received this period — the channel you own vs email.', 'pressnative-apps' ); ?></p>
 
+			<div class="pressnative-analytics-push-kpis" id="pressnative-engagement-kpis">
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="read_complete_rate">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Read complete', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="avg_scroll">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Avg scroll depth', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="avg_dwell">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Avg dwell', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="product_views">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Product views', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="purchases">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Purchases', 'pressnative-apps' ); ?></span></div>
+				<div class="pressnative-kpi-card pressnative-kpi-highlight"><span class="pressnative-kpi-value" data-kpi="revenue">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Revenue', 'pressnative-apps' ); ?></span></div>
+			</div>
+			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Engagement and commerce metrics populate as apps report scroll depth, cart adds, and checkout completion.', 'pressnative-apps' ); ?></p>
+
 			<div class="pressnative-analytics-charts">
 				<div class="pressnative-chart-container">
 					<h3><?php esc_html_e( 'Views over time', 'pressnative-apps' ); ?></h3>
@@ -2469,6 +2479,14 @@ class PressNative_Admin {
 				<div class="pressnative-table-container">
 					<h3><?php esc_html_e( 'Top search queries', 'pressnative-apps' ); ?></h3>
 					<div id="pressnative-table-top-searches" class="pressnative-table-wrapper"></div>
+				</div>
+				<div class="pressnative-table-container">
+					<h3><?php esc_html_e( 'Top engaging posts', 'pressnative-apps' ); ?></h3>
+					<div id="pressnative-table-engagement-posts" class="pressnative-table-wrapper"></div>
+				</div>
+				<div class="pressnative-table-container">
+					<h3><?php esc_html_e( 'Top products', 'pressnative-apps' ); ?></h3>
+					<div id="pressnative-table-top-products" class="pressnative-table-wrapper"></div>
 				</div>
 			</div>
 		</div>
