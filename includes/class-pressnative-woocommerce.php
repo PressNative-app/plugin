@@ -89,7 +89,8 @@ class PressNative_WooCommerce {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- validated via transient lookup
 		$token = sanitize_text_field( wp_unslash( $_GET['pressnative_checkout_token'] ) );
-		if ( '' === $token || strlen( $token ) > 64 ) {
+		// Marker value used after redirect (legacy); real tokens are 32+ chars from wp_generate_password.
+		if ( '' === $token || strlen( $token ) < 16 || strlen( $token ) > 64 ) {
 			return;
 		}
 
@@ -116,7 +117,7 @@ class PressNative_WooCommerce {
 			}
 		}
 
-		$checkout_url = add_query_arg( 'pressnative_checkout_token', '1', wc_get_checkout_url() );
+		$checkout_url = add_query_arg( 'pressnative_app_checkout', '1', wc_get_checkout_url() );
 		wp_safe_redirect( $checkout_url );
 		exit;
 	}
@@ -156,7 +157,7 @@ class PressNative_WooCommerce {
 		}
 
 		$token = self::create_checkout_token( $items );
-		$url   = add_query_arg( 'pressnative_checkout_token', rawurlencode( $token ), home_url( '/' ) );
+		$url   = add_query_arg( 'pressnative_checkout_token', $token, home_url( '/' ) );
 
 		return rest_ensure_response(
 			array(

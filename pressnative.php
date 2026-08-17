@@ -15,6 +15,26 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// Another PressNative plugin variant (e.g. legacy pressnative-engine) may already be active.
+// Bail early with an admin notice instead of triggering a class redeclaration fatal error.
+if ( class_exists( 'PressNative_Options', false ) ) {
+	add_action(
+		'admin_notices',
+		function () {
+			if ( ! current_user_can( 'activate_plugins' ) ) {
+				return;
+			}
+			echo '<div class="notice notice-error"><p>';
+			echo esc_html__(
+				'PressNative Apps could not load because another PressNative plugin is already active. Deactivate and remove the other plugin folder (for example pressnative-engine), then activate PressNative Apps again.',
+				'pressnative-apps'
+			);
+			echo '</p></div>';
+		}
+	);
+	return;
+}
+
 define( 'PRESSNATIVE_VERSION', '1.2.3' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
@@ -290,6 +310,44 @@ add_action( 'rest_api_init', function () {
 			)
 		);
 	}
+
+	// Demo/setup: apply a launch kit (publisher, shop, local) via REST for automated site polish.
+	register_rest_route(
+		'pressnative/v1',
+		'/setup/launch-kit',
+		array(
+			'methods'             => WP_REST_Server::CREATABLE,
+			'callback'            => function ( WP_REST_Request $request ) {
+				$kit_id = sanitize_key( (string) $request->get_param( 'kit_id' ) );
+				if ( $kit_id === '' ) {
+					$kit_id = 'publisher';
+				}
+				$result = PressNative_Launch_Kits::apply_kit( $kit_id );
+				if ( is_wp_error( $result ) ) {
+					return $result;
+				}
+				if ( class_exists( 'PressNative_Registry_Notify' ) ) {
+					PressNative_Registry_Notify::notify_if_configured();
+				}
+				return rest_ensure_response(
+					array(
+						'ok'  => true,
+						'kit' => $kit_id,
+					)
+				);
+			},
+			'permission_callback' => function () {
+				return current_user_can( 'manage_options' );
+			},
+			'args'                => array(
+				'kit_id' => array(
+					'type'              => 'string',
+					'default'           => 'publisher',
+					'sanitize_callback' => 'sanitize_key',
+				),
+			),
+		)
+	);
 
 	// Branding GET endpoint: Public API for clients to fetch app branding (app name, logo, theme colors).
 	register_rest_route(
@@ -830,7 +888,8 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 	// Check if this checkout was initiated from the app
 	$referer = wp_get_referer();
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only check for return-to-app UI
-	$is_app_checkout = isset( $_GET['pressnative_checkout_token'] ) ||
+	$is_app_checkout = isset( $_GET['pressnative_app_checkout'] ) ||
+	                   isset( $_GET['pressnative_checkout_token'] ) ||
 	                   ( $referer && strpos( $referer, 'pressnative_checkout_token=' ) !== false );
 
 	if ( ! $is_app_checkout ) {
@@ -859,7 +918,8 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 add_action( 'woocommerce_after_cart', function () {
 	$referer = wp_get_referer();
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only check for return-to-app link
-	$is_app_context = isset( $_GET['pressnative_checkout_token'] ) ||
+	$is_app_context = isset( $_GET['pressnative_app_checkout'] ) ||
+	                  isset( $_GET['pressnative_checkout_token'] ) ||
 	                  ( $referer && strpos( $referer, 'pressnative_checkout_token=' ) !== false );
 
 	if ( ! $is_app_context ) {

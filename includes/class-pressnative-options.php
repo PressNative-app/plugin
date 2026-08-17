@@ -28,6 +28,7 @@ class PressNative_Options {
 	const OPTION_FONT_FAMILY           = 'pressnative_font_family';
 	const OPTION_BASE_FONT_SIZE        = 'pressnative_base_font_size';
 	const OPTION_APP_CATEGORIES        = 'pressnative_app_categories';
+	const OPTION_THEME_ID              = 'pressnative_theme_id';
 
 	// Push notification preferences.
 	const OPTION_NOTIFICATION_PREFERENCES = 'pressnative_notification_preferences';
