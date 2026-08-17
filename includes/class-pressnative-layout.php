@@ -376,6 +376,7 @@ class PressNative_Layout {
 			'category-list'  => array( $this, 'build_category_list' ),
 			'page-list'      => array( $this, 'build_page_list' ),
 			'block-sponsor'  => array( $this, 'build_block_sponsor' ),
+			'ad-placement'   => array( $this, 'build_ad_placement' ),
 		);
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
 			$builders['product-grid']          = array( $this, 'build_product_grid' );
@@ -411,21 +412,6 @@ class PressNative_Layout {
 			}
 		}
 
-		// Always surface an active sponsor on home when one exists (even if not enabled).
-		$has_sponsor = false;
-		foreach ( $components as $c ) {
-			if ( ( $c['type'] ?? '' ) === 'BlockSponsor' ) {
-				$has_sponsor = true;
-				break;
-			}
-		}
-		if ( ! $has_sponsor ) {
-			$sponsor_comp = $this->build_block_sponsor();
-			if ( is_array( $sponsor_comp ) ) {
-				$components[] = $sponsor_comp;
-			}
-		}
-
 		$layout = array(
 			'api_url'    => rest_url( 'pressnative/v1/' ),
 			'branding'   => PressNative_Options::get_branding(),
@@ -451,6 +437,9 @@ class PressNative_Layout {
 			$layout['notification_preferences'] = $layout['branding']['notification_preferences'];
 		} else {
 			$layout['notification_preferences'] = PressNative_Options::get_notification_preferences();
+		}
+		if ( class_exists( 'PressNative_Monetization' ) ) {
+			$layout['monetization'] = PressNative_Monetization::get_config();
 		}
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
 			$layout['shop_config'] = PressNative_WooCommerce::get_shop_config();
@@ -733,6 +722,20 @@ class PressNative_Layout {
 			'styles'  => $styles,
 			'content' => $content,
 		);
+	}
+
+	/**
+	 * Home-level AdPlacement from monetization settings, or null when disabled.
+	 *
+	 * @return array|null
+	 */
+	private function build_ad_placement() {
+		if ( ! class_exists( 'PressNative_Monetization' ) ) {
+			return null;
+		}
+		$styles = $this->get_component_styles();
+		$styles['padding']['vertical'] = 8;
+		return PressNative_Monetization::build_ad_placement( $styles );
 	}
 
 	/**
@@ -1278,18 +1281,25 @@ class PressNative_Layout {
 	}
 
 	/**
-	 * Inject BlockSponsor blocks every 5th position in content_blocks.
+	 * Inject BlockSponsor blocks every Nth position in content_blocks.
+	 * Interval comes from layout options; 0 disables injection.
 	 *
 	 * @param array $content_blocks Existing content blocks.
 	 * @return array Content blocks with sponsors injected.
 	 */
 	private function inject_sponsors( array $content_blocks ): array {
+		$interval = class_exists( 'PressNative_Layout_Options' )
+			? PressNative_Layout_Options::get_sponsor_article_interval()
+			: 5;
+		if ( $interval < 1 ) {
+			return $content_blocks;
+		}
 		$result = array();
 		$count  = 0;
 		foreach ( $content_blocks as $block ) {
 			$result[] = $block;
 			$count++;
-			if ( $count % 5 === 0 ) {
+			if ( $count % $interval === 0 ) {
 				$sponsor = PressNative_Sponsors::get_random_active_sponsor();
 				if ( $sponsor !== null ) {
 					$result[] = $sponsor;

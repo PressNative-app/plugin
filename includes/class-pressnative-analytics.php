@@ -25,13 +25,20 @@ class PressNative_Analytics {
 	const EVENT_POST_ENGAGEMENT   = 'post_engagement';
 	const EVENT_ADD_TO_CART       = 'add_to_cart';
 	const EVENT_PURCHASE_COMPLETE = 'purchase_complete';
+	const EVENT_SPONSOR_IMPRESSION = 'sponsor_impression';
+	const EVENT_SPONSOR_CLICK      = 'sponsor_click';
+	const EVENT_AD_REQUEST         = 'ad_request';
+	const EVENT_AD_LOAD            = 'ad_load';
+	const EVENT_AD_IMPRESSION      = 'ad_impression';
+	const EVENT_AD_CLICK           = 'ad_click';
+	const EVENT_AD_NO_FILL         = 'ad_no_fill';
 
 	const DEVICE_IOS     = 'ios';
 	const DEVICE_ANDROID = 'android';
 	const DEVICE_UNKNOWN = 'unknown';
 
 	/**
-	 * Contract-aligned content/commerce/engagement event types accepted by /track and forwarder.
+	 * Contract-aligned content/commerce/engagement/monetization event types accepted by /track and forwarder.
 	 *
 	 * @return string[]
 	 */
@@ -49,6 +56,13 @@ class PressNative_Analytics {
 			self::EVENT_POST_ENGAGEMENT,
 			self::EVENT_ADD_TO_CART,
 			self::EVENT_PURCHASE_COMPLETE,
+			self::EVENT_SPONSOR_IMPRESSION,
+			self::EVENT_SPONSOR_CLICK,
+			self::EVENT_AD_REQUEST,
+			self::EVENT_AD_LOAD,
+			self::EVENT_AD_IMPRESSION,
+			self::EVENT_AD_CLICK,
+			self::EVENT_AD_NO_FILL,
 		);
 	}
 
@@ -97,6 +111,18 @@ class PressNative_Analytics {
 		}
 		if ( ! empty( $metadata['push_campaign_id'] ) && is_string( $metadata['push_campaign_id'] ) ) {
 			$out['push_campaign_id'] = substr( sanitize_text_field( $metadata['push_campaign_id'] ), 0, 255 );
+		}
+		if ( ! empty( $metadata['placement_id'] ) && is_string( $metadata['placement_id'] ) ) {
+			$out['placement_id'] = substr( sanitize_text_field( $metadata['placement_id'] ), 0, 255 );
+		}
+		if ( ! empty( $metadata['provider'] ) && is_string( $metadata['provider'] ) ) {
+			$out['provider'] = substr( sanitize_text_field( $metadata['provider'] ), 0, 64 );
+		}
+		if ( ! empty( $metadata['ad_format'] ) && is_string( $metadata['ad_format'] ) ) {
+			$out['ad_format'] = substr( sanitize_text_field( $metadata['ad_format'] ), 0, 64 );
+		}
+		if ( ! empty( $metadata['sponsor_name'] ) && is_string( $metadata['sponsor_name'] ) ) {
+			$out['sponsor_name'] = substr( sanitize_text_field( $metadata['sponsor_name'] ), 0, 255 );
 		}
 		return $out;
 	}

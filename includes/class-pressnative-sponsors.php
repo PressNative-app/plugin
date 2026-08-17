@@ -14,6 +14,8 @@ class PressNative_Sponsors {
 
 	const POST_TYPE = 'pressnative_sponsor';
 	const META_KEY_URL = '_pressnative_sponsor_url';
+	const META_KEY_START = '_pressnative_sponsor_start';
+	const META_KEY_END = '_pressnative_sponsor_end';
 	const HEIGHT_ASPECT_RATIO = 0.3;
 
 	/**
@@ -58,7 +60,7 @@ class PressNative_Sponsors {
 	}
 
 	/**
-	 * Add meta box for sponsor URL.
+	 * Add meta box for sponsor URL and schedule.
 	 *
 	 * @param string $post_type Post type.
 	 */
@@ -68,7 +70,7 @@ class PressNative_Sponsors {
 		}
 		add_meta_box(
 			'pressnative_sponsor_url',
-			__( 'Sponsor URL', 'pressnative-apps' ),
+			__( 'Sponsor Details', 'pressnative-apps' ),
 			array( __CLASS__, 'render_meta_box' ),
 			self::POST_TYPE,
 			'normal'
@@ -76,24 +78,36 @@ class PressNative_Sponsors {
 	}
 
 	/**
-	 * Render the sponsor URL meta box.
+	 * Render the sponsor URL and schedule meta box.
 	 *
 	 * @param WP_Post $post Current post.
 	 */
 	public static function render_meta_box( $post ) {
 		wp_nonce_field( 'pressnative_sponsor_url_nonce', 'pressnative_sponsor_url_nonce' );
-		$url = get_post_meta( $post->ID, self::META_KEY_URL, true );
+		$url   = get_post_meta( $post->ID, self::META_KEY_URL, true );
+		$start = get_post_meta( $post->ID, self::META_KEY_START, true );
+		$end   = get_post_meta( $post->ID, self::META_KEY_END, true );
 		?>
 		<p>
 			<label for="pressnative_sponsor_url"><?php esc_html_e( 'Click URL', 'pressnative-apps' ); ?></label><br />
 			<input type="url" id="pressnative_sponsor_url" name="pressnative_sponsor_url" value="<?php echo esc_attr( $url ); ?>" class="widefat" placeholder="https://" />
 			<span class="description"><?php esc_html_e( 'URL to open when the sponsor banner is tapped in the app.', 'pressnative-apps' ); ?></span>
 		</p>
+		<p>
+			<label for="pressnative_sponsor_start"><?php esc_html_e( 'Start date (optional)', 'pressnative-apps' ); ?></label><br />
+			<input type="date" id="pressnative_sponsor_start" name="pressnative_sponsor_start" value="<?php echo esc_attr( $start ); ?>" />
+			<span class="description"><?php esc_html_e( 'Leave blank for no start restriction.', 'pressnative-apps' ); ?></span>
+		</p>
+		<p>
+			<label for="pressnative_sponsor_end"><?php esc_html_e( 'End date (optional)', 'pressnative-apps' ); ?></label><br />
+			<input type="date" id="pressnative_sponsor_end" name="pressnative_sponsor_end" value="<?php echo esc_attr( $end ); ?>" />
+			<span class="description"><?php esc_html_e( 'Leave blank for no end restriction.', 'pressnative-apps' ); ?></span>
+		</p>
 		<?php
 	}
 
 	/**
-	 * Save sponsor URL meta.
+	 * Save sponsor URL and schedule meta.
 	 *
 	 * @param int     $post_id Post ID.
 	 * @param WP_Post $post    Post object.
@@ -111,6 +125,36 @@ class PressNative_Sponsors {
 		}
 		$url = isset( $_POST['pressnative_sponsor_url'] ) ? esc_url_raw( wp_unslash( $_POST['pressnative_sponsor_url'] ) ) : '';
 		update_post_meta( $post_id, self::META_KEY_URL, $url );
+
+		$start = isset( $_POST['pressnative_sponsor_start'] ) ? sanitize_text_field( wp_unslash( $_POST['pressnative_sponsor_start'] ) ) : '';
+		$end   = isset( $_POST['pressnative_sponsor_end'] ) ? sanitize_text_field( wp_unslash( $_POST['pressnative_sponsor_end'] ) ) : '';
+		if ( $start && ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $start ) ) {
+			$start = '';
+		}
+		if ( $end && ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $end ) ) {
+			$end = '';
+		}
+		update_post_meta( $post_id, self::META_KEY_START, $start );
+		update_post_meta( $post_id, self::META_KEY_END, $end );
+	}
+
+	/**
+	 * Whether a sponsor is within its optional schedule window.
+	 *
+	 * @param int $post_id Sponsor post ID.
+	 * @return bool
+	 */
+	public static function is_within_schedule( $post_id ) {
+		$today = gmdate( 'Y-m-d' );
+		$start = get_post_meta( $post_id, self::META_KEY_START, true );
+		$end   = get_post_meta( $post_id, self::META_KEY_END, true );
+		if ( $start && $today < $start ) {
+			return false;
+		}
+		if ( $end && $today > $end ) {
+			return false;
+		}
+		return true;
 	}
 
 	/**
@@ -125,6 +169,7 @@ class PressNative_Sponsors {
 	 *
 	 * Uses featured image for image_url, title for sponsor_name, and meta for click_url.
 	 * Caches one pick per PHP request so home + content injection share the same sponsor.
+	 * Respects optional start/end schedule meta.
 	 *
 	 * @return array|null BlockSponsor content array (type, image_url, click_url, sponsor_name, height_aspect_ratio) or null.
 	 */
@@ -137,7 +182,7 @@ class PressNative_Sponsors {
 			array(
 				'post_type'      => self::POST_TYPE,
 				'post_status'    => 'publish',
-				'posts_per_page' => 1,
+				'posts_per_page' => 20,
 				'orderby'        => 'rand',
 				'fields'         => 'ids',
 			)
@@ -146,24 +191,34 @@ class PressNative_Sponsors {
 			self::$request_sponsor_cache = null;
 			return null;
 		}
-		$post_id = $posts[0];
-		$url     = get_post_meta( $post_id, self::META_KEY_URL, true );
-		if ( empty( $url ) ) {
-			self::$request_sponsor_cache = null;
-			return null;
-		}
-		$thumb_id = get_post_thumbnail_id( $post_id );
-		$image_url = '';
-		if ( $thumb_id ) {
-			$image = wp_get_attachment_image_src( $thumb_id, 'large' );
-			if ( ! empty( $image[0] ) ) {
-				$image_url = $image[0];
+
+		$post_id = null;
+		foreach ( $posts as $candidate_id ) {
+			if ( ! self::is_within_schedule( $candidate_id ) ) {
+				continue;
 			}
+			$url = get_post_meta( $candidate_id, self::META_KEY_URL, true );
+			if ( empty( $url ) ) {
+				continue;
+			}
+			$thumb_id = get_post_thumbnail_id( $candidate_id );
+			if ( ! $thumb_id ) {
+				continue;
+			}
+			$image = wp_get_attachment_image_src( $thumb_id, 'large' );
+			if ( empty( $image[0] ) ) {
+				continue;
+			}
+			$post_id   = $candidate_id;
+			$image_url = $image[0];
+			break;
 		}
-		if ( empty( $image_url ) ) {
+
+		if ( null === $post_id ) {
 			self::$request_sponsor_cache = null;
 			return null;
 		}
+
 		$post = get_post( $post_id );
 		$sponsor_name = $post ? get_the_title( $post ) : '';
 		self::$request_sponsor_cache = array(

@@ -153,7 +153,7 @@ $pages = array(
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>Integrate AdMob banner ads directly into your app layout. Place them between components on the home screen to monetize your mobile traffic without disrupting the reading experience.</p>
+<p>Configure AdMob under PressNative → Monetization, then enable the Ad Placement component in Layout Settings. Direct sponsorship banners are managed separately under Sponsors.</p>
 <!-- /wp:paragraph -->',
 	),
 	array(
@@ -757,7 +757,8 @@ $posts = array(
 <li><strong>Post Grid:</strong> Choose column count and posts per page</li>
 <li><strong>Category List:</strong> Select which categories to show</li>
 <li><strong>Page List:</strong> Automatically shows your published pages</li>
-<li><strong>Ad Placement:</strong> Optional — add your AdMob banner unit ID</li>
+<li><strong>Ad Placement:</strong> Optional — enable under Layout Settings after configuring AdMob in PressNative → Monetization</li>
+<li><strong>Block Sponsor:</strong> Optional — manage direct sponsorship banners under Sponsors</li>
 </ol>
 
 <p>Drag components to reorder them. The live preview updates as you make changes.</p>
