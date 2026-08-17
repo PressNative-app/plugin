@@ -20,6 +20,7 @@ class PressNative_Layout_Options {
 	const OPTION_POST_GRID_PER_PAGE = 'pressnative_post_grid_per_page';
 	const OPTION_ENABLED_CATEGORIES = 'pressnative_enabled_categories';
 	const OPTION_ENABLED_COMPONENTS = 'pressnative_enabled_components';
+	const OPTION_SPONSOR_ARTICLE_INTERVAL = 'pressnative_sponsor_article_interval';
 
 	/** WooCommerce layout options. */
 	const OPTION_PRODUCT_GRID_COLUMNS  = 'pressnative_product_grid_columns';
@@ -30,17 +31,18 @@ class PressNative_Layout_Options {
 	const DEFAULT_HERO_MAX_ITEMS     = 3;
 	const DEFAULT_POST_GRID_COLUMNS  = 2;
 	const DEFAULT_POST_GRID_PER_PAGE = 10;
+	const DEFAULT_SPONSOR_ARTICLE_INTERVAL = 5;
 	const DEFAULT_PRODUCT_GRID_COLUMNS  = 2;
 	const DEFAULT_PRODUCT_GRID_PER_PAGE = 12;
 
 	/** Base component IDs (always available). */
-	const BASE_COMPONENT_IDS = array( 'nav-menu', 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'block-sponsor' );
+	const BASE_COMPONENT_IDS = array( 'nav-menu', 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'block-sponsor', 'ad-placement' );
 
 	/** WooCommerce component IDs (only used when WooCommerce is active). */
 	const WOOCOMMERCE_COMPONENT_IDS = array( 'product-grid', 'product-category-list', 'product-carousel' );
 
 	/** All component IDs in default order. */
-	const COMPONENT_IDS = array( 'nav-menu', 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'block-sponsor', 'product-grid', 'product-category-list', 'product-carousel' );
+	const COMPONENT_IDS = array( 'nav-menu', 'hero-carousel', 'post-grid', 'category-list', 'page-list', 'block-sponsor', 'ad-placement', 'product-grid', 'product-category-list', 'product-carousel' );
 
 	/**
 	 * Featured category slug for hero carousel.
@@ -137,5 +139,15 @@ class PressNative_Layout_Options {
 	 */
 	public static function get_featured_product_cat() {
 		return (string) get_option( self::OPTION_FEATURED_PRODUCT_CAT, '' );
+	}
+
+	/**
+	 * Insert BlockSponsor every N content blocks in posts/pages. 0 disables.
+	 *
+	 * @return int
+	 */
+	public static function get_sponsor_article_interval() {
+		$v = (int) get_option( self::OPTION_SPONSOR_ARTICLE_INTERVAL, self::DEFAULT_SPONSOR_ARTICLE_INTERVAL );
+		return max( 0, min( 50, $v ) );
 	}
 }

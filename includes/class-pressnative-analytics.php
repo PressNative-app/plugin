@@ -21,10 +21,42 @@ class PressNative_Analytics {
 	const EVENT_SHOP            = 'shop';
 	const EVENT_PRODUCT         = 'product';
 	const EVENT_PRODUCT_CATEGORY = 'product-category';
+	const EVENT_SPONSOR_IMPRESSION = 'sponsor_impression';
+	const EVENT_SPONSOR_CLICK      = 'sponsor_click';
+	const EVENT_AD_REQUEST         = 'ad_request';
+	const EVENT_AD_LOAD            = 'ad_load';
+	const EVENT_AD_IMPRESSION      = 'ad_impression';
+	const EVENT_AD_CLICK           = 'ad_click';
+	const EVENT_AD_NO_FILL         = 'ad_no_fill';
 
 	const DEVICE_IOS     = 'ios';
 	const DEVICE_ANDROID = 'android';
 	const DEVICE_UNKNOWN = 'unknown';
+
+	/**
+	 * Event types accepted by /track and forwarded to the Registry.
+	 *
+	 * @return string[]
+	 */
+	public static function valid_event_types() {
+		return array(
+			self::EVENT_HOME,
+			self::EVENT_POST,
+			self::EVENT_PAGE,
+			self::EVENT_CATEGORY,
+			self::EVENT_SEARCH,
+			self::EVENT_SHOP,
+			self::EVENT_PRODUCT,
+			self::EVENT_PRODUCT_CATEGORY,
+			self::EVENT_SPONSOR_IMPRESSION,
+			self::EVENT_SPONSOR_CLICK,
+			self::EVENT_AD_REQUEST,
+			self::EVENT_AD_LOAD,
+			self::EVENT_AD_IMPRESSION,
+			self::EVENT_AD_CLICK,
+			self::EVENT_AD_NO_FILL,
+		);
+	}
 
 	/**
 	 * Detects device type from User-Agent string.
@@ -64,7 +96,7 @@ class PressNative_Analytics {
 	 * @return bool True when the event was accepted for dispatch (or skipped with no key); always true for fire-and-forget posts.
 	 */
 	public static function forward_event_to_registry( $event_type, $resource_id = '', $resource_title = null, $device_type = null, $device_id = null ) {
-		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH, self::EVENT_SHOP, self::EVENT_PRODUCT, self::EVENT_PRODUCT_CATEGORY );
+		$valid_types = self::valid_event_types();
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
 			return false;
 		}
@@ -165,7 +197,7 @@ class PressNative_Analytics {
 		$device_type   = isset( $params['device_type'] ) ? sanitize_text_field( $params['device_type'] ) : null;
 		$device_id     = isset( $params['device_id'] ) ? sanitize_text_field( $params['device_id'] ) : null;
 
-		$valid_types = array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH, self::EVENT_SHOP, self::EVENT_PRODUCT, self::EVENT_PRODUCT_CATEGORY );
+		$valid_types = self::valid_event_types();
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
 			return new WP_Error( 'invalid_event_type', __( 'Invalid event_type.', 'pressnative-apps' ), array( 'status' => 400 ) );
 		}
@@ -196,7 +228,7 @@ class PressNative_Analytics {
 					'event_type'     => array(
 						'required'          => true,
 						'type'              => 'string',
-						'enum'              => array( self::EVENT_HOME, self::EVENT_POST, self::EVENT_PAGE, self::EVENT_CATEGORY, self::EVENT_SEARCH, self::EVENT_SHOP, self::EVENT_PRODUCT, self::EVENT_PRODUCT_CATEGORY ),
+						'enum'              => PressNative_Analytics::valid_event_types(),
 						'sanitize_callback' => 'sanitize_text_field',
 					),
 					'resource_id'    => array( 'required' => false, 'type' => 'string', 'default' => '' ),

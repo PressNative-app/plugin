@@ -244,6 +244,23 @@
 		return html;
 	}
 
+	function renderAdPlacement(component) {
+		var styles = component.styles || {};
+		var colors = styles.colors || {};
+		var pad = styles.padding || {};
+		var content = component.content || {};
+		var placementId = content.placement_id || 'ad';
+		var provider = content.provider || 'admob';
+		var format = content.format || 'banner';
+
+		var html = '<div class="pressnative-preview-component pressnative-ad" style="--pn-card-bg:' + escapeHtml(colors.background || '#f6f7f9') + ';--pn-card-text:' + escapeHtml(colors.text || '#111') + ';padding:' + (pad.vertical || 8) + 'px ' + (pad.horizontal || 16) + 'px;">';
+		html += '<div class="pressnative-ad-banner">';
+		html += '<strong>AdPlacement</strong> · ' + escapeHtml(provider) + ' · ' + escapeHtml(format);
+		html += '<br /><span style="opacity:0.7">' + escapeHtml(placementId) + '</span>';
+		html += '</div></div>';
+		return html;
+	}
+
 	function renderNavMenu(component) {
 		var styles = component.styles || {};
 		var colors = styles.colors || {};
@@ -338,6 +355,7 @@
 			case 'categorylist': return renderCategoryList(component);
 			case 'pagelist': return renderPageList(component);
 			case 'blocksponsor': return renderBlockSponsor(component);
+			case 'adplacement': return renderAdPlacement(component);
 			case 'navmenu': return renderNavMenu(component);
 			case 'productgrid': return renderProductGrid(component);
 			case 'productcategorylist': return renderProductCategoryList(component);

@@ -24,6 +24,7 @@ class PressNative_Contract {
 			'PageList',
 			'SiteList',
 			'BlockSponsor',
+			'AdPlacement',
 			'NavMenu',
 			'PostDetail',
 			'ShortcodeBlock',

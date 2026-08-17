@@ -219,7 +219,7 @@ class PressNative_Admin {
 			$by_slug[ $item[2] ] = $item;
 		}
 
-		$order = array( 'pressnative-analytics', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-push' );
+		$order = array( 'pressnative-analytics', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-monetization', 'pressnative-push' );
 
 		$reordered = array();
 		foreach ( $order as $slug ) {
@@ -527,6 +527,18 @@ class PressNative_Admin {
 				'type'              => 'array',
 				'sanitize_callback' => array( __CLASS__, 'sanitize_component_ids' ),
 				'default'           => PressNative_Layout_Options::COMPONENT_IDS,
+			)
+		);
+		register_setting(
+			'pressnative_layout_settings',
+			PressNative_Layout_Options::OPTION_SPONSOR_ARTICLE_INTERVAL,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => function ( $v ) {
+					$v = absint( $v );
+					return max( 0, min( 50, $v ) );
+				},
+				'default'           => PressNative_Layout_Options::DEFAULT_SPONSOR_ARTICLE_INTERVAL,
 			)
 		);
 	}
@@ -1797,10 +1809,12 @@ class PressNative_Admin {
 			'category-list'        => __( 'Category List', 'pressnative-apps' ),
 			'page-list'            => __( 'Page List', 'pressnative-apps' ),
 			'block-sponsor'        => __( 'Block Sponsor', 'pressnative-apps' ),
+			'ad-placement'         => __( 'Ad Placement', 'pressnative-apps' ),
 			'product-grid'         => __( 'Product Grid (WooCommerce)', 'pressnative-apps' ),
 			'product-category-list' => __( 'Product Categories (WooCommerce)', 'pressnative-apps' ),
 			'product-carousel'     => __( 'Product Carousel (WooCommerce)', 'pressnative-apps' ),
 		);
+		$sponsor_interval = PressNative_Layout_Options::get_sponsor_article_interval();
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Layout Settings', 'pressnative-apps' ); ?></h1>
@@ -1862,6 +1876,19 @@ class PressNative_Admin {
 								   value="<?php echo esc_attr( $grid_per ); ?>"
 								   min="1" max="50" step="1" class="small-text"/>
 							<p class="description"><?php esc_html_e( 'Number of posts shown in the grid (1–50).', 'pressnative-apps' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
+							<label for="pressnative_sponsor_article_interval"><?php esc_html_e( 'Sponsors: Article Interval', 'pressnative-apps' ); ?></label>
+						</th>
+						<td>
+							<input type="number"
+								   id="pressnative_sponsor_article_interval"
+								   name="<?php echo esc_attr( PressNative_Layout_Options::OPTION_SPONSOR_ARTICLE_INTERVAL ); ?>"
+								   value="<?php echo esc_attr( $sponsor_interval ); ?>"
+								   min="0" max="50" step="1" class="small-text"/>
+							<p class="description"><?php esc_html_e( 'Insert a sponsor banner every N content blocks in posts and pages. Set to 0 to disable in-article sponsors. Home sponsors are controlled by the Block Sponsor component toggle below.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
