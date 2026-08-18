@@ -219,7 +219,7 @@ class PressNative_Admin {
 			$by_slug[ $item[2] ] = $item;
 		}
 
-		$order = array( 'pressnative-analytics', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-monetization', 'pressnative-push' );
+		$order = array( 'pressnative-analytics', 'pressnative', 'pressnative-app-settings', 'pressnative-layout-settings', 'pressnative-push' );
 
 		$reordered = array();
 		foreach ( $order as $slug ) {
@@ -1662,6 +1662,7 @@ class PressNative_Admin {
 							<p class="description"><?php esc_html_e( 'Header logo for the app. Used when provided in the API.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
+					<?php if ( PressNative_Options::HUB_DIRECTORY_ENABLED ) : ?>
 					<tr>
 						<th scope="row">
 							<label for="pressnative_app_categories"><?php esc_html_e( 'App Categories', 'pressnative-apps' ); ?></label>
@@ -1708,6 +1709,7 @@ class PressNative_Admin {
 							</p>
 						</td>
 					</tr>
+					<?php endif; ?>
 				</table>
 
 				<?php if ( class_exists( 'WooCommerce' ) ) : ?>
@@ -1809,7 +1811,6 @@ class PressNative_Admin {
 			'category-list'        => __( 'Category List', 'pressnative-apps' ),
 			'page-list'            => __( 'Page List', 'pressnative-apps' ),
 			'block-sponsor'        => __( 'Block Sponsor', 'pressnative-apps' ),
-			'ad-placement'         => __( 'Ad Placement', 'pressnative-apps' ),
 			'product-grid'         => __( 'Product Grid (WooCommerce)', 'pressnative-apps' ),
 			'product-category-list' => __( 'Product Categories (WooCommerce)', 'pressnative-apps' ),
 			'product-carousel'     => __( 'Product Carousel (WooCommerce)', 'pressnative-apps' ),
@@ -2429,13 +2430,39 @@ class PressNative_Admin {
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="category">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Category Views', 'pressnative-apps' ); ?></span></div>
 			</div>
 			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Downloads = users who have favorited your site in the app.', 'pressnative-apps' ); ?></p>
+
+			<div class="pressnative-analytics-funnel" id="pressnative-recovery-funnel">
+				<h2><?php esc_html_e( 'Cart Recovery Funnel', 'pressnative-apps' ); ?></h2>
+				<div class="pressnative-funnel-steps">
+					<div class="pressnative-funnel-step">
+						<span class="pressnative-kpi-value" data-funnel="push_received">—</span>
+						<span class="pressnative-kpi-label"><?php esc_html_e( 'Push Received', 'pressnative-apps' ); ?></span>
+					</div>
+					<span class="pressnative-funnel-arrow" aria-hidden="true">→</span>
+					<div class="pressnative-funnel-step">
+						<span class="pressnative-kpi-value" data-funnel="push_clicked">—</span>
+						<span class="pressnative-kpi-label"><?php esc_html_e( 'Push Clicked', 'pressnative-apps' ); ?></span>
+					</div>
+					<span class="pressnative-funnel-arrow" aria-hidden="true">→</span>
+					<div class="pressnative-funnel-step pressnative-kpi-highlight">
+						<span class="pressnative-kpi-value" data-funnel="click_to_purchase">—</span>
+						<span class="pressnative-kpi-label"><?php esc_html_e( 'Purchases (after click)', 'pressnative-apps' ); ?></span>
+					</div>
+				</div>
+				<p class="pressnative-analytics-kpi-note">
+					<?php esc_html_e( 'CTR:', 'pressnative-apps' ); ?> <strong data-funnel="ctr">—</strong>
+					&nbsp;·&nbsp;
+					<?php esc_html_e( 'Click → purchase:', 'pressnative-apps' ); ?> <strong data-funnel="click_to_purchase_rate">—</strong>
+				</p>
+			</div>
+
 			<div class="pressnative-analytics-push-kpis">
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_received">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Received', 'pressnative-apps' ); ?></span></div>
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="push_clicked">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push Clicks', 'pressnative-apps' ); ?></span></div>
 				<div class="pressnative-kpi-card pressnative-kpi-highlight"><span class="pressnative-kpi-value" data-kpi="push_ctr">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Push CTR', 'pressnative-apps' ); ?></span></div>
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="proof_score">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Lock-screen reach', 'pressnative-apps' ); ?></span></div>
 			</div>
-			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Proof funnel: Push Received → Push Clicks (CTR). Lock-screen reach = push received this period — the channel you own vs email.', 'pressnative-apps' ); ?></p>
+			<p class="pressnative-analytics-kpi-note"><?php esc_html_e( 'Proof funnel: Push Received → Push Clicks → Purchases. Revenue reflects checkout completion events with order value.', 'pressnative-apps' ); ?></p>
 
 			<div class="pressnative-analytics-push-kpis" id="pressnative-engagement-kpis">
 				<div class="pressnative-kpi-card"><span class="pressnative-kpi-value" data-kpi="read_complete_rate">—</span><span class="pressnative-kpi-label"><?php esc_html_e( 'Read complete', 'pressnative-apps' ); ?></span></div>

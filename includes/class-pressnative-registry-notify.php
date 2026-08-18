@@ -97,14 +97,16 @@ class PressNative_Registry_Notify {
 		$registry_url = PressNative_Admin::get_registry_url();
 		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/config-changed';
 		$site_url     = home_url( '/' );
-		$tags         = PressNative_Options::get_app_categories();
+		$tags         = PressNative_Options::HUB_DIRECTORY_ENABLED ? PressNative_Options::get_app_categories() : array();
 		$branding     = PressNative_Options::get_branding();
 
 		$body = array(
 			'site_url' => $site_url,
-			'tags'     => $tags,
 			'branding' => $branding,
 		);
+		if ( PressNative_Options::HUB_DIRECTORY_ENABLED ) {
+			$body['tags'] = $tags;
+		}
 
 		// Include shop_config if WooCommerce is active and the updated option affects it
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
