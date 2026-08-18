@@ -12,8 +12,8 @@ defined( 'ABSPATH' ) || exit;
  */
 class PressNative_Monetization {
 
+	const ADMOB_ENABLED              = false;
 	const OPTION_ENABLED           = 'pressnative_ads_enabled';
-	const OPTION_CONSENT_REQUIRED  = 'pressnative_ads_consent_required';
 	const OPTION_TEST_MODE         = 'pressnative_ads_test_mode';
 	const OPTION_ADMOB_APP_ID_IOS  = 'pressnative_admob_app_id_ios';
 	const OPTION_ADMOB_APP_ID_ANDROID = 'pressnative_admob_app_id_android';
@@ -38,6 +38,9 @@ class PressNative_Monetization {
 	 * Add Monetization submenu under PressNative.
 	 */
 	public static function add_menu() {
+		if ( ! self::ADMOB_ENABLED ) {
+			return;
+		}
 		add_submenu_page(
 			'pressnative',
 			__( 'Monetization', 'pressnative-apps' ),
@@ -165,9 +168,6 @@ class PressNative_Monetization {
 	 * @return array
 	 */
 	public static function get_config() {
-		$test = self::is_test_mode();
-		$app_ios = $test ? self::TEST_APP_ID_IOS : (string) get_option( self::OPTION_ADMOB_APP_ID_IOS, '' );
-		$app_android = $test ? self::TEST_APP_ID_ANDROID : (string) get_option( self::OPTION_ADMOB_APP_ID_ANDROID, '' );
 		$interval = class_exists( 'PressNative_Layout_Options' )
 			? PressNative_Layout_Options::get_sponsor_article_interval()
 			: 5;
@@ -175,6 +175,20 @@ class PressNative_Monetization {
 			? PressNative_Layout_Options::get_enabled_components()
 			: array();
 		$sponsor_home = in_array( 'block-sponsor', $enabled_components, true );
+
+		if ( ! self::ADMOB_ENABLED ) {
+			return array(
+				'enabled' => false,
+				'policy'  => array(
+					'sponsor_home_enabled'     => $sponsor_home,
+					'sponsor_article_interval' => $interval,
+				),
+			);
+		}
+
+		$test = self::is_test_mode();
+		$app_ios = $test ? self::TEST_APP_ID_IOS : (string) get_option( self::OPTION_ADMOB_APP_ID_IOS, '' );
+		$app_android = $test ? self::TEST_APP_ID_ANDROID : (string) get_option( self::OPTION_ADMOB_APP_ID_ANDROID, '' );
 		$ad_home      = in_array( 'ad-placement', $enabled_components, true );
 
 		return array(
@@ -220,6 +234,9 @@ class PressNative_Monetization {
 	 * @return array|null
 	 */
 	public static function build_ad_placement( array $styles ) {
+		if ( ! self::ADMOB_ENABLED ) {
+			return null;
+		}
 		if ( ! self::is_enabled() ) {
 			return null;
 		}

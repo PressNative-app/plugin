@@ -376,7 +376,6 @@ class PressNative_Layout {
 			'category-list'  => array( $this, 'build_category_list' ),
 			'page-list'      => array( $this, 'build_page_list' ),
 			'block-sponsor'  => array( $this, 'build_block_sponsor' ),
-			'ad-placement'   => array( $this, 'build_ad_placement' ),
 		);
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
 			$builders['product-grid']          = array( $this, 'build_product_grid' );

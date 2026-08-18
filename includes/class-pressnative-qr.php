@@ -36,14 +36,67 @@ class PressNative_QR {
 	}
 
 	/**
-	 * Build the deep link URL for the current site.
+	 * Build the deep link URL for the current site (signed preview when API key is configured).
 	 *
 	 * @return string
 	 */
 	public static function get_deep_link_url() {
 		$site_url = untrailingslashit( home_url() );
-		$base     = rtrim( self::get_deep_link_base(), '/' );
+		$signed   = self::fetch_signed_preview_url( $site_url );
+		if ( $signed ) {
+			return $signed;
+		}
+
+		$base = rtrim( self::get_deep_link_base(), '/' );
 		return $base . '/open?site=' . rawurlencode( $site_url );
+	}
+
+	/**
+	 * Request a signed sales preview URL from the registry.
+	 *
+	 * @param string $site_url Site home URL.
+	 * @return string|null Preview URL or null on failure.
+	 */
+	private static function fetch_signed_preview_url( $site_url ) {
+		$auth_key = get_option( 'pressnative_auth_key', '' );
+		if ( ! is_string( $auth_key ) || '' === trim( $auth_key ) ) {
+			return null;
+		}
+
+		$registry = PressNative_Admin::get_registry_url();
+		$url      = rtrim( $registry, '/' ) . '/api/v1/preview-link';
+
+		$response = wp_remote_post(
+			$url,
+			array(
+				'timeout' => 12,
+				'headers' => array(
+					'Content-Type'          => 'application/json',
+					'X-PressNative-Api-Key' => trim( $auth_key ),
+				),
+				'body'    => wp_json_encode(
+					array(
+						'site_url' => $site_url,
+					)
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return null;
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		if ( $code < 200 || $code >= 300 ) {
+			return null;
+		}
+
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) || empty( $data['url'] ) || ! is_string( $data['url'] ) ) {
+			return null;
+		}
+
+		return $data['url'];
 	}
 
 	/**

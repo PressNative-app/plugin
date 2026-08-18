@@ -173,6 +173,43 @@
 	padding: 12px 0;
 }
 
+/* Cart recovery funnel */
+.pressnative-analytics-funnel {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 8px;
+	padding: 20px 24px;
+	margin-bottom: 24px;
+}
+
+.pressnative-analytics-funnel h2 {
+	margin: 0 0 16px;
+	font-size: 1.1em;
+}
+
+.pressnative-funnel-steps {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 12px 16px;
+	margin-bottom: 8px;
+}
+
+.pressnative-funnel-step {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	padding: 12px 16px;
+	min-width: 140px;
+	text-align: center;
+}
+
+.pressnative-funnel-arrow {
+	font-size: 1.25em;
+	color: #646970;
+	font-weight: 600;
+}
+
 /* Responsive: stack charts on narrow screens */
 @media screen and (max-width: 782px) {
 	.pressnative-analytics-kpis {

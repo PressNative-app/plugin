@@ -297,6 +297,15 @@
 		}
 	}
 
+	function renderRecoveryFunnel(funnel) {
+		if (!funnel) return;
+		setText('[data-funnel="push_received"]', formatNumber(funnel.push_received || 0));
+		setText('[data-funnel="push_clicked"]', formatNumber(funnel.push_clicked || 0));
+		setText('[data-funnel="click_to_purchase"]', formatNumber(funnel.click_to_purchase || 0));
+		setText('[data-funnel="ctr"]', funnel.ctr != null ? funnel.ctr.toFixed(1) + '%' : '—');
+		setText('[data-funnel="click_to_purchase_rate"]', funnel.click_to_purchase_rate != null ? funnel.click_to_purchase_rate.toFixed(1) + '%' : '—');
+	}
+
 	// ——— Load all ———
 	function loadDashboard() {
 		var days = getDays();
@@ -311,7 +320,8 @@
 			fetchApi('/analytics/device-breakdown' + '?days=' + days),
 			fetchApi('/analytics/top-searches' + q),
 			fetchApi('/analytics/engagement' + '?days=' + days).catch(function () { return null; }),
-			fetchApi('/analytics/commerce' + '?days=' + days).catch(function () { return null; })
+			fetchApi('/analytics/commerce' + '?days=' + days).catch(function () { return null; }),
+			fetchApi('/analytics/funnel' + '?days=' + days).catch(function () { return null; })
 		]).then(function (results) {
 			var summary = results[0];
 			var viewsOverTime = results[1];
@@ -322,7 +332,9 @@
 			var topSearches = results[6];
 			var engagement = results[7];
 			var commerce = results[8];
+			var funnel = results[9];
 
+			renderRecoveryFunnel(funnel);
 			renderKpis(summary);
 			renderViewsOverTime(viewsOverTime);
 			renderContentTypeChart(summary.by_type || {});

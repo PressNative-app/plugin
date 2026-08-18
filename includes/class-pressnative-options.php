@@ -39,6 +39,8 @@ class PressNative_Options {
 	const DEFAULT_APP_NAME              = 'PressNative';
 	const DEFAULT_APP_CATEGORIES        = array();
 	const APP_CATEGORIES_MAX            = 5;
+	/** Hub directory deprecated — app categories no longer synced to registry. */
+	const HUB_DIRECTORY_ENABLED         = false;
 	const DEFAULT_PRIMARY_COLOR         = '#1A73E8';
 	const DEFAULT_ACCENT_COLOR          = '#34C759';
 	const DEFAULT_BACKGROUND_COLOR      = '#FFFFFF';
@@ -108,7 +110,7 @@ class PressNative_Options {
 		$branding = array(
 			'app_name'   => (string) get_option( self::OPTION_APP_NAME, get_bloginfo( 'name' ) ),
 			'logo_url'   => $logo_url,
-			'app_categories' => self::get_app_categories(),
+			'app_categories' => self::HUB_DIRECTORY_ENABLED ? self::get_app_categories() : array(),
 			'theme'      => array(
 				'primary_color'         => self::sanitize_hex( get_option( self::OPTION_PRIMARY_COLOR, self::DEFAULT_PRIMARY_COLOR ) ),
 				'accent_color'          => self::sanitize_hex( get_option( self::OPTION_ACCENT_COLOR, self::DEFAULT_ACCENT_COLOR ) ),
