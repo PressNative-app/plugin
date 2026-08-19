@@ -29,6 +29,22 @@ class PressNative_Options {
 	const OPTION_BASE_FONT_SIZE        = 'pressnative_base_font_size';
 	const OPTION_APP_CATEGORIES        = 'pressnative_app_categories';
 	const OPTION_THEME_ID              = 'pressnative_theme_id';
+	const OPTION_HUB_OPTED_IN          = 'pressnative_hub_opted_in';
+
+	// Store listing (App Store / Play Store metadata).
+	const OPTION_STORE_SHORT_DESCRIPTION   = 'pressnative_store_short_description';
+	const OPTION_STORE_FULL_DESCRIPTION    = 'pressnative_store_full_description';
+	const OPTION_STORE_KEYWORDS            = 'pressnative_store_keywords';
+	const OPTION_STORE_CATEGORY            = 'pressnative_store_category';
+	const OPTION_STORE_PRIVACY_POLICY_URL  = 'pressnative_store_privacy_policy_url';
+	const OPTION_STORE_SUPPORT_URL         = 'pressnative_store_support_url';
+	const OPTION_STORE_MARKETING_URL       = 'pressnative_store_marketing_url';
+	const OPTION_STORE_COPYRIGHT           = 'pressnative_store_copyright';
+	const OPTION_STORE_ICON_ATTACHMENT_ID  = 'pressnative_store_icon_attachment_id';
+	const OPTION_STORE_CONTENT_RATING      = 'pressnative_store_content_rating';
+
+	// Universal / App Links (team ID, bundle ID, SHA-256 fingerprint).
+	const OPTION_APP_LINK_SETTINGS         = 'pressnative_app_link_settings';
 
 	// Push notification preferences.
 	const OPTION_NOTIFICATION_PREFERENCES = 'pressnative_notification_preferences';
@@ -39,8 +55,8 @@ class PressNative_Options {
 	const DEFAULT_APP_NAME              = 'PressNative';
 	const DEFAULT_APP_CATEGORIES        = array();
 	const APP_CATEGORIES_MAX            = 5;
-	/** Hub directory deprecated — app categories no longer synced to registry. */
-	const HUB_DIRECTORY_ENABLED         = false;
+	/** Hub directory: sync tags and store listing to pressnative.app. */
+	const HUB_DIRECTORY_ENABLED         = true;
 	const DEFAULT_PRIMARY_COLOR         = '#1A73E8';
 	const DEFAULT_ACCENT_COLOR          = '#34C759';
 	const DEFAULT_BACKGROUND_COLOR      = '#FFFFFF';
@@ -50,6 +66,21 @@ class PressNative_Options {
 	const DEFAULT_TILE_TEXT_COLOR       = '#111111';
 	const DEFAULT_FONT_FAMILY           = 'sans-serif';
 	const DEFAULT_BASE_FONT_SIZE        = 16;
+	const DEFAULT_HUB_OPTED_IN          = true;
+
+	const DEFAULT_STORE_CATEGORY = 'news';
+	const DEFAULT_CONTENT_RATING = array(
+		'age_rating' => '4+',
+		'violence'   => 'none',
+		'profanity'  => 'none',
+		'gambling'   => false,
+	);
+
+	const DEFAULT_APP_LINK_SETTINGS = array(
+		'team_id'             => '',
+		'bundle_id'           => '',
+		'sha256_fingerprint'  => '',
+	);
 
 	const DEFAULT_NOTIFICATION_PREFERENCES = array(
 		'enabled' => true,
@@ -130,6 +161,149 @@ class PressNative_Options {
 			'settings_version' => self::get_settings_version(),
 		);
 		return $branding;
+	}
+
+	/**
+	 * Whether this site is listed in the PressNative Hub directory.
+	 *
+	 * @return bool
+	 */
+	public static function is_hub_opted_in() {
+		$value = get_option( self::OPTION_HUB_OPTED_IN, self::DEFAULT_HUB_OPTED_IN );
+		if ( is_bool( $value ) ) {
+			return $value;
+		}
+		return (string) $value === '1' || (string) $value === 'true';
+	}
+
+	/**
+	 * Returns store listing metadata for App Store / Play Store publishing.
+	 *
+	 * @return array
+	 */
+	public static function get_store_listing() {
+		$icon_url = '';
+		$icon_id  = (int) get_option( self::OPTION_STORE_ICON_ATTACHMENT_ID, 0 );
+		if ( $icon_id > 0 ) {
+			$icon_url = wp_get_attachment_image_url( $icon_id, 'full' );
+			if ( ! is_string( $icon_url ) ) {
+				$icon_url = '';
+			}
+		}
+
+		$content_rating = get_option( self::OPTION_STORE_CONTENT_RATING, self::DEFAULT_CONTENT_RATING );
+		if ( is_string( $content_rating ) ) {
+			$decoded = json_decode( $content_rating, true );
+			$content_rating = is_array( $decoded ) ? $decoded : self::DEFAULT_CONTENT_RATING;
+		} elseif ( ! is_array( $content_rating ) ) {
+			$content_rating = self::DEFAULT_CONTENT_RATING;
+		}
+
+		$keywords = get_option( self::OPTION_STORE_KEYWORDS, '' );
+		if ( is_string( $keywords ) && $keywords !== '' ) {
+			$keywords = array_values( array_filter( array_map( 'trim', explode( ',', $keywords ) ) ) );
+		} elseif ( ! is_array( $keywords ) ) {
+			$keywords = array();
+		}
+
+		return array(
+			'short_description'        => (string) get_option( self::OPTION_STORE_SHORT_DESCRIPTION, '' ),
+			'full_description'         => (string) get_option( self::OPTION_STORE_FULL_DESCRIPTION, '' ),
+			'keywords'                 => $keywords,
+			'category'                 => (string) get_option( self::OPTION_STORE_CATEGORY, self::DEFAULT_STORE_CATEGORY ),
+			'privacy_policy_url'       => esc_url_raw( (string) get_option( self::OPTION_STORE_PRIVACY_POLICY_URL, '' ) ),
+			'support_url'              => esc_url_raw( (string) get_option( self::OPTION_STORE_SUPPORT_URL, '' ) ),
+			'marketing_url'            => esc_url_raw( (string) get_option( self::OPTION_STORE_MARKETING_URL, '' ) ),
+			'copyright'                => (string) get_option( self::OPTION_STORE_COPYRIGHT, '' ),
+			'store_icon_attachment_id' => $icon_id,
+			'store_icon_url'           => $icon_url,
+			'content_rating'           => $content_rating,
+		);
+	}
+
+	/**
+	 * Returns Universal Links / App Links configuration.
+	 *
+	 * @return array{team_id: string, bundle_id: string, sha256_fingerprint: string}
+	 */
+	public static function get_app_link_settings() {
+		$settings = get_option( self::OPTION_APP_LINK_SETTINGS, self::DEFAULT_APP_LINK_SETTINGS );
+		if ( ! is_array( $settings ) ) {
+			$settings = self::DEFAULT_APP_LINK_SETTINGS;
+		}
+		return array(
+			'team_id'            => sanitize_text_field( (string) ( $settings['team_id'] ?? '' ) ),
+			'bundle_id'          => sanitize_text_field( (string) ( $settings['bundle_id'] ?? '' ) ),
+			'sha256_fingerprint' => sanitize_text_field( (string) ( $settings['sha256_fingerprint'] ?? '' ) ),
+		);
+	}
+
+	/**
+	 * Sanitize hub opt-in flag.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string '1' or '0'.
+	 */
+	public static function sanitize_hub_opted_in( $value ) {
+		return ! empty( $value ) ? '1' : '0';
+	}
+
+	/**
+	 * Sanitize store listing keywords (comma-separated string or array).
+	 *
+	 * @param mixed $value Raw value.
+	 * @return string Comma-separated keywords.
+	 */
+	public static function sanitize_store_keywords( $value ) {
+		if ( is_array( $value ) ) {
+			$keywords = array_values( array_filter( array_map( 'sanitize_text_field', $value ) ) );
+		} else {
+			$keywords = array_values( array_filter( array_map( 'trim', explode( ',', (string) $value ) ) ) );
+		}
+		return implode( ',', array_slice( $keywords, 0, 20 ) );
+	}
+
+	/**
+	 * Sanitize content rating JSON.
+	 *
+	 * @param mixed $value Raw value (array or JSON string).
+	 * @return string JSON string.
+	 */
+	public static function sanitize_content_rating( $value ) {
+		if ( is_string( $value ) ) {
+			$decoded = json_decode( $value, true );
+			if ( ! is_array( $decoded ) ) {
+				return wp_json_encode( self::DEFAULT_CONTENT_RATING );
+			}
+			$value = $decoded;
+		}
+		if ( ! is_array( $value ) ) {
+			return wp_json_encode( self::DEFAULT_CONTENT_RATING );
+		}
+		$sanitized = array(
+			'age_rating' => sanitize_text_field( (string) ( $value['age_rating'] ?? self::DEFAULT_CONTENT_RATING['age_rating'] ) ),
+			'violence'   => sanitize_text_field( (string) ( $value['violence'] ?? self::DEFAULT_CONTENT_RATING['violence'] ) ),
+			'profanity'  => sanitize_text_field( (string) ( $value['profanity'] ?? self::DEFAULT_CONTENT_RATING['profanity'] ) ),
+			'gambling'   => ! empty( $value['gambling'] ),
+		);
+		return wp_json_encode( $sanitized );
+	}
+
+	/**
+	 * Sanitize app link settings array.
+	 *
+	 * @param mixed $value Raw value.
+	 * @return array
+	 */
+	public static function sanitize_app_link_settings( $value ) {
+		if ( ! is_array( $value ) ) {
+			return self::DEFAULT_APP_LINK_SETTINGS;
+		}
+		return array(
+			'team_id'            => sanitize_text_field( (string) ( $value['team_id'] ?? '' ) ),
+			'bundle_id'          => sanitize_text_field( (string) ( $value['bundle_id'] ?? '' ) ),
+			'sha256_fingerprint' => sanitize_text_field( (string) ( $value['sha256_fingerprint'] ?? '' ) ),
+		);
 	}
 
 	/**

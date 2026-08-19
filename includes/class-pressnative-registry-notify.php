@@ -31,6 +31,18 @@ class PressNative_Registry_Notify {
 		PressNative_Options::OPTION_BASE_FONT_SIZE,
 		PressNative_Options::OPTION_APP_CATEGORIES,
 		PressNative_Options::OPTION_THEME_ID,
+		PressNative_Options::OPTION_HUB_OPTED_IN,
+		PressNative_Options::OPTION_STORE_SHORT_DESCRIPTION,
+		PressNative_Options::OPTION_STORE_FULL_DESCRIPTION,
+		PressNative_Options::OPTION_STORE_KEYWORDS,
+		PressNative_Options::OPTION_STORE_CATEGORY,
+		PressNative_Options::OPTION_STORE_PRIVACY_POLICY_URL,
+		PressNative_Options::OPTION_STORE_SUPPORT_URL,
+		PressNative_Options::OPTION_STORE_MARKETING_URL,
+		PressNative_Options::OPTION_STORE_COPYRIGHT,
+		PressNative_Options::OPTION_STORE_ICON_ATTACHMENT_ID,
+		PressNative_Options::OPTION_STORE_CONTENT_RATING,
+		PressNative_Options::OPTION_APP_LINK_SETTINGS,
 		PressNative_Launch_Kits::OPTION_ACTIVE_KIT,
 		// Layout options
 		PressNative_Layout_Options::OPTION_HERO_CATEGORY_SLUG,
@@ -94,51 +106,25 @@ class PressNative_Registry_Notify {
 			return;
 		}
 
-		$registry_url = PressNative_Admin::get_registry_url();
-		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/config-changed';
-		$site_url     = home_url( '/' );
-		$tags         = PressNative_Options::HUB_DIRECTORY_ENABLED ? PressNative_Options::get_app_categories() : array();
-		$branding     = PressNative_Options::get_branding();
-
-		$body = array(
-			'site_url' => $site_url,
-			'branding' => $branding,
-		);
-		if ( PressNative_Options::HUB_DIRECTORY_ENABLED ) {
-			$body['tags'] = $tags;
+		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
+			error_log( "PressNative: Sending cache invalidation notification for {$option}" );
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
+			error_log( "PressNative: Settings version incremented to {$settings_version}" );
 		}
 
-		// Include shop_config if WooCommerce is active and the updated option affects it
+		$extra = array();
 		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
 			$wc_related_options = array(
 				'pressnative_product_in_post_style',
 				'pressnative_product_grid_style',
 			);
 			if ( in_array( $option, $wc_related_options, true ) ) {
-				$body['shop_config'] = PressNative_WooCommerce::get_shop_config();
+				$extra['shop_config'] = PressNative_WooCommerce::get_shop_config();
 			}
 		}
 
-		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
-			error_log( "PressNative: Sending cache invalidation notification for {$option} to {$url}" );
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
-			error_log( "PressNative: Settings version incremented to {$settings_version}" );
-		}
-
-		wp_remote_post(
-			$url,
-			array(
-				'timeout'   => 5,
-				'blocking'  => false,
-				'sslverify' => true,
-				'headers'   => array(
-					'Content-Type'          => 'application/json',
-					'X-PressNative-API-Key' => $api_key,
-				),
-				'body'      => wp_json_encode( $body ),
-			)
-		);
+		self::send_config_changed( $api_key, $extra );
 	}
 
 	/**
@@ -260,5 +246,82 @@ class PressNative_Registry_Notify {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Notify the Registry when config changes (e.g. after launch kit apply).
+	 *
+	 * @return void
+	 */
+	public static function notify_if_configured() {
+		$api_key = get_option( PressNative_Admin::OPTION_API_KEY, '' );
+		if ( empty( $api_key ) ) {
+			return;
+		}
+		PressNative_Options::increment_settings_version();
+		self::send_config_changed( $api_key );
+	}
+
+	/**
+	 * Notify registry of hub opt-in change.
+	 *
+	 * @param bool $hub_opted_in New hub opt-in value.
+	 * @return void
+	 */
+	public static function notify_hub_opted_in( $hub_opted_in ) {
+		$api_key = get_option( PressNative_Admin::OPTION_API_KEY, '' );
+		if ( empty( $api_key ) ) {
+			return;
+		}
+		self::send_config_changed( $api_key, array( 'hub_opted_in' => (bool) $hub_opted_in ) );
+	}
+
+	/**
+	 * Send config-changed webhook to the Registry.
+	 *
+	 * @param string $api_key      Site API key.
+	 * @param array  $extra_fields Optional extra body fields.
+	 * @return void
+	 */
+	private static function send_config_changed( $api_key, $extra_fields = array() ) {
+		$registry_url = PressNative_Admin::get_registry_url();
+		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/config-changed';
+		$site_url     = home_url( '/' );
+		$tags         = PressNative_Options::HUB_DIRECTORY_ENABLED ? PressNative_Options::get_app_categories() : array();
+		$branding     = PressNative_Options::get_branding();
+
+		$body = array_merge(
+			array(
+				'site_url' => $site_url,
+				'branding' => $branding,
+			),
+			$extra_fields
+		);
+
+		if ( PressNative_Options::HUB_DIRECTORY_ENABLED ) {
+			if ( ! isset( $body['tags'] ) ) {
+				$body['tags'] = $tags;
+			}
+			if ( ! isset( $body['hub_opted_in'] ) ) {
+				$body['hub_opted_in'] = PressNative_Options::is_hub_opted_in();
+			}
+			if ( ! isset( $body['store_listing'] ) ) {
+				$body['store_listing'] = PressNative_Options::get_store_listing();
+			}
+		}
+
+		wp_remote_post(
+			$url,
+			array(
+				'timeout'   => 5,
+				'blocking'  => false,
+				'sslverify' => true,
+				'headers'   => array(
+					'Content-Type'            => 'application/json',
+					'X-PressNative-API-Key'   => $api_key,
+				),
+				'body'      => wp_json_encode( $body ),
+			)
+		);
 	}
 }
