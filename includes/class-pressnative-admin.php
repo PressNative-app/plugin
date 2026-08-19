@@ -114,6 +114,35 @@ class PressNative_Admin {
 			'pressnative-push',
 			array( __CLASS__, 'render_push_page' )
 		);
+		self::add_publishing_shortcuts();
+	}
+
+	/**
+	 * Add Store Listing and App Links shortcuts into the PressNative submenu.
+	 *
+	 * WordPress submenu slugs cannot include hashes, so these entries point at
+	 * sections on the App Settings page.
+	 *
+	 * @return void
+	 */
+	public static function add_publishing_shortcuts() {
+		global $submenu;
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+		if ( ! isset( $submenu['pressnative'] ) ) {
+			return;
+		}
+		$submenu['pressnative'][] = array(
+			__( 'Store Listing', 'pressnative-apps' ),
+			'manage_options',
+			'admin.php?page=pressnative-app-settings#pressnative-store-listing',
+		);
+		$submenu['pressnative'][] = array(
+			__( 'App Links', 'pressnative-apps' ),
+			'manage_options',
+			'admin.php?page=pressnative-app-settings#pressnative-app-links',
+		);
 	}
 
 	/**
@@ -1895,7 +1924,7 @@ class PressNative_Admin {
 					<?php endif; ?>
 				</table>
 
-				<h2 style="margin-top:2em;"><?php esc_html_e( 'Store Listing', 'pressnative-apps' ); ?></h2>
+				<h2 id="pressnative-store-listing" style="margin-top:2em;"><?php esc_html_e( 'Store Listing', 'pressnative-apps' ); ?></h2>
 				<p class="description"><?php esc_html_e( 'Metadata used when publishing your app to the App Store and Google Play.', 'pressnative-apps' ); ?></p>
 				<table class="form-table" role="presentation">
 					<?php
@@ -2020,7 +2049,7 @@ class PressNative_Admin {
 					</tr>
 				</table>
 
-				<h2 style="margin-top:2em;"><?php esc_html_e( 'App Links', 'pressnative-apps' ); ?></h2>
+				<h2 id="pressnative-app-links" style="margin-top:2em;"><?php esc_html_e( 'App Links', 'pressnative-apps' ); ?></h2>
 				<p class="description"><?php esc_html_e( 'Configure Universal Links (iOS) and App Links (Android). Association files are served at /.well-known/ on your domain.', 'pressnative-apps' ); ?></p>
 				<table class="form-table" role="presentation">
 					<?php $app_links = PressNative_Options::get_app_link_settings(); ?>

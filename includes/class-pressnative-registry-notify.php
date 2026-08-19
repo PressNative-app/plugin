@@ -277,13 +277,32 @@ class PressNative_Registry_Notify {
 	}
 
 	/**
+	 * Notify registry that association files verified on this site.
+	 *
+	 * @param string $bundle_id Optional bundle / package id from App Links settings.
+	 * @return void
+	 */
+	public static function notify_assoc_verified( $bundle_id = '' ) {
+		$api_key = get_option( PressNative_Admin::OPTION_API_KEY, '' );
+		if ( empty( $api_key ) ) {
+			return;
+		}
+		$extra = array( 'assoc_files_verified' => true );
+		if ( is_string( $bundle_id ) && $bundle_id !== '' ) {
+			$extra['bundle_id'] = $bundle_id;
+		}
+		self::send_config_changed( $api_key, $extra, true );
+	}
+
+	/**
 	 * Send config-changed webhook to the Registry.
 	 *
 	 * @param string $api_key      Site API key.
 	 * @param array  $extra_fields Optional extra body fields.
+	 * @param bool   $blocking     Whether to wait for the registry response.
 	 * @return void
 	 */
-	private static function send_config_changed( $api_key, $extra_fields = array() ) {
+	private static function send_config_changed( $api_key, $extra_fields = array(), $blocking = false ) {
 		$registry_url = PressNative_Admin::get_registry_url();
 		$url          = rtrim( $registry_url, '/' ) . '/api/v1/notify/config-changed';
 		$site_url     = home_url( '/' );
@@ -305,16 +324,16 @@ class PressNative_Registry_Notify {
 			if ( ! isset( $body['hub_opted_in'] ) ) {
 				$body['hub_opted_in'] = PressNative_Options::is_hub_opted_in();
 			}
-			if ( ! isset( $body['store_listing'] ) ) {
-				$body['store_listing'] = PressNative_Options::get_store_listing();
-			}
+		}
+		if ( ! isset( $body['store_listing'] ) ) {
+			$body['store_listing'] = PressNative_Options::get_store_listing();
 		}
 
 		wp_remote_post(
 			$url,
 			array(
-				'timeout'   => 5,
-				'blocking'  => false,
+				'timeout'   => $blocking ? 10 : 5,
+				'blocking'  => (bool) $blocking,
 				'sslverify' => true,
 				'headers'   => array(
 					'Content-Type'            => 'application/json',
