@@ -53,6 +53,7 @@ require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-analytics.php'
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-admin.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-preview.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-registry-notify.php';
+require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-well-known.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-qr.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-sponsors.php';
 require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-monetization.php';
@@ -78,6 +79,9 @@ register_activation_hook( __FILE__, function () {
 
 	// Schedule async AOT warm-up so existing content is pre-compiled.
 	PressNative_AOT_Compiler::schedule_warmup();
+
+	// Register .well-known rewrite rules.
+	PressNative_Well_Known::flush_rewrite_rules();
 } );
 
 /**
@@ -783,6 +787,7 @@ add_action( 'rest_api_init', function () {
 	PressNative_Devices::register_rest_route();
 	PressNative_Analytics::register_rest_routes();
 	PressNative_Search_Api::register_routes();
+	PressNative_Well_Known::register_rest_routes();
 } );
 
 /**
@@ -868,6 +873,11 @@ PressNative_AOT_Compiler::init();
  * Notify Registry when branding/layout options are saved (invalidates site branding cache).
  */
 PressNative_Registry_Notify::init();
+
+/**
+ * Serve .well-known app association files for Universal / App Links.
+ */
+PressNative_Well_Known::init();
 
 /**
  * Editorial push metabox (notify on publish).

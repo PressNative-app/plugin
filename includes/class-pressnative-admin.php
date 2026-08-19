@@ -39,6 +39,7 @@ class PressNative_Admin {
 		add_action( 'admin_post_pressnative_verify_site', array( __CLASS__, 'handle_verify_site' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'show_woocommerce_seed_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'show_cache_invalidation_notice' ) );
+		add_action( 'update_option_' . PressNative_Options::OPTION_HUB_OPTED_IN, array( __CLASS__, 'on_hub_opted_in_changed' ), 10, 2 );
 	}
 
 	/**
@@ -48,6 +49,22 @@ class PressNative_Admin {
 	 */
 	public static function clear_subscription_cache() {
 		delete_transient( self::SUBSCRIPTION_CACHE_KEY . '_' . md5( get_option( self::OPTION_API_KEY, '' ) ) );
+	}
+
+	/**
+	 * Notify registry when hub directory opt-in changes.
+	 *
+	 * @param mixed $old_value Previous value.
+	 * @param mixed $new_value New value.
+	 * @return void
+	 */
+	public static function on_hub_opted_in_changed( $old_value, $new_value ) {
+		$old_bool = (string) $old_value === '1' || $old_value === true;
+		$new_bool = (string) $new_value === '1' || $new_value === true;
+		if ( $old_bool === $new_bool ) {
+			return;
+		}
+		PressNative_Registry_Notify::notify_hub_opted_in( $new_bool );
 	}
 
 	/**
@@ -402,6 +419,114 @@ class PressNative_Admin {
 				'type'              => 'array',
 				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_notification_preferences' ),
 				'default'           => PressNative_Options::DEFAULT_NOTIFICATION_PREFERENCES,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_HUB_OPTED_IN,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_hub_opted_in' ),
+				'default'           => PressNative_Options::DEFAULT_HUB_OPTED_IN ? '1' : '0',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_SHORT_DESCRIPTION,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_FULL_DESCRIPTION,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_textarea_field',
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_KEYWORDS,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_store_keywords' ),
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_CATEGORY,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_key',
+				'default'           => PressNative_Options::DEFAULT_STORE_CATEGORY,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_PRIVACY_POLICY_URL,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'esc_url_raw',
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_SUPPORT_URL,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'esc_url_raw',
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_MARKETING_URL,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'esc_url_raw',
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_COPYRIGHT,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => '',
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_ICON_ATTACHMENT_ID,
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'default'           => 0,
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_STORE_CONTENT_RATING,
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_content_rating' ),
+				'default'           => wp_json_encode( PressNative_Options::DEFAULT_CONTENT_RATING ),
+			)
+		);
+		register_setting(
+			'pressnative_app_settings',
+			PressNative_Options::OPTION_APP_LINK_SETTINGS,
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( 'PressNative_Options', 'sanitize_app_link_settings' ),
+				'default'           => PressNative_Options::DEFAULT_APP_LINK_SETTINGS,
 			)
 		);
 
@@ -1082,7 +1207,7 @@ class PressNative_Admin {
 			);
 			wp_add_inline_script(
 				'wp-color-picker',
-				self::get_logo_upload_script() . "\n" . self::get_media_upload_script() . "\n" . self::get_app_categories_script(),
+				self::get_logo_upload_script() . "\n" . self::get_media_upload_script() . "\n" . self::get_app_categories_script() . "\n" . self::get_app_links_script(),
 				'after'
 			);
 		}
@@ -1352,6 +1477,47 @@ class PressNative_Admin {
 			});
 
 			setTags(getTags());
+		});
+		";
+	}
+
+	/**
+	 * Inline script for App Links verify and download buttons.
+	 *
+	 * @return string
+	 */
+	private static function get_app_links_script() {
+		$rest_url = esc_url_raw( rest_url( 'pressnative/v1' ) );
+		$nonce    = wp_create_nonce( 'wp_rest' );
+		return "
+		jQuery(function($){
+			var restUrl = " . wp_json_encode( $rest_url ) . ";
+			var nonce = " . wp_json_encode( $nonce ) . ";
+			$('#pressnative-verify-app-links').on('click', function(){
+				var \$btn = $(this);
+				var \$status = $('#pressnative-app-links-status');
+				\$btn.prop('disabled', true);
+				\$status.text('Verifying...');
+				$.ajax({
+					url: restUrl + '/verify-app-links',
+					method: 'POST',
+					beforeSend: function(xhr){ xhr.setRequestHeader('X-WP-Nonce', nonce); },
+					success: function(r){
+						if (r.ok) {
+							\$status.html('<span style=\"color:#00a32a;\">✓ Association files verified</span>');
+						} else {
+							var msgs = [];
+							if (r.results && r.results.aasa && r.results.aasa.errors) msgs = msgs.concat(r.results.aasa.errors);
+							if (r.results && r.results.assetlinks && r.results.assetlinks.errors) msgs = msgs.concat(r.results.assetlinks.errors);
+							\$status.html('<span style=\"color:#d63638;\">' + (msgs.join('; ') || 'Verification failed') + '</span>');
+						}
+					},
+					error: function(xhr){
+						\$status.html('<span style=\"color:#d63638;\">Error: ' + (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'Request failed') + '</span>');
+					},
+					complete: function(){ \$btn.prop('disabled', false); }
+				});
+			});
 		});
 		";
 	}
@@ -1665,6 +1831,23 @@ class PressNative_Admin {
 					<?php if ( PressNative_Options::HUB_DIRECTORY_ENABLED ) : ?>
 					<tr>
 						<th scope="row">
+							<label for="pressnative_hub_opted_in"><?php esc_html_e( 'Hub Directory', 'pressnative-apps' ); ?></label>
+						</th>
+						<td>
+							<?php $hub_opted_in = PressNative_Options::is_hub_opted_in(); ?>
+							<label>
+								<input type="checkbox"
+									   id="pressnative_hub_opted_in"
+									   name="<?php echo esc_attr( PressNative_Options::OPTION_HUB_OPTED_IN ); ?>"
+									   value="1"
+									   <?php checked( $hub_opted_in ); ?> />
+								<?php esc_html_e( 'List my app in the PressNative Hub directory', 'pressnative-apps' ); ?>
+							</label>
+							<p class="description"><?php esc_html_e( 'When enabled, your app appears in the Hub for discovery. Syncs to pressnative.app when you save.', 'pressnative-apps' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">
 							<label for="pressnative_app_categories"><?php esc_html_e( 'App Categories', 'pressnative-apps' ); ?></label>
 						</th>
 						<td>
@@ -1710,6 +1893,181 @@ class PressNative_Admin {
 						</td>
 					</tr>
 					<?php endif; ?>
+				</table>
+
+				<h2 style="margin-top:2em;"><?php esc_html_e( 'Store Listing', 'pressnative-apps' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Metadata used when publishing your app to the App Store and Google Play.', 'pressnative-apps' ); ?></p>
+				<table class="form-table" role="presentation">
+					<?php
+					$store_listing   = PressNative_Options::get_store_listing();
+					$content_rating  = $store_listing['content_rating'];
+					$store_icon_id   = (int) $store_listing['store_icon_attachment_id'];
+					$store_icon_url  = $store_listing['store_icon_url'];
+					$store_categories = array(
+						'news'        => __( 'News', 'pressnative-apps' ),
+						'business'    => __( 'Business', 'pressnative-apps' ),
+						'education'   => __( 'Education', 'pressnative-apps' ),
+						'entertainment' => __( 'Entertainment', 'pressnative-apps' ),
+						'lifestyle'   => __( 'Lifestyle', 'pressnative-apps' ),
+						'shopping'    => __( 'Shopping', 'pressnative-apps' ),
+						'sports'      => __( 'Sports', 'pressnative-apps' ),
+						'utilities'   => __( 'Utilities', 'pressnative-apps' ),
+					);
+					?>
+					<tr>
+						<th scope="row"><label for="pressnative_store_short_description"><?php esc_html_e( 'Short Description', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="text" class="large-text" id="pressnative_store_short_description"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_SHORT_DESCRIPTION ); ?>"
+								   value="<?php echo esc_attr( $store_listing['short_description'] ); ?>" maxlength="80"/>
+							<p class="description"><?php esc_html_e( 'Brief tagline (max 80 characters).', 'pressnative-apps' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_store_full_description"><?php esc_html_e( 'Full Description', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<textarea class="large-text" rows="6" id="pressnative_store_full_description"
+									  name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_FULL_DESCRIPTION ); ?>"><?php echo esc_textarea( $store_listing['full_description'] ); ?></textarea>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_store_keywords"><?php esc_html_e( 'Keywords', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="text" class="large-text" id="pressnative_store_keywords"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_KEYWORDS ); ?>"
+								   value="<?php echo esc_attr( is_array( $store_listing['keywords'] ) ? implode( ', ', $store_listing['keywords'] ) : '' ); ?>"/>
+							<p class="description"><?php esc_html_e( 'Comma-separated keywords for store search.', 'pressnative-apps' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_store_category"><?php esc_html_e( 'Category', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<select id="pressnative_store_category" name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_CATEGORY ); ?>">
+								<?php foreach ( $store_categories as $cat_key => $cat_label ) : ?>
+									<option value="<?php echo esc_attr( $cat_key ); ?>" <?php selected( $store_listing['category'], $cat_key ); ?>><?php echo esc_html( $cat_label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_store_privacy_policy_url"><?php esc_html_e( 'Privacy Policy URL', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="url" class="large-text" id="pressnative_store_privacy_policy_url"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_PRIVACY_POLICY_URL ); ?>"
+								   value="<?php echo esc_attr( $store_listing['privacy_policy_url'] ); ?>"/>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_store_support_url"><?php esc_html_e( 'Support URL', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="url" class="large-text" id="pressnative_store_support_url"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_SUPPORT_URL ); ?>"
+								   value="<?php echo esc_attr( $store_listing['support_url'] ); ?>"/>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_store_marketing_url"><?php esc_html_e( 'Marketing URL', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="url" class="large-text" id="pressnative_store_marketing_url"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_MARKETING_URL ); ?>"
+								   value="<?php echo esc_attr( $store_listing['marketing_url'] ); ?>"/>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_store_copyright"><?php esc_html_e( 'Copyright', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="text" class="large-text" id="pressnative_store_copyright"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_COPYRIGHT ); ?>"
+								   value="<?php echo esc_attr( $store_listing['copyright'] ); ?>"/>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label><?php esc_html_e( 'Store Icon', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="hidden" id="pressnative_store_icon_attachment_id"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_ICON_ATTACHMENT_ID ); ?>"
+								   value="<?php echo esc_attr( $store_icon_id ); ?>"/>
+							<div style="display:flex;align-items:center;gap:8px;">
+								<?php if ( $store_icon_url ) : ?>
+									<img id="pressnative-store-icon-preview" src="<?php echo esc_url( $store_icon_url ); ?>" style="max-width:80px;max-height:80px;border:1px solid #ccc;border-radius:8px;"/>
+								<?php else : ?>
+									<img id="pressnative-store-icon-preview" src="" style="max-width:80px;max-height:80px;border:1px solid #ccc;border-radius:8px;display:none;"/>
+								<?php endif; ?>
+								<button type="button" class="button pressnative-media-upload"
+										data-target="#pressnative_store_icon_attachment_id"
+										data-preview="#pressnative-store-icon-preview"
+										data-title="<?php esc_attr_e( 'Select store icon', 'pressnative-apps' ); ?>"
+										data-button="<?php esc_attr_e( 'Use icon', 'pressnative-apps' ); ?>">
+									<?php esc_html_e( 'Select or upload icon', 'pressnative-apps' ); ?>
+								</button>
+								<button type="button" class="button pressnative-media-remove"
+										data-target="#pressnative_store_icon_attachment_id"
+										data-preview="#pressnative-store-icon-preview"
+										<?php echo $store_icon_id ? '' : 'style="display:none;"'; ?>>
+									<?php esc_html_e( 'Remove', 'pressnative-apps' ); ?>
+								</button>
+							</div>
+							<p class="description"><?php esc_html_e( '1024×1024 PNG recommended for store submission.', 'pressnative-apps' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_store_content_rating"><?php esc_html_e( 'Content Rating (JSON)', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<textarea class="large-text code" rows="5" id="pressnative_store_content_rating"
+									  name="<?php echo esc_attr( PressNative_Options::OPTION_STORE_CONTENT_RATING ); ?>"><?php echo esc_textarea( wp_json_encode( $content_rating, JSON_PRETTY_PRINT ) ); ?></textarea>
+							<p class="description"><?php esc_html_e( 'IARC-style content rating object (age_rating, violence, profanity, gambling).', 'pressnative-apps' ); ?></p>
+						</td>
+					</tr>
+				</table>
+
+				<h2 style="margin-top:2em;"><?php esc_html_e( 'App Links', 'pressnative-apps' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Configure Universal Links (iOS) and App Links (Android). Association files are served at /.well-known/ on your domain.', 'pressnative-apps' ); ?></p>
+				<table class="form-table" role="presentation">
+					<?php $app_links = PressNative_Options::get_app_link_settings(); ?>
+					<tr>
+						<th scope="row"><label for="pressnative_app_link_team_id"><?php esc_html_e( 'Apple Team ID', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="text" class="regular-text" id="pressnative_app_link_team_id"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_APP_LINK_SETTINGS ); ?>[team_id]"
+								   value="<?php echo esc_attr( $app_links['team_id'] ); ?>"/>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_app_link_bundle_id"><?php esc_html_e( 'Bundle ID / Package Name', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="text" class="regular-text" id="pressnative_app_link_bundle_id"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_APP_LINK_SETTINGS ); ?>[bundle_id]"
+								   value="<?php echo esc_attr( $app_links['bundle_id'] ); ?>"/>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="pressnative_app_link_sha256"><?php esc_html_e( 'SHA-256 Fingerprint', 'pressnative-apps' ); ?></label></th>
+						<td>
+							<input type="text" class="large-text" id="pressnative_app_link_sha256"
+								   name="<?php echo esc_attr( PressNative_Options::OPTION_APP_LINK_SETTINGS ); ?>[sha256_fingerprint]"
+								   value="<?php echo esc_attr( $app_links['sha256_fingerprint'] ); ?>"/>
+							<p class="description"><?php esc_html_e( 'Play App Signing SHA-256 certificate fingerprint.', 'pressnative-apps' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Association Files', 'pressnative-apps' ); ?></th>
+						<td>
+							<button type="button" class="button" id="pressnative-verify-app-links"><?php esc_html_e( 'Verify association files', 'pressnative-apps' ); ?></button>
+							<a href="<?php echo esc_url( home_url( '/.well-known/apple-app-site-association' ) ); ?>" class="button" download="apple-app-site-association"><?php esc_html_e( 'Download AASA fallback', 'pressnative-apps' ); ?></a>
+							<a href="<?php echo esc_url( home_url( '/.well-known/assetlinks.json' ) ); ?>" class="button" download="assetlinks.json"><?php esc_html_e( 'Download assetlinks fallback', 'pressnative-apps' ); ?></a>
+							<p id="pressnative-app-links-status" class="description" style="margin-top:8px;"></p>
+							<p class="description">
+								<?php
+								printf(
+									/* translators: 1: AASA URL, 2: assetlinks URL */
+									esc_html__( 'Live URLs: %1$s · %2$s', 'pressnative-apps' ),
+									'<code>' . esc_html( home_url( '/.well-known/apple-app-site-association' ) ) . '</code>',
+									'<code>' . esc_html( home_url( '/.well-known/assetlinks.json' ) ) . '</code>'
+								);
+								?>
+							</p>
+						</td>
+					</tr>
 				</table>
 
 				<?php if ( class_exists( 'WooCommerce' ) ) : ?>
