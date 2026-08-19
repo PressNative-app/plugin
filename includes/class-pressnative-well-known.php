@@ -333,7 +333,12 @@ class PressNative_Well_Known {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => function () {
-					return rest_ensure_response( self::verify_app_links() );
+					$result = self::verify_app_links();
+					if ( ! empty( $result['ok'] ) ) {
+						$settings = PressNative_Options::get_app_link_settings();
+						PressNative_Registry_Notify::notify_assoc_verified( $settings['bundle_id'] ?? '' );
+					}
+					return rest_ensure_response( $result );
 				},
 				'permission_callback' => function () {
 					return current_user_can( 'manage_options' );
