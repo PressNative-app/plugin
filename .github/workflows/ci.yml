@@ -70,6 +70,59 @@ jobs:
         run: |
           php -r 'define("ABSPATH", true); require "includes/class-pressnative-contract.php"; if (PressNative_Contract::VERSION === "") { fwrite(STDERR, "empty VERSION\n"); exit(1);} echo PressNative_Contract::VERSION, "\n";'
 
+  static-refs:
+    name: Static Reference Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
+      # php -l proves a file parses. It cannot see a constant or method that
+      # was never declared, and that is a runtime fatal in wp-admin.
+      - name: Check every Class::MEMBER reference resolves
+        run: php scripts/lint-static-refs.php
+
+  wordpress-smoke:
+    name: WordPress Smoke Test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The plugin claims PHP 7.4 support, so prove it on a WordPress that
+          # still runs there.
+          - php-version: '7.4'
+            wp-version: '6.5'
+          - php-version: '8.2'
+            wp-version: 'latest'
+          - php-version: '8.3'
+            wp-version: 'latest'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: pdo_sqlite, sqlite3, mbstring, curl, zip
+          coverage: none
+
+      # Boots real WordPress, activates the plugin, and loads wp-admin plus the
+      # REST API. This is the gate that catches "the update broke wp-admin".
+      - name: Boot WordPress ${{ matrix.wp-version }} with the plugin
+        env:
+          WP_VERSION: ${{ matrix.wp-version }}
+        run: bash scripts/smoke-wordpress.sh
+
   build:
     name: Build Plugin Zip
     runs-on: ubuntu-latest
@@ -82,6 +135,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
+          extensions: pdo_sqlite, sqlite3, mbstring, curl, zip
           coverage: none
 
       - name: Build plugin zip
@@ -98,6 +152,12 @@ jobs:
           bash scripts/verify-zip.sh "$ZIP_PATH"
           ls -lh "$ZIP_PATH"
           cp "$ZIP_PATH" "$GITHUB_WORKSPACE/pressnative-apps.zip"
+
+      # Install the exact artifact a site owner downloads, not the working tree.
+      - name: Boot WordPress from the built zip
+        env:
+          SMOKE_PLUGIN_ZIP: ${{ github.workspace }}/pressnative-apps.zip
+        run: bash scripts/smoke-wordpress.sh
 
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
