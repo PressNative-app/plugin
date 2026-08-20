@@ -14,6 +14,7 @@ class PressNative_Monetization {
 
 	const ADMOB_ENABLED              = false;
 	const OPTION_ENABLED           = 'pressnative_ads_enabled';
+	const OPTION_CONSENT_REQUIRED  = 'pressnative_ads_consent_required';
 	const OPTION_TEST_MODE         = 'pressnative_ads_test_mode';
 	const OPTION_ADMOB_APP_ID_IOS  = 'pressnative_admob_app_id_ios';
 	const OPTION_ADMOB_APP_ID_ANDROID = 'pressnative_admob_app_id_android';
@@ -30,6 +31,9 @@ class PressNative_Monetization {
 	 * Boot hooks.
 	 */
 	public static function init() {
+		if ( ! self::ADMOB_ENABLED ) {
+			return;
+		}
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu' ), 12 );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 	}

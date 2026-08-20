@@ -15,6 +15,11 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// These helpers are declared before the duplicate-plugin guard below, so they
+// must tolerate a second copy of the plugin being loaded: redeclaring a
+// function is itself a fatal error.
+if ( ! function_exists( 'pressnative_required_files' ) ) :
+
 /**
  * Files that must exist before this plugin boots. A partial/failed update
  * must degrade to an admin notice — never a white screen of death.
@@ -71,6 +76,8 @@ function pressnative_fail_safe( $message ) {
 		}
 	);
 }
+
+endif;
 
 // Another PressNative plugin variant (e.g. legacy pressnative-engine) may already be active.
 // Bail early with an admin notice instead of triggering a class redeclaration fatal error.

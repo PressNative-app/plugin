@@ -82,6 +82,12 @@ Deactivating removes the REST API endpoints but keeps your settings. Deleting th
 
 == Changelog ==
 
+= 1.2.13 =
+* Fixed a fatal error that made wp-admin unreachable: Monetization referenced an option constant that was never declared
+* Monetization settings no longer register while AdMob is disabled
+* A second copy of the plugin now shows an admin notice instead of a fatal redeclaration error
+* Releases are blocked unless the packaged zip can boot WordPress and load wp-admin and the REST API
+
 = 1.2.0 =
 * Abandoned-cart reminders target the device that added items, with a separate Cart reminders preference
 * Normalized product variations for native pickers

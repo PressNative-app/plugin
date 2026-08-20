@@ -35,7 +35,11 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
+          extensions: pdo_sqlite, sqlite3, mbstring, curl, zip
           coverage: none
+
+      - name: Check every Class::MEMBER reference resolves
+        run: php scripts/lint-static-refs.php
 
       - name: Set version
         id: version
@@ -85,6 +89,13 @@ jobs:
         run: |
           chmod +x scripts/verify-zip.sh
           bash scripts/verify-zip.sh "$GITHUB_WORKSPACE/pressnative-apps.zip"
+
+      # Nothing is published until this exact zip can boot WordPress and load
+      # wp-admin. A release that fatals must never reach a client site.
+      - name: Boot WordPress from the release zip
+        env:
+          SMOKE_PLUGIN_ZIP: ${{ github.workspace }}/pressnative-apps.zip
+        run: bash scripts/smoke-wordpress.sh
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
