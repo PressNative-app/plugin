@@ -31,6 +31,12 @@ jobs:
         with:
           ref: ${{ inputs.version && format('v{0}', inputs.version) || github.sha }}
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
       - name: Set version
         id: version
         run: |
@@ -49,7 +55,8 @@ jobs:
         run: |
           VER="${{ steps.version.outputs.version }}"
           SLUG="pressnative-apps"
-          mkdir -p "$SLUG"
+          STAGE="$(mktemp -d)"
+          mkdir -p "$STAGE/$SLUG"
           rsync -a \
             --exclude='.git' \
             --exclude='.github' \
@@ -65,20 +72,19 @@ jobs:
             --exclude='scripts' \
             --exclude='tests' \
             --exclude='README.md' \
-            . "$SLUG"/
+            --exclude="$SLUG" \
+            . "$STAGE/$SLUG"/
           # Inject release version into built files (source of truth is the tag)
-          sed -i "s/^ \* Version:     [0-9.]*$/ * Version:     $VER/" "$SLUG/pressnative.php"
-          sed -i "s/define( 'PRESSNATIVE_VERSION', '[0-9.]*' );/define( 'PRESSNATIVE_VERSION', '$VER' );/" "$SLUG/pressnative.php"
-          sed -i "s/^Stable tag: .*/Stable tag: $VER/" "$SLUG/readme.txt"
-          zip -r pressnative-apps.zip "$SLUG"
+          sed -i "s/^ \* Version:     [0-9.]*$/ * Version:     $VER/" "$STAGE/$SLUG/pressnative.php"
+          sed -i "s/define( 'PRESSNATIVE_VERSION', '[0-9.]*' );/define( 'PRESSNATIVE_VERSION', '$VER' );/" "$STAGE/$SLUG/pressnative.php"
+          sed -i "s/^Stable tag: .*/Stable tag: $VER/" "$STAGE/$SLUG/readme.txt"
+          (cd "$STAGE" && zip -r "$GITHUB_WORKSPACE/pressnative-apps.zip" "$SLUG" -x "*.DS_Store")
+          rm -rf "$STAGE"
 
       - name: Verify zip structure
         run: |
-          unzip -l pressnative-apps.zip | grep -q 'pressnative-apps/pressnative.php' || {
-            echo "::error::pressnative-apps.zip is missing pressnative-apps/pressnative.php"
-            unzip -l pressnative-apps.zip
-            exit 1
-          }
+          chmod +x scripts/verify-zip.sh
+          bash scripts/verify-zip.sh "$GITHUB_WORKSPACE/pressnative-apps.zip"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

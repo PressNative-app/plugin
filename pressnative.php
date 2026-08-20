@@ -15,22 +15,82 @@
 
 defined( 'ABSPATH' ) || exit;
 
-// Another PressNative plugin variant (e.g. legacy pressnative-engine) may already be active.
-// Bail early with an admin notice instead of triggering a class redeclaration fatal error.
-if ( class_exists( 'PressNative_Options', false ) ) {
+/**
+ * Files that must exist before this plugin boots. A partial/failed update
+ * must degrade to an admin notice — never a white screen of death.
+ *
+ * @return string[] Relative paths from the plugin root.
+ */
+function pressnative_required_files() {
+	return array(
+		'includes/class-pressnative-options.php',
+		'includes/class-pressnative-layout-options.php',
+		'includes/class-pressnative-contract.php',
+		'includes/class-pressnative-layout.php',
+		'includes/class-pressnative-http-cache.php',
+		'includes/class-pressnative-dom-parser.php',
+		'includes/class-pressnative-aot-compiler.php',
+		'includes/class-pressnative-shortcodes.php',
+		'includes/class-pressnative-search-api.php',
+		'includes/class-pressnative-devices.php',
+		'includes/class-pressnative-analytics.php',
+		'includes/class-pressnative-admin.php',
+		'includes/class-pressnative-preview.php',
+		'includes/class-pressnative-launch-kits.php',
+		'includes/class-pressnative-registry-notify.php',
+		'includes/class-pressnative-well-known.php',
+		'includes/class-pressnative-qr.php',
+		'includes/class-pressnative-sponsors.php',
+		'includes/class-pressnative-monetization.php',
+		'includes/class-pressnative-woocommerce.php',
+		'includes/class-pressnative-editorial-push.php',
+		'includes/class-pressnative-cart-recovery.php',
+		'includes/class-pressnative-updater.php',
+	);
+}
+
+/**
+ * Logs a bootstrap failure and shows an admin notice without taking the site down.
+ *
+ * @param string $message Human-readable error.
+ * @return void
+ */
+function pressnative_fail_safe( $message ) {
+	if ( function_exists( 'error_log' ) ) {
+		error_log( 'PressNative: ' . $message );
+	}
 	add_action(
 		'admin_notices',
-		function () {
+		function () use ( $message ) {
 			if ( ! current_user_can( 'activate_plugins' ) ) {
 				return;
 			}
 			echo '<div class="notice notice-error"><p>';
-			echo esc_html__(
-				'PressNative Apps could not load because another PressNative plugin is already active. Deactivate and remove the other plugin folder (for example pressnative-engine), then activate PressNative Apps again.',
-				'pressnative-apps'
-			);
+			echo esc_html( $message );
 			echo '</p></div>';
 		}
+	);
+}
+
+// Another PressNative plugin variant (e.g. legacy pressnative-engine) may already be active.
+// Bail early with an admin notice instead of triggering a class redeclaration fatal error.
+if ( class_exists( 'PressNative_Options', false ) ) {
+	pressnative_fail_safe(
+		__(
+			'PressNative Apps could not load because another PressNative plugin is already active. Deactivate and remove the other plugin folder (for example pressnative-engine), then activate PressNative Apps again.',
+			'pressnative-apps'
+		)
+	);
+	return;
+}
+
+if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
+	pressnative_fail_safe(
+		sprintf(
+			/* translators: %s: current PHP version */
+			__( 'PressNative Apps requires PHP 7.4 or higher. This site is running PHP %s. The rest of the site is still running.', 'pressnative-apps' ),
+			PHP_VERSION
+		)
 	);
 	return;
 }
@@ -39,29 +99,29 @@ define( 'PRESSNATIVE_VERSION', '1.2.11' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-options.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout-options.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-contract.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-layout.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-http-cache.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-dom-parser.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-aot-compiler.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-shortcodes.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-search-api.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-devices.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-analytics.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-admin.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-preview.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-registry-notify.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-well-known.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-qr.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-sponsors.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-monetization.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-woocommerce.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-launch-kits.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-editorial-push.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-cart-recovery.php';
-require_once PRESSNATIVE_PLUGIN_DIR . 'includes/class-pressnative-updater.php';
+$pressnative_missing = array();
+foreach ( pressnative_required_files() as $pressnative_rel ) {
+	if ( ! is_readable( PRESSNATIVE_PLUGIN_DIR . $pressnative_rel ) ) {
+		$pressnative_missing[] = $pressnative_rel;
+	}
+}
+if ( ! empty( $pressnative_missing ) ) {
+	pressnative_fail_safe(
+		sprintf(
+			/* translators: %s: comma-separated file list */
+			__( 'PressNative Apps is missing required files (%s), usually after a failed plugin update. The rest of the site is still running. Reinstall PressNative Apps from a zip, or restore the previous version from your host backup.', 'pressnative-apps' ),
+			implode( ', ', $pressnative_missing )
+		)
+	);
+	unset( $pressnative_missing, $pressnative_rel );
+	return;
+}
+unset( $pressnative_missing, $pressnative_rel );
+
+foreach ( pressnative_required_files() as $pressnative_rel ) {
+	require_once PRESSNATIVE_PLUGIN_DIR . $pressnative_rel;
+}
+unset( $pressnative_rel );
 
 /**
  * Load plugin text domain for translations (optional on WordPress.org; kept for self-hosted installs).
@@ -98,6 +158,7 @@ register_deactivation_hook( __FILE__, function () {
  * REST API: layout/home and register-device.
  */
 add_action( 'rest_api_init', function () {
+	try {
 	$layout = new PressNative_Layout();
 
 	register_rest_route(
@@ -788,6 +849,15 @@ add_action( 'rest_api_init', function () {
 	PressNative_Analytics::register_rest_routes();
 	PressNative_Search_Api::register_routes();
 	PressNative_Well_Known::register_rest_routes();
+	} catch ( Throwable $e ) {
+		pressnative_fail_safe(
+			sprintf(
+				/* translators: %s: exception message */
+				__( 'PressNative Apps could not register its API (%s). The rest of the site is still running.', 'pressnative-apps' ),
+				$e->getMessage()
+			)
+		);
+	}
 } );
 
 /**
@@ -799,6 +869,7 @@ add_action( 'rest_api_init', function () {
  * scripts and styles — no theme header, footer, sidebars or navigation.
  */
 add_action( 'template_redirect', function () {
+	try {
 	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- URL param from app WebView, not a form.
 	$pn = isset( $_GET['pressnative'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative'] ) ) : '';
 	if ( $pn !== '1' ) {
@@ -852,47 +923,67 @@ add_action( 'template_redirect', function () {
 	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 	echo str_replace( $site_url, '', $output );
 	exit;
+	} catch ( Throwable $e ) {
+		pressnative_fail_safe(
+			sprintf(
+				/* translators: %s: exception message */
+				__( 'PressNative WebView template failed (%s).', 'pressnative-apps' ),
+				$e->getMessage()
+			)
+		);
+	}
 } );
 
-/**
- * Admin: PressNative menu and Registry URL setting.
- */
-PressNative_Admin::init();
+try {
+	/**
+	 * Admin: PressNative menu and Registry URL setting.
+	 */
+	PressNative_Admin::init();
 
-/**
- * QR code shortcode for app deep links.
- */
-PressNative_QR::init();
+	/**
+	 * QR code shortcode for app deep links.
+	 */
+	PressNative_QR::init();
 
-/**
- * AOT compiler: pre-build SDUI JSON on every post/page/product save.
- */
-PressNative_AOT_Compiler::init();
+	/**
+	 * AOT compiler: pre-build SDUI JSON on every post/page/product save.
+	 */
+	PressNative_AOT_Compiler::init();
 
-/**
- * Notify Registry when branding/layout options are saved (invalidates site branding cache).
- */
-PressNative_Registry_Notify::init();
+	/**
+	 * Notify Registry when branding/layout options are saved (invalidates site branding cache).
+	 */
+	PressNative_Registry_Notify::init();
 
-/**
- * Serve .well-known app association files for Universal / App Links.
- */
-PressNative_Well_Known::init();
+	/**
+	 * Serve .well-known app association files for Universal / App Links.
+	 */
+	PressNative_Well_Known::init();
 
-/**
- * Editorial push metabox (notify on publish).
- */
-PressNative_Editorial_Push::init();
+	/**
+	 * Editorial push metabox (notify on publish).
+	 */
+	PressNative_Editorial_Push::init();
 
-/**
- * WooCommerce abandoned-cart / back-in-stock push.
- */
-PressNative_Cart_Recovery::init();
+	/**
+	 * WooCommerce abandoned-cart / back-in-stock push.
+	 */
+	PressNative_Cart_Recovery::init();
 
-/**
- * Self-hosted plugin updates via pressnative.app / GitHub Releases.
- */
-PressNative_Updater::init();
+	/**
+	 * Self-hosted plugin updates via pressnative.app / GitHub Releases.
+	 */
+	PressNative_Updater::init();
+} catch ( Throwable $e ) {
+	pressnative_fail_safe(
+		sprintf(
+			/* translators: %s: exception message */
+			__( 'PressNative Apps failed to start (%s). The rest of the site is still running.', 'pressnative-apps' ),
+			$e->getMessage()
+		)
+	);
+	return;
+}
 
 /**
  * Handle checkout completion and return to app.
@@ -956,7 +1047,17 @@ add_action( 'woocommerce_after_cart', function () {
 /**
  * Initialize WooCommerce integration.
  */
-PressNative_WooCommerce::init();
+try {
+	PressNative_WooCommerce::init();
+} catch ( Throwable $e ) {
+	pressnative_fail_safe(
+		sprintf(
+			/* translators: %s: exception message */
+			__( 'PressNative WooCommerce integration failed to start (%s). The rest of the site is still running.', 'pressnative-apps' ),
+			$e->getMessage()
+		)
+	);
+}
 
 /**
  * Register app download shortcodes.
