@@ -43,7 +43,7 @@ class PressNative_Registry_Notify {
 		PressNative_Options::OPTION_STORE_ICON_ATTACHMENT_ID,
 		PressNative_Options::OPTION_STORE_CONTENT_RATING,
 		PressNative_Options::OPTION_APP_LINK_SETTINGS,
-		PressNative_Launch_Kits::OPTION_ACTIVE_KIT,
+		'pressnative_active_launch_kit',
 		// Layout options
 		PressNative_Layout_Options::OPTION_HERO_CATEGORY_SLUG,
 		PressNative_Layout_Options::OPTION_HERO_MAX_ITEMS,

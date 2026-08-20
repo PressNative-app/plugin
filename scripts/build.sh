@@ -35,7 +35,8 @@ rsync -a "$PLUGIN_DIR/" "$STAGING/" \
   --exclude '.DS_Store' \
   --exclude '.gitignore' \
   --exclude 'docs' \
-  --exclude 'test-*.php'
+  --exclude 'test-*.php' \
+  --exclude 'pressnative-apps'
 
 # Create zip with single top-level folder (required for WordPress upload)
 (cd "$ROOT/.build" && zip -r "$OUT_ZIP" "$SLUG" -x "*.DS_Store")

@@ -20,6 +20,8 @@ This plugin exposes REST endpoints that serve page layouts, content, and WooComm
 5. Customize branding under PressNative → App Settings
 6. Configure home screen layout under PressNative → Layout Settings
 
+If an update ever fails, WordPress should keep the previous plugin. If the site shows a critical error or maintenance screen, rename `wp-content/plugins/pressnative-apps` via FTP/hosting file manager (for example to `pressnative-apps.off`) and delete a leftover `.maintenance` file in the WordPress root. The rest of the site will load; then reinstall from GitHub Releases.
+
 Installed sites check `https://pressnative.app/api/v1/plugin/update` and show WordPress core update notices when a newer GitHub Release exists.
 
 ## Releases

@@ -18,6 +18,36 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
+          php-version: '7.4'
+          coverage: none
+
+      - name: Check PHP 7.4 syntax
+        run: |
+          echo "Checking PHP syntax on 7.4..."
+          errors=0
+          while IFS= read -r file; do
+            if ! php -l "$file" > /dev/null 2>&1; then
+              php -l "$file"
+              errors=$((errors + 1))
+            fi
+          done < <(find . -name '*.php' -not -path './.git/*')
+          if [ "$errors" -gt 0 ]; then
+            echo "::error::Found $errors file(s) with syntax errors on PHP 7.4"
+            exit 1
+          fi
+          echo "All PHP files passed PHP 7.4 syntax check"
+
+  php-syntax-8:
+    name: PHP 8 Syntax Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
           php-version: '8.2'
 
       - name: Check PHP syntax
@@ -48,6 +78,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+
       - name: Build plugin zip
         run: bash scripts/build.sh
 
@@ -58,7 +94,8 @@ jobs:
             echo "::error::Plugin zip was not created at $ZIP_PATH"
             exit 1
           fi
-          echo "Plugin zip created successfully"
+          chmod +x scripts/verify-zip.sh
+          bash scripts/verify-zip.sh "$ZIP_PATH"
           ls -lh "$ZIP_PATH"
           cp "$ZIP_PATH" "$GITHUB_WORKSPACE/pressnative-apps.zip"
 

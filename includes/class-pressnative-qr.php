@@ -7,8 +7,6 @@
 
 defined( 'ABSPATH' ) || exit;
 
-require_once PRESSNATIVE_PLUGIN_DIR . 'lib/QrEncoder.php';
-
 /**
  * Class PressNative_QR
  */
@@ -118,6 +116,14 @@ class PressNative_QR {
 
 		$size  = max( 50, min( 800, absint( $atts['size'] ) ) );
 		$label = sanitize_text_field( $atts['label'] );
+
+		$encoder = PRESSNATIVE_PLUGIN_DIR . 'lib/QrEncoder.php';
+		if ( ! class_exists( 'QrEncoder', false ) ) {
+			if ( ! is_readable( $encoder ) ) {
+				return '';
+			}
+			require_once $encoder;
+		}
 
 		$deep_link = self::get_deep_link_url();
 		$svg       = QrEncoder::to_svg( $deep_link, 'qrm' );

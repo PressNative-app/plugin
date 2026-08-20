@@ -82,7 +82,14 @@ class PressNative_AOT_Compiler {
 	 * @param int     $post_id Post ID.
 	 * @param WP_Post $post    Post object.
 	 */
-	public function compile_on_save( int $post_id, WP_Post $post ): void {
+	public function compile_on_save( $post_id, $post = null ): void {
+		$post_id = (int) $post_id;
+		if ( ! $post instanceof WP_Post ) {
+			$post = get_post( $post_id );
+		}
+		if ( ! $post instanceof WP_Post ) {
+			return;
+		}
 		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return;
 		}
