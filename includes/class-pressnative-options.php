@@ -106,19 +106,42 @@ class PressNative_Options {
 	);
 
 	/**
+	 * Resolve the app logo URL.
+	 *
+	 * Prefers the PressNative branding attachment, then the theme custom logo,
+	 * then the WordPress site icon so /branding is not empty when only a site
+	 * icon has been set.
+	 *
+	 * @return string
+	 */
+	private static function resolve_logo_url() {
+		$attachment_id = (int) get_option( self::OPTION_LOGO_ATTACHMENT, 0 );
+		if ( $attachment_id > 0 ) {
+			$logo_url = wp_get_attachment_image_url( $attachment_id, 'full' );
+			if ( is_string( $logo_url ) && $logo_url !== '' ) {
+				return $logo_url;
+			}
+		}
+
+		$custom_logo_id = (int) get_theme_mod( 'custom_logo' );
+		if ( $custom_logo_id > 0 ) {
+			$logo_url = wp_get_attachment_image_url( $custom_logo_id, 'full' );
+			if ( is_string( $logo_url ) && $logo_url !== '' ) {
+				return $logo_url;
+			}
+		}
+
+		$site_icon = get_site_icon_url( 512 );
+		return is_string( $site_icon ) ? $site_icon : '';
+	}
+
+	/**
 	 * Returns the full branding object for the REST API (contract structure).
 	 *
 	 * @return array
 	 */
 	public static function get_branding() {
-		$logo_url = '';
-		$attachment_id = (int) get_option( self::OPTION_LOGO_ATTACHMENT, 0 );
-		if ( $attachment_id > 0 ) {
-			$logo_url = wp_get_attachment_image_url( $attachment_id, 'full' );
-			if ( ! is_string( $logo_url ) ) {
-				$logo_url = '';
-			}
-		}
+		$logo_url = self::resolve_logo_url();
 
 		$background_image_url = '';
 		$background_image_id  = (int) get_option( self::OPTION_BACKGROUND_IMAGE, 0 );
