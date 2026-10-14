@@ -323,6 +323,7 @@ class PressNative_Well_Known {
 				'callback'            => function () {
 					return rest_ensure_response( PressNative_Options::get_store_listing() );
 				},
+				// Public: app store metadata (description, URLs) the site owner published.
 				'permission_callback' => '__return_true',
 			)
 		);
@@ -363,6 +364,7 @@ class PressNative_Well_Known {
 					}
 					return rest_ensure_response( $resolved );
 				},
+				// Public: maps a same-site URL to published content for deep links.
 				'permission_callback' => '__return_true',
 			)
 		);

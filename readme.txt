@@ -1,86 +1,108 @@
 === PressNative Apps ===
-Contributors: pressnative
-Tags: mobile app, native app, rest api, woocommerce, server-driven ui
+Contributors: pressnativeapp
+Tags: mobile app, native app, push notifications, woocommerce, ios
 Requires at least: 6.0
-Tested up to: 6.9
-Stable tag: 1.2.14
+Tested up to: 7.1
+Stable tag: 1.3.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-No-code native app from WordPress. Server-driven UI, no app store resubmissions. SaaS connector for PressNative.
+Turn your WordPress site into native iOS and Android app content, list it in the free PressNative Hub app, and notify readers about new posts.
 
 == Description ==
 
-**PressNative Apps** turns your WordPress site into a native Android and iOS app with **no-code native performance**. Content, layout, and branding are driven from your WordPress admin and delivered via a contract-based REST API. The native app renders **server-driven UI** — when you publish or edit posts, change layout, or update products, the app reflects those changes without requiring an app update.
+**PressNative Apps** connects your WordPress site to **PressNative Cloud**, a service that renders your posts, pages and WooCommerce products as real native screens (SwiftUI on iOS, Jetpack Compose on Android), not a WebView wrapper. Layout, branding and content come from your WordPress admin, so changes appear in the app without an app store update.
 
-This plugin is a **SaaS connector**: it connects your WordPress site to **PressNative Cloud**. You need a **PressNative account** to use the full platform (connect flow under **Settings → PressNative**, API key, analytics, push notifications, and optional Pro features).
+This plugin is a connector for that service. It needs a free PressNative Cloud connection, which you create from **Settings → PressNative** with one click. No separate sign-up is required.
 
-**Why PressNative?**
+= Free =
 
-* **No-code native performance** — Real native screens (Jetpack Compose / SwiftUI), not a WebView wrapper. Your content is rendered as native components.
-* **Server-driven UI** — Layout, components, and content are defined by your WordPress site and the PressNative contract. Change your home screen or post layout in WordPress; the app updates automatically.
-* **One plugin, one contract** — Install the plugin, connect to PressNative Cloud, and configure branding and layout. The Android and iOS apps consume the same API.
+* **PressNative Hub listing.** Opt in and your site appears in the free PressNative Hub app (iOS and Android), where readers discover sites, follow them and read them natively.
+* **Automatic new-post notifications.** When you publish a post, page or product, readers who follow your site in the Hub get a push notification. Per-post control lives in the editor sidebar.
+* **App branding and layout.** App name, logo, colors and typography; hero carousel, post grid, category and page lists, product grids; drag-and-drop ordering and a live preview.
+* **WooCommerce.** Native product grids and details, cart and checkout handoff, products embedded in posts.
+* **REST API.** Layout endpoints for home, posts, pages, categories, products and search.
 
-**Core Features:**
+= Paid plans (optional) =
 
-* **REST API** — Endpoints for home layout, posts, pages, categories, products, and search
-* **Jetpack-style connect** — Connect your site to PressNative Cloud from **Settings → PressNative** (connect button, return with API key, optional initial content cache)
-* **WooCommerce Integration** — Native product grids, product details, cart management, and secure checkout via Chrome Custom Tabs
-* **App Branding** — App name, logo, theme colors, and typography from **PressNative → App Settings**
-* **Layout Builder** — Hero carousel, post grid, category list, page list, product grids; drag-and-drop ordering
-* **Push Notifications** — Device registration and ad-hoc push from the admin (requires PressNative account)
-* **Analytics Dashboard** — Views, popular posts, search queries (requires PressNative subscription)
-* **Live Preview** — Preview branding and layout in a simulated device frame
-* **Shortcode-to-native mapping** — Server-driven UI: shortcodes map to native app components
+* **Your own branded app** in the App Store and Google Play.
+* **Custom push notifications** sent from wp-admin, with audience targeting.
+* **Analytics dashboard** with views, top content, searches and push performance.
 
-**Requirements:**
-
-* WordPress 6.0 or later
-* PHP 7.4 or later
-* A **PressNative account** (free or Pro) for connecting your site and using analytics/push
-* PressNative Android or iOS app to display the content
-* Optional: WooCommerce for ecommerce features
+Paid features are provided by PressNative Cloud. The plugin never locks its own functionality.
 
 == Installation ==
 
-1. Upload the `pressnative-apps` folder to `/wp-content/plugins/`, or install via **Plugins → Add New → Upload Plugin**
-2. Activate the plugin through the **Plugins** menu
-3. Go to **Settings → PressNative** and click **Connect to PressNative Cloud** to link your site to your PressNative account (or enter your API key under **PressNative** in the admin menu)
-4. Configure branding under **PressNative → App Settings** and layout under **PressNative → Layout Settings**
+1. Install the plugin from **Plugins → Add New**, or upload the `pressnative-apps` folder to `/wp-content/plugins/`.
+2. Activate it through the **Plugins** menu.
+3. Go to **Settings → PressNative**, choose whether to list your site in the PressNative Hub, and click **Connect**.
+4. Configure branding under **PressNative → App Settings** and layout under **PressNative → Layout Settings**.
 
 == Frequently Asked Questions ==
 
 = Do I need a PressNative account? =
 
-Yes. This plugin is the SaaS connector for the PressNative platform. You connect your site from **Settings → PressNative** (or enter an API key). A PressNative account is required for analytics, push notifications, and full functionality.
+You need a PressNative Cloud connection, which the **Connect** button creates for free. PressNative Cloud confirms you control the site by calling back to it, then returns an API key that is stored in your WordPress options. If you already have an API key, you can paste it on the same page.
 
-= Do I need the PressNative mobile app? =
+= What is the PressNative Hub? =
 
-Yes. The plugin serves your content via REST API. The PressNative Android and iOS apps consume that API and render native server-driven UI.
+A free iOS and Android app where readers browse PressNative sites, follow the ones they like and get notified about new posts. Listing is opt-in. When enabled, your site name, logo, colors and categories are shown publicly in the Hub once your site has at least three published posts. You can turn it off any time under **PressNative → App Settings**.
+
+= Does it work without connecting? =
+
+The plugin's REST endpoints and settings work locally, but nothing is shown in any app and no data leaves your site until you connect.
 
 = What is server-driven UI? =
 
-Your WordPress site (and the PressNative contract) define what the app shows: layout, components, and content. When you change a post or the home layout in WordPress, the app fetches the updated data and renders it natively — no app store update needed.
+Your WordPress site defines what the app shows: layout, components and content. When you change a post or the home layout, the app fetches the update and renders it natively. No app store update is needed.
 
 = Does the plugin work with WooCommerce? =
 
-Yes. With WooCommerce installed, you get native product grids, product detail pages, cart management, and secure checkout via Chrome Custom Tabs. Products can be embedded in posts for shoppable content.
+Yes. With WooCommerce active you get native product grids, product detail screens, cart management and checkout in a secure browser view. Products can also be embedded in posts.
 
 = What happens when I deactivate or delete the plugin? =
 
-Deactivating removes the REST API endpoints but keeps your settings. Deleting the plugin removes saved options and the custom devices table. Your posts, pages, and media are not affected.
+Deactivating removes the REST endpoints and keeps your settings. Deleting the plugin removes its options, transients, per-post data and the devices table. Your posts, pages and media are not affected.
+
+== External services ==
+
+This plugin connects to **PressNative Cloud** (https://pressnative.app), operated by PressNative, to deliver your content to the PressNative mobile apps and send push notifications. **Nothing is sent until a site administrator clicks Connect (or saves an API key) under Settings → PressNative.** After that:
+
+* **Connect** (`/api/v1/sites/register`, `/api/verify-site`): sent when you click Connect or save an API key. Data: site URL, site name, the REST URL used to confirm ownership, a one-time challenge, your Hub choice and categories, the optional email you enter, and WordPress and plugin versions.
+* **Settings sync** (`/api/v1/notify/config-changed`): sent when you save app branding, layout, Hub, store listing or notification settings. Data: site URL, app branding (name, logo URL, colors, fonts), Hub opt-in and categories, store listing text, and the published post count.
+* **New content** (`/api/v1/notify/content-changed`): sent when a post, page or product is first published, or when you choose to notify again. Data: site URL, post ID, type, title, excerpt, permalink and featured image URL, plus categories if you target by category.
+* **App analytics** (`/api/v1/analytics/event`): sent when the mobile app loads content from your site. Data: content type, ID and title, device platform (iOS or Android) and an anonymous app-install identifier. No visitor names, emails or IP addresses are sent by the plugin.
+* **Push notifications** (`/api/v1/push/send`, `/api/v1/push/subscriber-stats`): sent when an administrator sends a notification from PressNative → Push Notifications. Data: notification title, body, link and image URL.
+* **WooCommerce reminders** (`/api/v1/notify/commerce`): sent when cart-recovery or back-in-stock reminders are enabled and triggered. Data: product or cart title and link and the anonymous app-install identifier.
+* **Share links and account** (`/api/v1/preview-link`, `/api/stripe/subscription-status`, `/api/stripe/portal`, `/api/v1/analytics/*`): requested when you open the QR/share, billing or Analytics pages in wp-admin. Data: site URL and your API key.
+
+PressNative Cloud [Terms of Service](https://pressnative.app/terms) · [Privacy Policy](https://pressnative.app/privacy)
+
+Push notifications to app users are delivered through Google Firebase Cloud Messaging by PressNative Cloud, not by this plugin.
 
 == Screenshots ==
 
-1. Settings → PressNative — Connect to PressNative Cloud
-2. PressNative settings — API key and subscription status
-3. App Settings — Branding (app name, colors, logo) with live preview
-4. Layout Settings — Component ordering and configuration
-5. Analytics dashboard — Views, top posts, device breakdown
-6. Push Notifications — Send notifications to app users
+1. Settings → PressNative: connect and choose Hub listing
+2. App Settings: branding (app name, colors, logo) with live preview
+3. Layout Settings: component ordering and configuration
+4. Push Notifications: send notifications to app users
+5. Analytics dashboard: views, top posts, device breakdown
 
 == Changelog ==
+
+= 1.3.0 =
+* New one-click Connect: PressNative Cloud verifies the site server-to-server and returns the API key directly. Keys are never passed through browser redirects.
+* Free plan: Hub listing and automatic new-post notifications without a paid account
+* Hub listing is now an explicit choice on the Connect screen. Sites connected before 1.3.0 keep their current listing.
+* Notifications are sent once, when content is first published; updating a post no longer re-notifies unless you tick "Send a notification again"
+* Category-targeted notifications now match reader preferences
+* Settings saves send one sync instead of one per changed option, and first-time saves are synced too
+* Removed the self-hosted updater; updates now come from WordPress.org
+* Removed the WooCommerce demo-data generator and unused ad code
+* Uninstall now removes all plugin options, transients and per-post data
+* Rate limiting for public device registration and tracking endpoints
+* Assets use WordPress enqueue APIs throughout
 
 = 1.2.13 =
 * Fixed a fatal error that made wp-admin unreachable: Monetization referenced an option constant that was never declared
@@ -127,23 +149,8 @@ Deactivating removes the REST API endpoints but keeps your settings. Deleting th
 
 == Upgrade Notice ==
 
+= 1.3.0 =
+Secure one-click Connect, a free Hub plan, no more duplicate notifications on post updates, and updates through WordPress.org.
+
 = 1.1.3 =
 WordPress.org compliance release: connect before any cloud contact; hardened cart/checkout; no remote placeholder images.
-
-= 1.1.0 =
-SaaS connector: connect from Settings → PressNative, and full WooCommerce native experience (cart, checkout, shoppable content).
-
-= 1.0.0 =
-Initial release of PressNative Apps.
-
-== Privacy ==
-
-This plugin connects to **PressNative Cloud** only after you connect your site (Settings → PressNative) or enter an API key. Until then, no data is sent to external servers. After connecting, the following data may be sent:
-
-* **Analytics events** — Content view type, resource ID/title, device type (iOS/Android)
-* **Push notification tokens** — FCM device tokens (stored locally); push requests sent to PressNative
-* **Configuration notifications** — Site URL and post/settings metadata for cache invalidation when you publish or change settings
-
-No personal visitor data is collected. Analytics are aggregated by content type.
-
-For more information, visit [pressnative.app/privacy](https://pressnative.app/privacy).

@@ -1,7 +1,7 @@
 <?php
 /**
- * Notifies the PressNative Registry when branding or layout options are saved.
- * Registry invalidates its site branding cache so the next app request fetches fresh data.
+ * Notifies the PressNative Registry when branding, layout or Hub options are saved and when
+ * content is first published. Option changes are batched into one request per page load.
  *
  * @package PressNative
  */
@@ -62,42 +62,119 @@ class PressNative_Registry_Notify {
 	);
 
 	/**
+	 * Tracked options that change only the Hub listing or store metadata, not what the
+	 * app renders. Saving only these must not bump the apps' "pending updates" badge.
+	 */
+	const LISTING_ONLY_OPTIONS = array(
+		PressNative_Options::OPTION_APP_CATEGORIES,
+		PressNative_Options::OPTION_HUB_OPTED_IN,
+		PressNative_Options::OPTION_STORE_SHORT_DESCRIPTION,
+		PressNative_Options::OPTION_STORE_FULL_DESCRIPTION,
+		PressNative_Options::OPTION_STORE_KEYWORDS,
+		PressNative_Options::OPTION_STORE_CATEGORY,
+		PressNative_Options::OPTION_STORE_PRIVACY_POLICY_URL,
+		PressNative_Options::OPTION_STORE_SUPPORT_URL,
+		PressNative_Options::OPTION_STORE_MARKETING_URL,
+		PressNative_Options::OPTION_STORE_COPYRIGHT,
+		PressNative_Options::OPTION_STORE_ICON_ATTACHMENT_ID,
+		PressNative_Options::OPTION_STORE_CONTENT_RATING,
+		PressNative_Options::OPTION_APP_LINK_SETTINGS,
+		PressNative_Options::OPTION_NOTIFICATION_PREFERENCES,
+	);
+
+	/** WooCommerce display options whose change also sends shop_config. */
+	const WC_OPTIONS = array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' );
+
+	/**
+	 * Tracked options changed during this request, flushed once on shutdown.
+	 *
+	 * @var array<string, true>
+	 */
+	private static $pending = array();
+
+	/**
 	 * Bootstraps the notify hooks.
 	 *
 	 * @return void
 	 */
 	public static function init() {
-		add_action( 'updated_option', array( __CLASS__, 'maybe_notify_registry' ), 10, 3 );
-		add_action( 'transition_post_status', array( __CLASS__, 'maybe_notify_content_changed' ), 10, 3 );
+		add_action( 'updated_option', array( __CLASS__, 'on_updated_option' ), 10, 3 );
+		// First save of an option with a registered default goes through add_option(), which never fires updated_option.
+		add_action( 'added_option', array( __CLASS__, 'on_added_option' ), 10, 2 );
+		// Runs after save_post (and the block editor's separate metabox save), so the
+		// editorial metabox values are already stored when we read them.
+		add_action( 'wp_after_insert_post', array( __CLASS__, 'maybe_notify_content_changed' ), 10, 4 );
 	}
 
 	/**
-	 * When a tracked option is updated, notify the Registry to invalidate its cache.
+	 * Queues a tracked option change.
 	 *
 	 * @param string $option    Option name.
 	 * @param mixed  $old_value Old value.
 	 * @param mixed  $value     New value.
 	 * @return void
 	 */
-	public static function maybe_notify_registry( $option, $old_value, $value ) {
+	public static function on_updated_option( $option, $old_value, $value ) {
 		if ( ! in_array( $option, self::TRACKED_OPTIONS, true ) ) {
 			return;
 		}
+		if ( in_array( $option, self::WC_OPTIONS, true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			set_transient(
+				'pressnative_cache_invalidated',
+				array(
+					'option'    => $option,
+					'old_value' => $old_value,
+					'new_value' => $value,
+					'timestamp' => time(),
+				),
+				30
+			);
+		}
+		self::queue( $option );
+	}
 
-		// Always bump local settings version for cache invalidation.
-		$settings_version = PressNative_Options::increment_settings_version();
+	/**
+	 * Queues a tracked option saved for the first time.
+	 *
+	 * @param string $option Option name.
+	 * @param mixed  $value  Value.
+	 * @return void
+	 */
+	public static function on_added_option( $option, $value ) {
+		unset( $value );
+		if ( in_array( $option, self::TRACKED_OPTIONS, true ) ) {
+			self::queue( $option );
+		}
+	}
 
-		// Debug logging for WooCommerce settings
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only when debugging
-		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
-			error_log( "PressNative: WooCommerce setting updated - {$option}: {$old_value} -> {$value}" );
-			set_transient( 'pressnative_cache_invalidated', array(
-				'option'    => $option,
-				'old_value' => $old_value,
-				'new_value' => $value,
-				'timestamp' => time(),
-			), 30 );
+	/**
+	 * Adds an option to the pending set and schedules one flush for the request.
+	 *
+	 * @param string $option Option name.
+	 * @return void
+	 */
+	private static function queue( $option ) {
+		if ( empty( self::$pending ) ) {
+			add_action( 'shutdown', array( __CLASS__, 'flush' ) );
+		}
+		self::$pending[ $option ] = true;
+	}
+
+	/**
+	 * Sends a single config-changed notification for everything saved this request.
+	 *
+	 * @return void
+	 */
+	public static function flush() {
+		if ( empty( self::$pending ) ) {
+			return;
+		}
+		$changed       = array_keys( self::$pending );
+		self::$pending = array();
+
+		$content_affecting = (bool) array_diff( $changed, self::LISTING_ONLY_OPTIONS );
+		if ( $content_affecting ) {
+			PressNative_Options::increment_settings_version();
 		}
 
 		// Only contact the Registry after the site owner has connected (API key).
@@ -106,38 +183,47 @@ class PressNative_Registry_Notify {
 			return;
 		}
 
-		if ( in_array( $option, array( 'pressnative_product_in_post_style', 'pressnative_product_grid_style' ), true ) && defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
-			error_log( "PressNative: Sending cache invalidation notification for {$option}" );
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- debug only when WP_DEBUG
-			error_log( "PressNative: Settings version incremented to {$settings_version}" );
+		$extra = array( 'content_affecting' => $content_affecting );
+		if ( array_intersect( $changed, self::WC_OPTIONS ) && class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
+			$extra['shop_config'] = PressNative_WooCommerce::get_shop_config();
 		}
-
-		$extra = array();
-		if ( class_exists( 'PressNative_WooCommerce' ) && PressNative_WooCommerce::is_active() ) {
-			$wc_related_options = array(
-				'pressnative_product_in_post_style',
-				'pressnative_product_grid_style',
-			);
-			if ( in_array( $option, $wc_related_options, true ) ) {
-				$extra['shop_config'] = PressNative_WooCommerce::get_shop_config();
-			}
-		}
-
 		self::send_config_changed( $api_key, $extra );
 	}
 
 	/**
-	 * When a post is published, notify the Registry so it can increment content_version
-	 * and send FCM push to users who have this site favorited and opted into push.
+	 * Full configuration sync, sent right after connecting.
 	 *
-	 * @param string  $new_status New post status.
-	 * @param string  $old_status Old post status.
-	 * @param WP_Post $post       Post object.
+	 * @param string $api_key Site API key.
 	 * @return void
 	 */
-	public static function maybe_notify_content_changed( $new_status, $old_status, $post ) {
-		if ( $new_status !== 'publish' || ! $post instanceof WP_Post || ! in_array( $post->post_type, array( 'post', 'page', 'product' ), true ) ) {
+	public static function sync_now( $api_key ) {
+		// This full sync supersedes anything queued earlier in the request.
+		self::$pending = array();
+		self::send_config_changed( $api_key, array(), true );
+	}
+
+	/**
+	 * Notifies the Registry when a post is first published, so it can bump content_version
+	 * and push to users who follow this site. Updates to already-published posts notify
+	 * only when the editor ticked "Send a notification again".
+	 *
+	 * @param int          $post_id     Post ID.
+	 * @param WP_Post      $post        Post object.
+	 * @param bool         $update      Whether this is an update.
+	 * @param WP_Post|null $post_before Post before the update, null for new posts.
+	 * @return void
+	 */
+	public static function maybe_notify_content_changed( $post_id, $post, $update, $post_before ) {
+		unset( $post_id, $update );
+		if ( ! $post instanceof WP_Post || 'publish' !== $post->post_status || ! in_array( $post->post_type, array( 'post', 'page', 'product' ), true ) ) {
+			return;
+		}
+		if ( wp_is_post_revision( $post ) || wp_is_post_autosave( $post ) ) {
+			return;
+		}
+
+		$was_published = $post_before instanceof WP_Post && 'publish' === $post_before->post_status;
+		if ( $was_published && ! ( class_exists( 'PressNative_Editorial_Push' ) && PressNative_Editorial_Push::consume_resend_flag( $post ) ) ) {
 			return;
 		}
 
@@ -183,15 +269,15 @@ class PressNative_Registry_Notify {
 		}
 
 		$body = array(
-			'site_url'           => $site_url,
-			'post_id'            => $post->ID,
-			'post_type'          => $post->post_type,
-			'slug'               => $post->post_name,
-			'title'              => get_the_title( $post ),
-			'excerpt'            => has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( $post->post_content, 30 ),
-			'link'               => get_permalink( $post ),
-			'thumbnail_url'      => $thumbnail_url,
-			'notification_type'  => $notification_type,
+			'site_url'          => $site_url,
+			'post_id'           => $post->ID,
+			'post_type'         => $post->post_type,
+			'slug'              => $post->post_name,
+			'title'             => get_the_title( $post ),
+			'excerpt'           => has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( $post->post_content, 30 ),
+			'link'              => get_permalink( $post ),
+			'thumbnail_url'     => $thumbnail_url,
+			'notification_type' => $notification_type,
 		);
 		if ( is_array( $categories ) ) {
 			$body['categories'] = $categories;
@@ -254,26 +340,12 @@ class PressNative_Registry_Notify {
 	 * @return void
 	 */
 	public static function notify_if_configured() {
-		$api_key = get_option( PressNative_Admin::OPTION_API_KEY, '' );
-		if ( empty( $api_key ) ) {
-			return;
-		}
 		PressNative_Options::increment_settings_version();
-		self::send_config_changed( $api_key );
-	}
-
-	/**
-	 * Notify registry of hub opt-in change.
-	 *
-	 * @param bool $hub_opted_in New hub opt-in value.
-	 * @return void
-	 */
-	public static function notify_hub_opted_in( $hub_opted_in ) {
 		$api_key = get_option( PressNative_Admin::OPTION_API_KEY, '' );
 		if ( empty( $api_key ) ) {
 			return;
 		}
-		self::send_config_changed( $api_key, array( 'hub_opted_in' => (bool) $hub_opted_in ) );
+		self::send_config_changed( $api_key );
 	}
 
 	/**
@@ -309,10 +381,14 @@ class PressNative_Registry_Notify {
 		$tags         = PressNative_Options::HUB_DIRECTORY_ENABLED ? PressNative_Options::get_app_categories() : array();
 		$branding     = PressNative_Options::get_branding();
 
+		$post_counts = wp_count_posts( 'post' );
+
 		$body = array_merge(
 			array(
-				'site_url' => $site_url,
-				'branding' => $branding,
+				'site_url'             => $site_url,
+				'branding'             => $branding,
+				// Hub lists a site once it has a few published posts.
+				'published_post_count' => isset( $post_counts->publish ) ? (int) $post_counts->publish : 0,
 			),
 			$extra_fields
 		);
@@ -336,8 +412,8 @@ class PressNative_Registry_Notify {
 				'blocking'  => (bool) $blocking,
 				'sslverify' => true,
 				'headers'   => array(
-					'Content-Type'            => 'application/json',
-					'X-PressNative-API-Key'   => $api_key,
+					'Content-Type'          => 'application/json',
+					'X-PressNative-API-Key' => $api_key,
 				),
 				'body'      => wp_json_encode( $body ),
 			)

@@ -28,6 +28,7 @@ class PressNative_Search_Api {
 			array(
 				'methods'             => \WP_REST_Server::READABLE,
 				'callback'            => array( __CLASS__, 'search' ),
+				// Public: searches published content only.
 				'permission_callback' => '__return_true',
 				'args'                => array(
 					'q' => array(

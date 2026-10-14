@@ -26,6 +26,7 @@ class PressNative_Devices {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( __CLASS__, 'handle_register_device' ),
+				// Public: app installs register push tokens without a WordPress account; rate-limited.
 				'permission_callback' => '__return_true',
 				'args'                => array(
 					'fcm_token'   => array(
@@ -33,7 +34,8 @@ class PressNative_Devices {
 						'type'               => 'string',
 						'sanitize_callback'  => 'sanitize_text_field',
 						'validate_callback'  => function ( $value ) {
-							return is_string( $value ) && strlen( $value ) > 0;
+							// FCM tokens are ~160 chars; cap to keep junk out of the table.
+							return is_string( $value ) && strlen( $value ) > 0 && strlen( $value ) <= 512;
 						},
 					),
 					'device_type' => array(
@@ -55,6 +57,11 @@ class PressNative_Devices {
 	 */
 	public static function handle_register_device( WP_REST_Request $request ) {
 		global $wpdb;
+
+		// Public endpoint (app installs have no WordPress account): throttle per IP.
+		if ( ! PressNative_Rate_Limit::allow( 'device', 30, HOUR_IN_SECONDS ) ) {
+			return PressNative_Rate_Limit::error();
+		}
 
 		$table = self::get_table_name(); // $wpdb->prefix + constant, safe for use in query.
 		$token = $request->get_param( 'fcm_token' );

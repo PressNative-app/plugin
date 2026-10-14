@@ -169,7 +169,7 @@ class PressNative_Analytics {
 		}
 
 		$api_key      = get_option( PressNative_Admin::OPTION_API_KEY, '' );
-		$registry_url = get_option( PressNative_Admin::OPTION_REGISTRY_URL, PressNative_Admin::DEFAULT_REGISTRY_URL );
+		$registry_url = PressNative_Admin::get_registry_url();
 		if ( ! $api_key || ! $registry_url ) {
 			return true;
 		}
@@ -225,7 +225,7 @@ class PressNative_Analytics {
 	 */
 	private static function fetch_from_registry( $path ) {
 		$api_key      = get_option( PressNative_Admin::OPTION_API_KEY, '' );
-		$registry_url = get_option( PressNative_Admin::OPTION_REGISTRY_URL, PressNative_Admin::DEFAULT_REGISTRY_URL );
+		$registry_url = PressNative_Admin::get_registry_url();
 		if ( ! $api_key || ! $registry_url ) {
 			return null;
 		}
@@ -255,6 +255,13 @@ class PressNative_Analytics {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public static function handle_track( WP_REST_Request $request ) {
+		// Nothing is stored locally; events are only forwarded once the site is connected.
+		if ( '' === (string) get_option( PressNative_Admin::OPTION_API_KEY, '' ) ) {
+			return rest_ensure_response( array( 'ok' => false ) );
+		}
+		if ( ! PressNative_Rate_Limit::allow( 'track', 120, MINUTE_IN_SECONDS ) ) {
+			return PressNative_Rate_Limit::error();
+		}
 		$params = $request->get_json_params();
 		if ( ! is_array( $params ) ) {
 			$params = array();
@@ -295,6 +302,7 @@ class PressNative_Analytics {
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
 				'callback'            => array( __CLASS__, 'handle_track' ),
+				// Public: app view events; rate-limited and forwarded only when connected.
 				'permission_callback' => '__return_true',
 				'args'                => array(
 					'event_type'     => array(
