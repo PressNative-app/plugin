@@ -236,16 +236,17 @@ class PressNative_Layout {
 	 * @return array 'head_scripts' and 'footer_scripts' strings.
 	 */
 	private function get_injectable_assets( $post ) {
-		$globals  = sprintf(
-			'<script>'
-			. 'var ajaxurl="%s";'
-			. 'var wpApiSettings={root:"%s",nonce:"%s"};'
-			. 'window.wp=window.wp||{};'
-			. 'wp.i18n=wp.i18n||{__:function(t){return t},_x:function(t){return t},_n:function(s,p,n){return n===1?s:p},_nx:function(s,p,n){return n===1?s:p},sprintf:function(){var a=arguments;return a[0].replace(/%%s/g,function(){return a[1]})},isRTL:function(){return false}};'
-			. '</script>',
-			esc_js( '/wp-admin/admin-ajax.php' ),
-			esc_js( '/wp-json/' ),
-			esc_js( wp_create_nonce( 'wp_rest' ) )
+		$globals = wp_get_inline_script_tag(
+			sprintf(
+				'var ajaxurl="%s";'
+				. 'var wpApiSettings={root:"%s",nonce:"%s"};'
+				. 'window.wp=window.wp||{};'
+				. 'wp.i18n=wp.i18n||{__:function(t){return t},_x:function(t){return t},_n:function(s,p,n){return n===1?s:p},_nx:function(s,p,n){return n===1?s:p},sprintf:function(){var a=arguments;return a[0].replace(/%%s/g,function(){return a[1]})},isRTL:function(){return false}};',
+				esc_js( '/wp-admin/admin-ajax.php' ),
+				esc_js( '/wp-json/' ),
+				esc_js( wp_create_nonce( 'wp_rest' ) )
+			),
+			array( 'id' => 'pressnative-webview-globals' )
 		);
 
 		$assets = $this->capture_enqueued_assets( $post );
@@ -2154,19 +2155,36 @@ class PressNative_Layout {
 			);
 		}
 
-		// Inject CSS to hide any remaining WooCommerce product elements that leak through.
-		$hide_css = '<style>'
-			. '.woocommerce .product, .woocommerce-page .product,'
-			. '.product .summary, .product .cart,'
-			. '.product .woocommerce-product-details__short-description,'
-			. '.product .product_meta, .product .woocommerce-tabs,'
-			. '.single-product .product .quantity,'
-			. '.single-product .product .single_add_to_cart_button,'
-			. 'form.cart, .woocommerce div.product { display: none !important; }'
-			. '</style>';
+		// Hide any remaining WooCommerce product elements that leak through; the app renders
+		// those products as native ProductCard components instead.
+		return $this->get_wc_hide_style_tag() . $html;
+	}
 
-		// Prepend the CSS if any product IDs were extracted.
-		return $hide_css . $html;
+	/**
+	 * Inline <style> tag (built by WP_Styles) that hides leaked WooCommerce product markup
+	 * inside WebView-rendered content. Registered once per request.
+	 *
+	 * @return string
+	 */
+	private function get_wc_hide_style_tag() {
+		static $registered = false;
+		$handle = 'pressnative-wc-product-hide';
+		if ( ! $registered ) {
+			wp_register_style( $handle, false, array(), PRESSNATIVE_VERSION );
+			wp_add_inline_style(
+				$handle,
+				'.woocommerce .product, .woocommerce-page .product,'
+				. '.product .summary, .product .cart,'
+				. '.product .woocommerce-product-details__short-description,'
+				. '.product .product_meta, .product .woocommerce-tabs,'
+				. '.single-product .product .quantity,'
+				. '.single-product .product .single_add_to_cart_button,'
+				. 'form.cart, .woocommerce div.product { display: none !important; }'
+			);
+			$registered = true;
+		}
+		$tag = wp_styles()->print_inline_style( $handle, false );
+		return is_string( $tag ) ? $tag : '';
 	}
 
 	/**

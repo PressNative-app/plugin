@@ -66,7 +66,7 @@ class PressNative_Options {
 	const DEFAULT_TILE_TEXT_COLOR       = '#111111';
 	const DEFAULT_FONT_FAMILY           = 'sans-serif';
 	const DEFAULT_BASE_FONT_SIZE        = 16;
-	const DEFAULT_HUB_OPTED_IN          = true;
+	const DEFAULT_HUB_OPTED_IN          = false; // Listing is an explicit choice on the connect screen.
 
 	const DEFAULT_STORE_CATEGORY = 'news';
 	const DEFAULT_CONTENT_RATING = array(
@@ -184,6 +184,31 @@ class PressNative_Options {
 			'settings_version' => self::get_settings_version(),
 		);
 		return $branding;
+	}
+
+	/** Last plugin version whose migrations ran. */
+	const OPTION_PLUGIN_VERSION = 'pressnative_plugin_version';
+
+	/**
+	 * Runs one-time migrations when the plugin version changes.
+	 *
+	 * 1.3.0: Hub listing became opt-in. Sites that connected before then and never saved
+	 * the setting were listed under the old default, so keep them listed.
+	 *
+	 * @return void
+	 */
+	public static function maybe_migrate() {
+		$previous = get_option( self::OPTION_PLUGIN_VERSION, '' );
+		if ( PRESSNATIVE_VERSION === $previous ) {
+			return;
+		}
+		if ( '' === $previous || version_compare( $previous, '1.3.0', '<' ) ) {
+			$connected = '' !== (string) get_option( PressNative_Admin::OPTION_API_KEY, '' );
+			if ( $connected && false === get_option( self::OPTION_HUB_OPTED_IN ) ) {
+				add_option( self::OPTION_HUB_OPTED_IN, '1' );
+			}
+		}
+		update_option( self::OPTION_PLUGIN_VERSION, PRESSNATIVE_VERSION );
 	}
 
 	/**

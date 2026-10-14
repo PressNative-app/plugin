@@ -3,7 +3,7 @@
  * Plugin Name: PressNative Apps
  * Plugin URI:  https://github.com/PressNative-app/plugin
  * Description: Native iOS & Android apps from WordPress — not a WebView. Publish once; own the lock screen. WooCommerce, push, Hub.
- * Version:     1.2.14
+ * Version:     1.3.0
  * Author:      PressNative
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -29,6 +29,7 @@ if ( ! function_exists( 'pressnative_required_files' ) ) :
 function pressnative_required_files() {
 	return array(
 		'includes/class-pressnative-options.php',
+		'includes/class-pressnative-rate-limit.php',
 		'includes/class-pressnative-layout-options.php',
 		'includes/class-pressnative-contract.php',
 		'includes/class-pressnative-layout.php',
@@ -46,11 +47,9 @@ function pressnative_required_files() {
 		'includes/class-pressnative-well-known.php',
 		'includes/class-pressnative-qr.php',
 		'includes/class-pressnative-sponsors.php',
-		'includes/class-pressnative-monetization.php',
 		'includes/class-pressnative-woocommerce.php',
 		'includes/class-pressnative-editorial-push.php',
 		'includes/class-pressnative-cart-recovery.php',
-		'includes/class-pressnative-updater.php',
 	);
 }
 
@@ -61,7 +60,8 @@ function pressnative_required_files() {
  * @return void
  */
 function pressnative_fail_safe( $message ) {
-	if ( function_exists( 'error_log' ) ) {
+	if ( defined( 'WP_DEBUG_LOG' ) && WP_DEBUG_LOG ) {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- boot failures only, when the site owner enabled WP_DEBUG_LOG
 		error_log( 'PressNative: ' . $message );
 	}
 	add_action(
@@ -102,7 +102,7 @@ if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
 	return;
 }
 
-define( 'PRESSNATIVE_VERSION', '1.2.14' );
+define( 'PRESSNATIVE_VERSION', '1.3.0' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
@@ -129,14 +129,6 @@ foreach ( pressnative_required_files() as $pressnative_rel ) {
 	require_once PRESSNATIVE_PLUGIN_DIR . $pressnative_rel;
 }
 unset( $pressnative_rel );
-
-/**
- * Load plugin text domain for translations (optional on WordPress.org; kept for self-hosted installs).
- */
-add_action( 'init', function () {
-	// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- kept for self-hosted; .org loads automatically
-	load_plugin_textdomain( 'pressnative-apps', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
-} );
 
 /**
  * Activation: create devices table. Registry contact happens only after the site owner connects (API key).
@@ -184,6 +176,7 @@ add_action( 'rest_api_init', function () {
 				}
 				return $response;
 			},
+			// Public: read-only published content for the mobile apps.
 			'permission_callback' => '__return_true',
 		)
 	);
@@ -208,6 +201,7 @@ add_action( 'rest_api_init', function () {
 				$response = PressNative_Http_Cache::apply( $request, $response, $data );
 				return $response;
 			},
+			// Public: read-only published content for the mobile apps.
 			'permission_callback' => '__return_true',
 			'args'                => array(
 				'page'      => array(
@@ -255,6 +249,7 @@ add_action( 'rest_api_init', function () {
 				}
 				return $response;
 			},
+			// Public: read-only published content for the mobile apps.
 			'permission_callback' => '__return_true',
 		)
 	);
@@ -282,6 +277,7 @@ add_action( 'rest_api_init', function () {
 				}
 				return $response;
 			},
+			// Public: read-only published content for the mobile apps.
 			'permission_callback' => '__return_true',
 		)
 	);
@@ -306,6 +302,7 @@ add_action( 'rest_api_init', function () {
 				}
 				return $response;
 			},
+			// Public: read-only published content for the mobile apps.
 			'permission_callback' => '__return_true',
 		)
 	);
@@ -331,6 +328,7 @@ add_action( 'rest_api_init', function () {
 					}
 					return $response;
 				},
+				// Public: read-only published content for the mobile apps.
 				'permission_callback' => '__return_true',
 			)
 		);
@@ -357,6 +355,7 @@ add_action( 'rest_api_init', function () {
 					}
 					return $response;
 				},
+				// Public: read-only published content for the mobile apps.
 				'permission_callback' => '__return_true',
 			)
 		);
@@ -380,6 +379,7 @@ add_action( 'rest_api_init', function () {
 					}
 					return $response;
 				},
+				// Public: read-only published content for the mobile apps.
 				'permission_callback' => '__return_true',
 			)
 		);
@@ -432,6 +432,7 @@ add_action( 'rest_api_init', function () {
 			'callback'            => function () {
 				return rest_ensure_response( PressNative_Options::get_branding() );
 			},
+			// Public: app theme (name, colors, logo) the apps need before any login.
 			'permission_callback' => '__return_true',
 		)
 	);
@@ -563,12 +564,14 @@ add_action( 'rest_api_init', function () {
 				// Nonce is valid — delete it (single use) and confirm
 				delete_transient( 'pressnative_verify_nonce' );
 
-				return rest_ensure_response( array(
-					'verified'   => true,
-					'site_url'   => site_url(),
-					'admin_email' => get_option( 'admin_email', '' ),
-				) );
+				return rest_ensure_response(
+					array(
+						'verified' => true,
+						'site_url' => home_url(),
+					)
+				);
 			},
+			// Public by design: PressNative Cloud calls it; access requires the single-use challenge stored by wp-admin.
 			'permission_callback' => '__return_true',
 		)
 	);
@@ -615,6 +618,7 @@ add_action( 'rest_api_init', function () {
 				}
 				return $response;
 			},
+			// Public: read-only published content for the mobile apps.
 			'permission_callback' => '__return_true',
 		)
 	);
@@ -846,6 +850,7 @@ add_action( 'rest_api_init', function () {
 						'cart_items' => $cart_items,
 					) );
 				},
+				// Public: reads only the caller's own WooCommerce session cart.
 				'permission_callback' => '__return_true',
 			)
 		);
@@ -901,7 +906,7 @@ add_action( 'template_redirect', function () {
 	$content = apply_filters( 'the_content', $post->post_content );
 
 	// Enqueue content styles for WebView (output in wp_head).
-	wp_register_style( 'pressnative-webview-content', false );
+	wp_register_style( 'pressnative-webview-content', false, array(), PRESSNATIVE_VERSION );
 	wp_add_inline_style(
 		'pressnative-webview-content',
 		'body{font-family:sans-serif;font-size:16px;line-height:1.5;margin:0;padding:16px;}img{max-width:100%;height:auto;}table{width:100%;border-collapse:collapse;}'
@@ -978,9 +983,9 @@ try {
 	PressNative_Cart_Recovery::init();
 
 	/**
-	 * Self-hosted plugin updates via pressnative.app / GitHub Releases.
+	 * One-time option migrations after an upgrade.
 	 */
-	PressNative_Updater::init();
+	add_action( 'admin_init', array( 'PressNative_Options', 'maybe_migrate' ) );
 } catch ( Throwable $e ) {
 	pressnative_fail_safe(
 		sprintf(
@@ -993,6 +998,21 @@ try {
 }
 
 /**
+ * Whether the current WooCommerce page was opened from the app's checkout handoff.
+ * Display-only: decides whether to show a "Return to app" link; no state changes.
+ *
+ * @return bool
+ */
+function pressnative_is_app_checkout_request() {
+	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only flag, no state change
+	if ( isset( $_GET['pressnative_app_checkout'] ) || isset( $_GET['pressnative_checkout_token'] ) ) {
+		return true;
+	}
+	$referer = wp_get_referer();
+	return $referer && false !== strpos( $referer, 'pressnative_checkout_token=' );
+}
+
+/**
  * Handle checkout completion and return to app.
  */
 add_action( 'woocommerce_thankyou', function ( $order_id ) {
@@ -1000,14 +1020,7 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
 		return;
 	}
 
-	// Check if this checkout was initiated from the app
-	$referer = wp_get_referer();
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only check for return-to-app UI
-	$is_app_checkout = isset( $_GET['pressnative_app_checkout'] ) ||
-	                   isset( $_GET['pressnative_checkout_token'] ) ||
-	                   ( $referer && strpos( $referer, 'pressnative_checkout_token=' ) !== false );
-
-	if ( ! $is_app_checkout ) {
+	if ( ! pressnative_is_app_checkout_request() ) {
 		return;
 	}
 
@@ -1031,13 +1044,7 @@ add_action( 'woocommerce_thankyou', function ( $order_id ) {
  * Add return to app link on cart page when accessed from app.
  */
 add_action( 'woocommerce_after_cart', function () {
-	$referer = wp_get_referer();
-	// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only check for return-to-app link
-	$is_app_context = isset( $_GET['pressnative_app_checkout'] ) ||
-	                  isset( $_GET['pressnative_checkout_token'] ) ||
-	                  ( $referer && strpos( $referer, 'pressnative_checkout_token=' ) !== false );
-
-	if ( ! $is_app_context ) {
+	if ( ! pressnative_is_app_checkout_request() ) {
 		return;
 	}
 

@@ -14,6 +14,7 @@ class PressNative_Editorial_Push {
 
 	const META_NOTIFY   = '_pressnative_notify_push';
 	const META_AUDIENCE = '_pressnative_notify_audience'; // all | categories
+	const META_RESEND   = '_pressnative_push_on_update';  // one-shot: push again on next update
 
 	/**
 	 * Bootstrap hooks.
@@ -87,6 +88,14 @@ class PressNative_Editorial_Push {
 				<?php esc_html_e( 'Notify app users when this is published', 'pressnative-apps' ); ?>
 			</label>
 		</p>
+		<?php if ( 'publish' === $post->post_status ) : ?>
+			<p>
+				<label>
+					<input type="checkbox" name="pressnative_push_on_update" value="1" <?php disabled( ! $allowed ); ?> />
+					<?php esc_html_e( 'Send a notification again when I update this', 'pressnative-apps' ); ?>
+				</label>
+			</p>
+		<?php endif; ?>
 		<?php if ( ! $allowed ) : ?>
 			<p class="description"><?php esc_html_e( 'Enable this content type under PressNative → Push Notifications preferences.', 'pressnative-apps' ); ?></p>
 		<?php endif; ?>
@@ -126,6 +135,24 @@ class PressNative_Editorial_Push {
 			$audience = 'all';
 		}
 		update_post_meta( $post_id, self::META_AUDIENCE, $audience );
+		if ( isset( $_POST['pressnative_push_on_update'] ) ) {
+			update_post_meta( $post_id, self::META_RESEND, '1' );
+		}
+	}
+
+	/**
+	 * Whether an update to an already-published post was explicitly marked to notify again.
+	 * The flag is single-use and cleared once read.
+	 *
+	 * @param WP_Post $post Post.
+	 * @return bool
+	 */
+	public static function consume_resend_flag( $post ) {
+		if ( '1' !== get_post_meta( $post->ID, self::META_RESEND, true ) ) {
+			return false;
+		}
+		delete_post_meta( $post->ID, self::META_RESEND );
+		return true;
 	}
 
 	/**
@@ -149,10 +176,12 @@ class PressNative_Editorial_Push {
 	}
 
 	/**
-	 * Category slugs for audience filtering (empty = all).
+	 * Categories for audience filtering (null = all subscribers).
+	 *
+	 * Sent as {id, slug} so the registry can match app preferences stored either way.
 	 *
 	 * @param WP_Post $post Post.
-	 * @return string[]|null
+	 * @return array<int, array{id:int, slug:string}>|null
 	 */
 	public static function get_audience_categories( $post ) {
 		$audience = get_post_meta( $post->ID, self::META_AUDIENCE, true );
@@ -163,6 +192,13 @@ class PressNative_Editorial_Push {
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
 			return array();
 		}
-		return array_values( wp_list_pluck( $terms, 'slug' ) );
+		$out = array();
+		foreach ( $terms as $term ) {
+			$out[] = array(
+				'id'   => (int) $term->term_id,
+				'slug' => (string) $term->slug,
+			);
+		}
+		return $out;
 	}
 }

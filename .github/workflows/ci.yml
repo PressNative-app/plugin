@@ -165,3 +165,22 @@ jobs:
           name: pressnative-apps-plugin
           path: pressnative-apps.zip
           retention-days: 7
+  plugin-check:
+    name: WordPress.org Plugin Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Check the exact files WordPress.org receives, not the dev tree (scripts/, docs/ are excluded).
+      - name: Build plugin zip
+        run: bash scripts/build.sh
+
+      - name: Unpack build
+        run: unzip -q "$(cd .. && pwd)/pressnative-apps.zip" -d "$RUNNER_TEMP/build"
+
+      - name: Run Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ${{ runner.temp }}/build/pressnative-apps

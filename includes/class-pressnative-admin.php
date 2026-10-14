@@ -27,19 +27,17 @@ class PressNative_Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'add_settings_subpage' ), 11 );
 		add_action( 'admin_menu', array( __CLASS__, 'reorder_menu_by_subscription' ), 999 );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
-		add_action( 'admin_init', array( __CLASS__, 'handle_jetpack_auth_catcher' ), 5 );
 		add_action( 'admin_init', array( __CLASS__, 'handle_stripe_portal_redirect' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_app_settings_assets' ) );
 		add_action( 'admin_post_pressnative_send_push', array( __CLASS__, 'handle_send_push' ) );
+		add_action( 'admin_post_pressnative_connect', array( __CLASS__, 'handle_connect' ) );
 		add_action( 'admin_post_pressnative_disconnect', array( __CLASS__, 'handle_disconnect' ) );
 		add_action( 'admin_post_pressnative_apply_launch_kit', array( __CLASS__, 'handle_apply_launch_kit' ) );
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification' ), 10, 2 );
 		add_action( 'add_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification_on_add' ), 10, 2 );
 		add_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'clear_subscription_cache' ), 10 );
 		add_action( 'admin_post_pressnative_verify_site', array( __CLASS__, 'handle_verify_site' ) );
-		add_action( 'admin_notices', array( __CLASS__, 'show_woocommerce_seed_notice' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'show_cache_invalidation_notice' ) );
-		add_action( 'update_option_' . PressNative_Options::OPTION_HUB_OPTED_IN, array( __CLASS__, 'on_hub_opted_in_changed' ), 10, 2 );
 	}
 
 	/**
@@ -49,22 +47,6 @@ class PressNative_Admin {
 	 */
 	public static function clear_subscription_cache() {
 		delete_transient( self::SUBSCRIPTION_CACHE_KEY . '_' . md5( get_option( self::OPTION_API_KEY, '' ) ) );
-	}
-
-	/**
-	 * Notify registry when hub directory opt-in changes.
-	 *
-	 * @param mixed $old_value Previous value.
-	 * @param mixed $new_value New value.
-	 * @return void
-	 */
-	public static function on_hub_opted_in_changed( $old_value, $new_value ) {
-		$old_bool = (string) $old_value === '1' || $old_value === true;
-		$new_bool = (string) $new_value === '1' || $new_value === true;
-		if ( $old_bool === $new_bool ) {
-			return;
-		}
-		PressNative_Registry_Notify::notify_hub_opted_in( $new_bool );
 	}
 
 	/**
@@ -161,30 +143,96 @@ class PressNative_Admin {
 	}
 
 	/**
-	 * Catches the return from PressNative Cloud with pressnative_auth_key; saves key, runs AOT, redirects.
+	 * Handles Connect: registers this site with PressNative Cloud server-to-server.
+	 *
+	 * The registry proves wp-admin ownership by calling back to /verify-ownership with a
+	 * single-use challenge, then returns the API key in the response body. The key never
+	 * travels through a browser redirect. New sites get the free plan.
 	 *
 	 * @return void
 	 */
-	public static function handle_jetpack_auth_catcher() {
+	public static function handle_connect() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'pressnative-apps' ) );
 		}
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth return URL callback; key is validated and capability checked
-		$page = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth return URL callback
-		if ( 'pressnative-settings' !== $page || empty( $_GET['pressnative_auth_key'] ) ) {
-			return;
+		check_admin_referer( 'pressnative_connect' );
+
+		$hub_opt_in = ! empty( $_POST['pressnative_hub_opt_in'] );
+		$email      = isset( $_POST['pressnative_account_email'] ) ? sanitize_email( wp_unslash( $_POST['pressnative_account_email'] ) ) : '';
+
+		$result = self::register_with_registry( $hub_opt_in, $email );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'pressnative_connect_error', $result->get_error_message(), 5 * MINUTE_IN_SECONDS );
 		}
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- OAuth return URL callback
-		$raw_key = is_string( $_GET['pressnative_auth_key'] ) ? sanitize_text_field( wp_unslash( $_GET['pressnative_auth_key'] ) ) : '';
-		if ( '' === $raw_key ) {
-			wp_safe_redirect( admin_url( 'options-general.php?page=pressnative-settings' ) );
-			exit;
-		}
-		update_option( self::OPTION_API_KEY, $raw_key );
-		PressNative_AOT_Compiler::run_initial_sweep( 10 );
 		wp_safe_redirect( admin_url( 'options-general.php?page=pressnative-settings' ) );
 		exit;
+	}
+
+	/**
+	 * Calls POST /api/v1/sites/register and stores the returned API key.
+	 *
+	 * @param bool   $hub_opt_in Whether to list the site in the PressNative Hub.
+	 * @param string $email      Optional account email for service notices.
+	 * @return true|WP_Error
+	 */
+	public static function register_with_registry( $hub_opt_in, $email = '' ) {
+		$challenge = wp_generate_password( 48, false );
+		set_transient( 'pressnative_verify_nonce', $challenge, 5 * MINUTE_IN_SECONDS );
+
+		$response = wp_remote_post(
+			rtrim( self::get_registry_url(), '/' ) . '/api/v1/sites/register',
+			array(
+				'timeout' => 20,
+				'headers' => array( 'Content-Type' => 'application/json' ),
+				'body'    => wp_json_encode(
+					array(
+						'site_url'       => home_url(),
+						'verify_url'     => rest_url( 'pressnative/v1/verify-ownership' ),
+						'challenge'      => $challenge,
+						'hub_opt_in'     => (bool) $hub_opt_in,
+						'tags'           => PressNative_Options::get_app_categories(),
+						'site_name'      => get_bloginfo( 'name' ),
+						'admin_email'    => $email,
+						'wp_version'     => get_bloginfo( 'version' ),
+						'plugin_version' => PRESSNATIVE_VERSION,
+					)
+				),
+			)
+		);
+		delete_transient( 'pressnative_verify_nonce' );
+
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error(
+				'pressnative_connect_unreachable',
+				/* translators: %s: error message */
+				sprintf( __( 'Could not reach PressNative Cloud: %s', 'pressnative-apps' ), $response->get_error_message() )
+			);
+		}
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( $code < 200 || $code >= 300 || empty( $data['api_key'] ) || ! is_string( $data['api_key'] ) ) {
+			$message = is_array( $data ) && ! empty( $data['error'] ) ? (string) $data['error'] : sprintf( 'HTTP %d', $code );
+			if ( is_array( $data ) && ! empty( $data['hint'] ) ) {
+				$message .= ' ' . (string) $data['hint'];
+			}
+			/* translators: %s: error returned by PressNative Cloud */
+			return new WP_Error( 'pressnative_connect_failed', sprintf( __( 'Connect failed: %s', 'pressnative-apps' ), $message ) );
+		}
+
+		// Saved before the key so this change does not trigger a sync of its own.
+		update_option( PressNative_Options::OPTION_HUB_OPTED_IN, $hub_opt_in ? '1' : '0' );
+
+		// Registration already proved ownership; skip the separate /api/verify-site round trip.
+		remove_action( 'update_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification' ), 10 );
+		remove_action( 'add_option_' . self::OPTION_API_KEY, array( __CLASS__, 'trigger_site_verification_on_add' ), 10 );
+		$api_key = sanitize_text_field( $data['api_key'] );
+		update_option( self::OPTION_API_KEY, $api_key );
+		update_option( 'pressnative_site_verified', current_time( 'mysql' ) );
+		delete_transient( 'pressnative_connect_error' );
+
+		PressNative_Registry_Notify::sync_now( $api_key );
+		PressNative_AOT_Compiler::run_initial_sweep( 10 );
+		return true;
 	}
 
 	/**
@@ -211,30 +259,79 @@ class PressNative_Admin {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$api_key = get_option( self::OPTION_API_KEY, '' );
-		$connect_url = 'https://pressnative.app/connect?site_url=' . rawurlencode( site_url() ) . '&return_url=' . rawurlencode( admin_url( 'options-general.php?page=pressnative-settings' ) );
+		$api_key       = get_option( self::OPTION_API_KEY, '' );
+		$connect_error = get_transient( 'pressnative_connect_error' );
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'PressNative', 'pressnative-apps' ); ?></h1>
 			<?php if ( empty( $api_key ) ) : ?>
-				<div class="pressnative-connect-hero" style="max-width:560px;margin:32px 0;padding:32px;background:#fff;border:1px solid #c3c4c7;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.04);text-align:center;">
-					<p style="font-size:1.2em;margin:0 0 16px;color:#1d2327;"><?php esc_html_e( 'Connect your site to PressNative Cloud to power your native app.', 'pressnative-apps' ); ?></p>
-					<p style="margin:0 0 24px;color:#50575e;"><?php esc_html_e( 'You will be redirected to PressNative to sign in or create an account, then returned here automatically.', 'pressnative-apps' ); ?></p>
-					<a href="<?php echo esc_url( $connect_url ); ?>" class="button button-primary button-hero" style="font-size:16px;padding:12px 32px;">
-						<?php esc_html_e( 'Connect to PressNative Cloud', 'pressnative-apps' ); ?>
-					</a>
+				<?php if ( $connect_error ) : ?>
+					<div class="notice notice-error"><p><?php echo esc_html( $connect_error ); ?></p></div>
+				<?php endif; ?>
+				<div class="pressnative-connect-card">
+					<h2><?php esc_html_e( 'Connect your site to PressNative Cloud', 'pressnative-apps' ); ?></h2>
+					<p><?php esc_html_e( 'PressNative Cloud renders your content in native iOS and Android apps and delivers push notifications. Connecting is free.', 'pressnative-apps' ); ?></p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<input type="hidden" name="action" value="pressnative_connect" />
+						<?php wp_nonce_field( 'pressnative_connect' ); ?>
+						<p>
+							<label>
+								<input type="checkbox" name="pressnative_hub_opt_in" value="1" />
+								<strong><?php esc_html_e( 'List my site in the PressNative Hub', 'pressnative-apps' ); ?></strong>
+							</label>
+						</p>
+						<p class="description">
+							<?php esc_html_e( 'The Hub is a free app where readers discover sites and get notified about new posts. Your site name, logo, colors and categories become publicly visible there. You can change this any time under PressNative → App Settings.', 'pressnative-apps' ); ?>
+						</p>
+						<p>
+							<label for="pressnative_account_email"><?php esc_html_e( 'Email for account notices (optional)', 'pressnative-apps' ); ?></label><br />
+							<input type="email" class="regular-text" id="pressnative_account_email" name="pressnative_account_email" value="" autocomplete="email" />
+						</p>
+						<p class="description">
+							<?php
+							printf(
+								/* translators: 1: terms URL, 2: privacy URL */
+								wp_kses( __( 'Connecting sends your site URL, name and app settings to pressnative.app. See the <a href="%1$s" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="%2$s" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.', 'pressnative-apps' ), array( 'a' => array( 'href' => array(), 'target' => array(), 'rel' => array() ) ) ),
+								esc_url( 'https://pressnative.app/terms' ),
+								esc_url( 'https://pressnative.app/privacy' )
+							);
+							?>
+						</p>
+						<p><button type="submit" class="button button-primary button-hero"><?php esc_html_e( 'Connect', 'pressnative-apps' ); ?></button></p>
+					</form>
+					<details class="pressnative-connect-manual">
+						<summary><?php esc_html_e( 'I already have an API key', 'pressnative-apps' ); ?></summary>
+						<form method="post" action="options.php">
+							<?php settings_fields( 'pressnative_settings' ); ?>
+							<?php // options.php resets group options missing from POST; keep the registry URL as is. ?>
+							<input type="hidden" name="<?php echo esc_attr( self::OPTION_REGISTRY_URL ); ?>" value="<?php echo esc_attr( get_option( self::OPTION_REGISTRY_URL, self::DEFAULT_REGISTRY_URL ) ); ?>" />
+							<p>
+								<label for="pressnative_api_key_manual"><?php esc_html_e( 'API key', 'pressnative-apps' ); ?></label><br />
+								<input type="text" class="regular-text code" id="pressnative_api_key_manual" name="<?php echo esc_attr( self::OPTION_API_KEY ); ?>" value="" autocomplete="off" />
+							</p>
+							<?php submit_button( __( 'Save API key', 'pressnative-apps' ), 'secondary' ); ?>
+						</form>
+					</details>
 				</div>
 			<?php else : ?>
 				<?php
-				$masked = strlen( $api_key ) > 8 ? substr( $api_key, 0, 8 ) . '****' . substr( $api_key, -4 ) : 'pn_live_****' . substr( $api_key, -4 );
+				$masked = strlen( $api_key ) > 8 ? substr( $api_key, 0, 8 ) . '****' . substr( $api_key, -4 ) : '****' . substr( $api_key, -4 );
 				?>
-				<div class="pressnative-connected-card" style="max-width:560px;margin:32px 0;padding:24px;background:#fff;border:1px solid #c3c4c7;border-left:4px solid #00a32a;border-radius:4px;">
-					<h2 style="margin:0 0 12px;font-size:1.1em;"><?php esc_html_e( 'Successfully Connected', 'pressnative-apps' ); ?></h2>
-					<p style="margin:0 0 16px;color:#50575e;">
-						<?php esc_html_e( 'API Key:', 'pressnative-apps' ); ?>
-						<code style="background:#f0f0f1;padding:2px 8px;border-radius:4px;"><?php echo esc_html( $masked ); ?></code>
+				<div class="pressnative-connected-card">
+					<h2><?php esc_html_e( 'Connected to PressNative Cloud', 'pressnative-apps' ); ?></h2>
+					<p>
+						<?php esc_html_e( 'API key:', 'pressnative-apps' ); ?>
+						<code><?php echo esc_html( $masked ); ?></code>
 					</p>
-					<p style="margin:0;">
+					<p>
+						<?php if ( PressNative_Options::is_hub_opted_in() ) : ?>
+							<?php esc_html_e( 'Your site is listed in the PressNative Hub once it has at least 3 published posts.', 'pressnative-apps' ); ?>
+						<?php else : ?>
+							<?php esc_html_e( 'Your site is not listed in the PressNative Hub.', 'pressnative-apps' ); ?>
+						<?php endif; ?>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=pressnative-app-settings' ) ); ?>"><?php esc_html_e( 'Change', 'pressnative-apps' ); ?></a>
+					</p>
+					<p>
 						<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pressnative_disconnect' ), 'pressnative_disconnect' ) ); ?>" class="button button-secondary"><?php esc_html_e( 'Disconnect', 'pressnative-apps' ); ?></a>
 					</p>
 				</div>
@@ -736,7 +833,7 @@ class PressNative_Admin {
 	 * @return string
 	 */
 	public static function sanitize_registry_url( $value ) {
-		$value = trim( $value );
+		$value = trim( (string) $value );
 		if ( '' === $value ) {
 			return self::DEFAULT_REGISTRY_URL;
 		}
@@ -756,6 +853,46 @@ class PressNative_Admin {
 	 *
 	 * @return array|null Subscription data or null on failure.
 	 */
+	/**
+	 * Whether the connected site's plan includes paid features (ad-hoc push, analytics).
+	 * Unknown (registry unreachable or older registry) counts as yes so nothing is hidden.
+	 *
+	 * @return bool
+	 */
+	public static function has_paid_features() {
+		$status = self::fetch_subscription_status();
+		if ( ! is_array( $status ) || ! array_key_exists( 'paid_features', $status ) ) {
+			return true;
+		}
+		return (bool) $status['paid_features'];
+	}
+
+	/**
+	 * Inline (non-dismissible, page-scoped) note explaining what the free plan includes.
+	 *
+	 * @param string $feature Human-readable feature name.
+	 * @return void
+	 */
+	private static function render_free_plan_note( $feature ) {
+		if ( '' === (string) get_option( self::OPTION_API_KEY, '' ) || self::has_paid_features() ) {
+			return;
+		}
+		?>
+		<div class="notice notice-info inline">
+			<p>
+				<?php
+				printf(
+					/* translators: 1: feature name, 2: pricing URL */
+					wp_kses( __( '%1$s is part of paid PressNative plans. Your free plan includes the Hub listing and automatic notifications for new posts. <a href="%2$s" target="_blank" rel="noopener noreferrer">See plans</a>.', 'pressnative-apps' ), array( 'a' => array( 'href' => array(), 'target' => array(), 'rel' => array() ) ) ),
+					esc_html( $feature ),
+					esc_url( 'https://pressnative.app/pricing' )
+				);
+				?>
+			</p>
+		</div>
+		<?php
+	}
+
 	public static function fetch_subscription_status() {
 		$api_key      = get_option( self::OPTION_API_KEY, '' );
 		$registry_url = self::get_registry_url();
@@ -1138,8 +1275,22 @@ class PressNative_Admin {
 		$analytics_page  = ( $hook_suffix === 'pressnative_page_pressnative-analytics' );
 		$push_page       = ( $hook_suffix === 'pressnative_page_pressnative-push' );
 		$main_page       = ( $hook_suffix === 'toplevel_page_pressnative' );
-		$is_pressnative  = ( $app_settings || $layout_settings || $analytics_page || $push_page || $main_page );
+		$connect_page    = ( $hook_suffix === 'settings_page_pressnative-settings' );
+		$is_pressnative  = ( $app_settings || $layout_settings || $analytics_page || $push_page || $main_page || $connect_page );
 		if ( ! $is_pressnative ) {
+			return;
+		}
+
+		$admin_css = PRESSNATIVE_PLUGIN_DIR . 'assets/css/admin.css';
+		if ( file_exists( $admin_css ) ) {
+			wp_enqueue_style(
+				'pressnative-admin',
+				plugins_url( 'assets/css/admin.css', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
+				array(),
+				filemtime( $admin_css )
+			);
+		}
+		if ( $connect_page ) {
 			return;
 		}
 
@@ -1191,7 +1342,7 @@ class PressNative_Admin {
 		}
 		if ( $analytics_page ) {
 			wp_enqueue_script(
-				'chartjs',
+				'pressnative-chartjs',
 				plugins_url( 'assets/js/vendor/chart.umd.min.js', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
 				array(),
 				'4.5.1',
@@ -1203,7 +1354,7 @@ class PressNative_Admin {
 				wp_enqueue_script(
 					'pressnative-analytics',
 					plugins_url( 'assets/js/analytics-dashboard.js', PRESSNATIVE_PLUGIN_DIR . 'pressnative.php' ),
-					array( 'chartjs' ),
+					array( 'pressnative-chartjs' ),
 					filemtime( $analytics_js ),
 					true
 				);
@@ -1239,35 +1390,6 @@ class PressNative_Admin {
 				self::get_logo_upload_script() . "\n" . self::get_media_upload_script() . "\n" . self::get_app_categories_script() . "\n" . self::get_app_links_script(),
 				'after'
 			);
-		}
-
-		// WooCommerce seed demo notice script (when notice may be shown).
-		if ( class_exists( 'WooCommerce' ) && current_user_can( 'manage_woocommerce' ) ) {
-			$product_count = wp_count_posts( 'product' );
-			$show_seed_script = ! $product_count || (int) $product_count->publish <= 5;
-			if ( $show_seed_script ) {
-				wp_enqueue_script( 'jquery' );
-				wp_enqueue_script(
-					'pressnative-seed-woocommerce',
-					false,
-					array( 'jquery' ),
-					PRESSNATIVE_VERSION,
-					true
-				);
-				wp_localize_script(
-					'pressnative-seed-woocommerce',
-					'pressnativeSeed',
-					array(
-						'restUrl'    => rest_url( 'pressnative/v1/woocommerce/seed-demo' ),
-						'nonce'      => wp_create_nonce( 'wp_rest' ),
-						'loadingText' => __( 'Creating demo data...', 'pressnative-apps' ),
-					)
-				);
-				wp_add_inline_script(
-					'pressnative-seed-woocommerce',
-					'jQuery(function($){$("#pressnative-seed-woocommerce").on("click",function(){var b=$(this),o=b.text(),l=(pressnativeSeed&&pressnativeSeed.loadingText)||"Creating demo data...";b.prop("disabled",true).text(l);$.ajax({url:(pressnativeSeed&&pressnativeSeed.restUrl)||"",method:"POST",beforeSend:function(xhr){xhr.setRequestHeader("X-WP-Nonce",(pressnativeSeed&&pressnativeSeed.nonce)||"");},success:function(r){var m="Demo data created successfully!";if(r.categories_created||r.products_created||r.posts_created){m+=" Created: "+(r.categories_created||0)+" categories, "+(r.products_created||0)+" products, "+(r.posts_created||0)+" posts.";}if(r.errors&&r.errors.length){m+=" Some errors occurred: "+r.errors.join(", ");}alert(m);$("#pressnative-woocommerce-seed-notice").fadeOut();},error:function(x,s,e){alert("Error creating demo data: "+(x.responseJSON?x.responseJSON.message:e));b.prop("disabled",false).text(o);}});});});'
-				);
-			}
 		}
 	}
 
@@ -1872,7 +1994,7 @@ class PressNative_Admin {
 									   <?php checked( $hub_opted_in ); ?> />
 								<?php esc_html_e( 'List my app in the PressNative Hub directory', 'pressnative-apps' ); ?>
 							</label>
-							<p class="description"><?php esc_html_e( 'When enabled, your app appears in the Hub for discovery. Syncs to pressnative.app when you save.', 'pressnative-apps' ); ?></p>
+							<p class="description"><?php esc_html_e( 'When enabled, your site name, logo, colors and categories are shown publicly in the free PressNative Hub app once you have at least 3 published posts. Readers who follow you there get notified about new posts. Syncs to pressnative.app when you save.', 'pressnative-apps' ); ?></p>
 						</td>
 					</tr>
 					<tr>
@@ -2458,7 +2580,11 @@ class PressNative_Admin {
 			wp_safe_redirect( add_query_arg( 'pressnative_push_sent', $sent, admin_url( 'admin.php?page=pressnative-push' ) ) );
 			exit;
 		}
-		$err_msg = isset( $data['error'] ) ? $data['error'] : __( 'Unknown error', 'pressnative-apps' );
+		if ( ! empty( $data['message'] ) ) {
+			$err_msg = (string) $data['message'];
+		} else {
+			$err_msg = isset( $data['error'] ) ? $data['error'] : __( 'Unknown error', 'pressnative-apps' );
+		}
 		wp_safe_redirect( add_query_arg( array( 'pressnative_push_error' => 'registry', 'pressnative_push_message' => rawurlencode( $err_msg ) ), admin_url( 'admin.php?page=pressnative-push' ) ) );
 		exit;
 	}
@@ -2485,6 +2611,7 @@ class PressNative_Admin {
 		?>
 		<div class="wrap">
 			<h1><?php esc_html_e( 'Push Notifications', 'pressnative-apps' ); ?></h1>
+			<?php self::render_free_plan_note( __( 'Sending custom notifications', 'pressnative-apps' ) ); ?>
 			<p class="description"><?php esc_html_e( 'Send an ad-hoc push notification to all app users who have your site favorited and opted into push. Requires API key and Registry URL in Settings.', 'pressnative-apps' ); ?></p>
 
 			<?php if ( $has_config ) : ?>
@@ -2798,6 +2925,7 @@ class PressNative_Admin {
 		?>
 		<div class="wrap pressnative-analytics-wrap">
 			<h1><?php esc_html_e( 'Analytics', 'pressnative-apps' ); ?></h1>
+			<?php self::render_free_plan_note( __( 'The analytics dashboard', 'pressnative-apps' ) ); ?>
 			<p class="description"><?php esc_html_e( 'App usage and content views from the PressNative mobile app. Views are counted when the app loads content from the server; when the app serves cached content it can send a track event so those views are included.', 'pressnative-apps' ); ?></p>
 
 			<div class="pressnative-analytics-toolbar">
@@ -3111,7 +3239,7 @@ class PressNative_Admin {
 
 		$registry_url = self::get_registry_url();
 		$verify_url   = rtrim( $registry_url, '/' ) . '/api/verify-site';
-		$site_url     = site_url();
+		$site_url     = home_url();
 
 		$response = wp_remote_post(
 			$verify_url,
@@ -3173,7 +3301,7 @@ class PressNative_Admin {
 
 		// Only show on PressNative admin pages
 		$screen = get_current_screen();
-		if ( ! $screen || strpos( $screen->id, 'pressnative-apps' ) === false ) {
+		if ( ! $screen || strpos( $screen->id, 'pressnative' ) === false ) {
 			return;
 		}
 
@@ -3204,45 +3332,6 @@ class PressNative_Admin {
 
 		// Delete the transient so notice only shows once
 		delete_transient( 'pressnative_cache_invalidated' );
-	}
-
-	/**
-	 * Show admin notice with WooCommerce seed demo button.
-	 */
-	public static function show_woocommerce_seed_notice() {
-		// Only show on PressNative admin pages
-		$screen = get_current_screen();
-		if ( ! $screen || strpos( $screen->id, 'pressnative-apps' ) === false ) {
-			return;
-		}
-
-		// Only show if WooCommerce is active and user can manage it
-		if ( ! class_exists( 'WooCommerce' ) || ! current_user_can( 'manage_woocommerce' ) ) {
-			return;
-		}
-
-		// Check if we already have products (don't show if store already has content)
-		$product_count = wp_count_posts( 'product' );
-		if ( $product_count && $product_count->publish > 5 ) {
-			return;
-		}
-
-		?>
-		<div class="notice notice-info is-dismissible" id="pressnative-woocommerce-seed-notice">
-			<p>
-				<strong><?php esc_html_e( 'WooCommerce Demo Data', 'pressnative-apps' ); ?></strong><br>
-				<?php esc_html_e( 'Populate your WooCommerce store with demo products and shoppable blog posts to test the native app integration.', 'pressnative-apps' ); ?>
-			</p>
-			<p>
-				<button type="button" class="button button-primary" id="pressnative-seed-woocommerce">
-					<?php esc_html_e( 'Create Demo Data', 'pressnative-apps' ); ?>
-				</button>
-				<button type="button" class="notice-dismiss" onclick="document.getElementById('pressnative-woocommerce-seed-notice').style.display='none';">
-					<span class="screen-reader-text"><?php esc_html_e( 'Dismiss this notice.', 'pressnative-apps' ); ?></span>
-				</button>
-			</p>
-		</div>
-		<?php
 	}
 
 }

@@ -56,7 +56,7 @@ class PressNative_QR {
 	 * @return string|null Preview URL or null on failure.
 	 */
 	private static function fetch_signed_preview_url( $site_url ) {
-		$auth_key = get_option( 'pressnative_auth_key', '' );
+		$auth_key = get_option( PressNative_Admin::OPTION_API_KEY, '' );
 		if ( ! is_string( $auth_key ) || '' === trim( $auth_key ) ) {
 			return null;
 		}

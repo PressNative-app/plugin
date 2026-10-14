@@ -117,6 +117,15 @@ foreach ( (array) $submenu as $parent => $items ) {
 	}
 }
 
+// Settings → PressNative (connect screen) lives under options-general.php.
+if ( isset( $submenu['options-general.php'] ) ) {
+	foreach ( $submenu['options-general.php'] as $item ) {
+		if ( ! empty( $item[2] ) && 'pressnative-settings' === $item[2] ) {
+			$screens[ $item[2] ] = $item[2];
+		}
+	}
+}
+
 if ( empty( $screens ) ) {
 	$failures[] = 'admin menu: no PressNative screens were registered';
 	echo "  FAIL  admin menu registration\n";
@@ -145,7 +154,7 @@ foreach ( $screens as $slug ) {
  */
 function pressnative_smoke_find_callback( $slug ) {
 	global $menu, $submenu, $wp_filter;
-	foreach ( array( 'toplevel_page_' . $slug, 'pressnative_page_' . $slug, 'admin_page_' . $slug ) as $hook ) {
+	foreach ( array( 'toplevel_page_' . $slug, 'pressnative_page_' . $slug, 'settings_page_' . $slug, 'admin_page_' . $slug ) as $hook ) {
 		if ( empty( $wp_filter[ $hook ] ) ) {
 			continue;
 		}
@@ -162,7 +171,7 @@ function pressnative_smoke_find_callback( $slug ) {
 
 // REST routes the mobile apps depend on must exist.
 $routes   = rest_get_server()->get_routes();
-$expected = array( '/pressnative/v1/layout/home', '/pressnative/v1/branding' );
+$expected = array( '/pressnative/v1/layout/home', '/pressnative/v1/branding', '/pressnative/v1/verify-ownership' );
 foreach ( $expected as $route ) {
 	if ( isset( $routes[ $route ] ) ) {
 		echo "  ok    route {$route}\n";
