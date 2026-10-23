@@ -3,7 +3,7 @@ Contributors: pressnativeapp
 Tags: mobile app, native app, push notifications, woocommerce, ios
 Requires at least: 6.0
 Tested up to: 7.1
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -91,6 +91,11 @@ Push notifications to app users are delivered through Google Firebase Cloud Mess
 
 == Changelog ==
 
+= 1.3.2 =
+* Prefix QR encoder class (`PressNative_QR_Encoder`) and vendor namespace (`PressNative\Vendor\splitbrain\phpQRCode`)
+* Sanitize QR code SVG and shortcode HTML output with `wp_kses()`
+* Enforce single-use challenge verification in `permission_callback` for `/verify-ownership` and restrict `/store-listing` to administrators or Registry requests
+
 = 1.3.0 =
 * New one-click Connect: PressNative Cloud verifies the site server-to-server and returns the API key directly. Keys are never passed through browser redirects.
 * Free plan: Hub listing and automatic new-post notifications without a paid account
@@ -148,6 +153,9 @@ Push notifications to app users are delivered through Google Firebase Cloud Mess
 * Shortcode-to-native component mapping
 
 == Upgrade Notice ==
+
+= 1.3.2 =
+Security hardening from the WordPress.org review: sanitized QR output and stricter permission checks on the ownership and store-listing endpoints.
 
 = 1.3.0 =
 Secure one-click Connect, a free Hub plan, no more duplicate notifications on post updates, and updates through WordPress.org.

@@ -3334,4 +3334,46 @@ class PressNative_Admin {
 		delete_transient( 'pressnative_cache_invalidated' );
 	}
 
+	/**
+	 * REST permission callback: allow site administrators or authenticated PressNative Registry requests.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	public static function permission_check_admin_or_registry( WP_REST_Request $request ) {
+		$registry_key = $request->get_header( 'X-PressNative-Registry-Key' );
+		$admin_key    = defined( 'PRESSNATIVE_ADMIN_KEY' )
+			? PRESSNATIVE_ADMIN_KEY
+			: getenv( 'ADMIN_API_KEY' );
+		if ( is_string( $admin_key ) && '' !== $admin_key && is_string( $registry_key ) && hash_equals( $admin_key, $registry_key ) ) {
+			return true;
+		}
+		return current_user_can( 'manage_options' );
+	}
+
+	/**
+	 * REST permission callback for POST /pressnative/v1/verify-ownership.
+	 * Requires the single-use verification nonce stored by wp-admin.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return true|WP_Error
+	 */
+	public static function permission_check_verify_ownership( WP_REST_Request $request ) {
+		$params = $request->get_json_params();
+		$nonce  = is_array( $params ) && isset( $params['nonce'] )
+			? sanitize_text_field( (string) $params['nonce'] )
+			: '';
+
+		if ( '' === $nonce ) {
+			return new WP_Error( 'missing_nonce', 'nonce is required', array( 'status' => 400 ) );
+		}
+
+		$stored_nonce = get_transient( 'pressnative_verify_nonce' );
+		if ( empty( $stored_nonce ) || ! is_string( $stored_nonce ) || ! hash_equals( $stored_nonce, $nonce ) ) {
+			return new WP_Error( 'invalid_nonce', 'Verification nonce is invalid or expired', array( 'status' => 403 ) );
+		}
+
+		return true;
+	}
+
 }
