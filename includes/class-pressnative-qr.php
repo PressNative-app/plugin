@@ -98,6 +98,45 @@ class PressNative_QR {
 	}
 
 	/**
+	 * Allowed HTML and SVG elements for wp_kses() in shortcode output.
+	 *
+	 * @return array
+	 */
+	private static function get_allowed_html() {
+		return array(
+			'div'  => array(
+				'class' => true,
+				'style' => true,
+			),
+			'a'    => array(
+				'href'   => true,
+				'target' => true,
+				'rel'    => true,
+			),
+			'p'    => array(
+				'class' => true,
+				'style' => true,
+			),
+			'svg'  => array(
+				'xmlns'      => true,
+				'viewbox'    => true,
+				'width'      => true,
+				'height'     => true,
+				'role'       => true,
+				'aria-label' => true,
+				'focusable'  => true,
+			),
+			'rect' => array(
+				'x'      => true,
+				'y'      => true,
+				'width'  => true,
+				'height' => true,
+				'fill'   => true,
+			),
+		);
+	}
+
+	/**
 	 * Render the shortcode output.
 	 *
 	 * @param array  $atts    Shortcode attributes.
@@ -118,7 +157,7 @@ class PressNative_QR {
 		$label = sanitize_text_field( $atts['label'] );
 
 		$encoder = PRESSNATIVE_PLUGIN_DIR . 'lib/QrEncoder.php';
-		if ( ! class_exists( 'QrEncoder', false ) ) {
+		if ( ! class_exists( 'PressNative_QR_Encoder', false ) ) {
 			if ( ! is_readable( $encoder ) ) {
 				return '';
 			}
@@ -126,12 +165,13 @@ class PressNative_QR {
 		}
 
 		$deep_link = self::get_deep_link_url();
-		$svg       = QrEncoder::to_svg( $deep_link, 'qrm' );
+		$svg       = PressNative_QR_Encoder::to_svg( $deep_link, 'qrm' );
 
 		// Add width/height so SVG scales to desired size.
 		$svg = preg_replace( '/<svg /', sprintf( '<svg width="%d" height="%d" ', $size, $size ), $svg, 1 );
+		$svg = wp_kses( $svg, self::get_allowed_html() );
 
-		$html = '<div class="pressnative-qr" style="text-align:center;">';
+		$html  = '<div class="pressnative-qr" style="text-align:center;">';
 		$html .= '<a href="' . esc_url( $deep_link ) . '" target="_blank" rel="noopener">';
 		$html .= $svg;
 		$html .= '</a>';
@@ -141,6 +181,6 @@ class PressNative_QR {
 		}
 		$html .= '</div>';
 
-		return $html;
+		return wp_kses( $html, self::get_allowed_html() );
 	}
 }

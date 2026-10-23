@@ -3,7 +3,7 @@
  * Plugin Name: PressNative Apps
  * Plugin URI:  https://github.com/PressNative-app/plugin
  * Description: Native iOS & Android apps from WordPress — not a WebView. Publish once; own the lock screen. WooCommerce, push, Hub.
- * Version:     1.3.1
+ * Version:     1.3.2
  * Author:      PressNative
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -102,7 +102,7 @@ if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
 	return;
 }
 
-define( 'PRESSNATIVE_VERSION', '1.3.1' );
+define( 'PRESSNATIVE_VERSION', '1.3.2' );
 define( 'PRESSNATIVE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PRESSNATIVE_PLUGIN_FILE', __FILE__ );
 
@@ -449,28 +449,32 @@ add_action( 'rest_api_init', function () {
 					return new WP_Error( 'invalid_body', 'JSON body required', array( 'status' => 400 ) );
 				}
 
-			$map = array(
-				'app_name'         => PressNative_Options::OPTION_APP_NAME,
-				'primary_color'    => PressNative_Options::OPTION_PRIMARY_COLOR,
-				'accent_color'     => PressNative_Options::OPTION_ACCENT_COLOR,
-				'background_color' => PressNative_Options::OPTION_BACKGROUND_COLOR,
-				'text_color'       => PressNative_Options::OPTION_TEXT_COLOR,
-				'border_color'     => PressNative_Options::OPTION_BORDER_COLOR,
-				'font_family'      => PressNative_Options::OPTION_FONT_FAMILY,
-				'base_font_size'   => PressNative_Options::OPTION_BASE_FONT_SIZE,
-			);
-			$updated = array();
+				$map = array(
+					'app_name'         => PressNative_Options::OPTION_APP_NAME,
+					'primary_color'    => PressNative_Options::OPTION_PRIMARY_COLOR,
+					'accent_color'     => PressNative_Options::OPTION_ACCENT_COLOR,
+					'background_color' => PressNative_Options::OPTION_BACKGROUND_COLOR,
+					'text_color'       => PressNative_Options::OPTION_TEXT_COLOR,
+					'border_color'     => PressNative_Options::OPTION_BORDER_COLOR,
+					'font_family'      => PressNative_Options::OPTION_FONT_FAMILY,
+					'base_font_size'   => PressNative_Options::OPTION_BASE_FONT_SIZE,
+				);
+				$updated = array();
 
-			foreach ( $map as $key => $option_name ) {
-				if ( isset( $params[ $key ] ) ) {
-					$value = $params[ $key ];
-					if ( in_array( $key, array( 'primary_color', 'accent_color', 'background_color', 'text_color', 'border_color' ), true ) ) {
-						$value = PressNative_Options::sanitize_hex( $value );
+				foreach ( $map as $key => $option_name ) {
+					if ( isset( $params[ $key ] ) ) {
+						$value = $params[ $key ];
+						if ( in_array( $key, array( 'primary_color', 'accent_color', 'background_color', 'text_color', 'border_color' ), true ) ) {
+							$value = PressNative_Options::sanitize_hex( $value );
+						} elseif ( 'base_font_size' === $key ) {
+							$value = max( 12, min( 28, absint( $value ) ) );
+						} else {
+							$value = sanitize_text_field( (string) $value );
+						}
+						update_option( $option_name, $value );
+						$updated[] = $key;
 					}
-					update_option( $option_name, $value );
-					$updated[] = $key;
 				}
-			}
 
 				// Handle logo_url: download to media library if it's external.
 				if ( isset( $params['logo_url'] ) && ! empty( $params['logo_url'] ) ) {
@@ -494,17 +498,7 @@ add_action( 'rest_api_init', function () {
 					'updated' => $updated,
 				) );
 			},
-			'permission_callback' => function ( WP_REST_Request $request ) {
-				// Accept if request comes from Registry (shared key) or user is admin.
-				$registry_key = $request->get_header( 'X-PressNative-Registry-Key' );
-				$admin_key    = defined( 'PRESSNATIVE_ADMIN_KEY' )
-					? PRESSNATIVE_ADMIN_KEY
-					: getenv( 'ADMIN_API_KEY' );
-				if ( $admin_key && $registry_key === $admin_key ) {
-					return true;
-				}
-				return current_user_can( 'manage_options' );
-			},
+			'permission_callback' => array( 'PressNative_Admin', 'permission_check_admin_or_registry' ),
 		)
 	);
 
@@ -526,16 +520,7 @@ add_action( 'rest_api_init', function () {
 					)
 				);
 			},
-			'permission_callback' => function ( WP_REST_Request $request ) {
-				$registry_key = $request->get_header( 'X-PressNative-Registry-Key' );
-				$admin_key    = defined( 'PRESSNATIVE_ADMIN_KEY' )
-					? PRESSNATIVE_ADMIN_KEY
-					: getenv( 'ADMIN_API_KEY' );
-				if ( $admin_key && $registry_key === $admin_key ) {
-					return true;
-				}
-				return current_user_can( 'manage_options' );
-			},
+			'permission_callback' => array( 'PressNative_Admin', 'permission_check_admin_or_registry' ),
 		)
 	);
 
@@ -547,21 +532,8 @@ add_action( 'rest_api_init', function () {
 		'/verify-ownership',
 		array(
 			'methods'             => WP_REST_Server::CREATABLE,
-			'callback'            => function ( WP_REST_Request $request ) {
-				$params = $request->get_json_params();
-				$nonce  = isset( $params['nonce'] ) ? sanitize_text_field( $params['nonce'] ) : '';
-
-				if ( empty( $nonce ) ) {
-					return new WP_Error( 'missing_nonce', 'nonce is required', array( 'status' => 400 ) );
-				}
-
-				// Verify against the stored verification nonce
-				$stored_nonce = get_transient( 'pressnative_verify_nonce' );
-				if ( empty( $stored_nonce ) || ! hash_equals( $stored_nonce, $nonce ) ) {
-					return new WP_Error( 'invalid_nonce', 'Verification nonce is invalid or expired', array( 'status' => 403 ) );
-				}
-
-				// Nonce is valid — delete it (single use) and confirm
+			'callback'            => function () {
+				// Nonce was validated in permission_callback — delete it (single use) and confirm.
 				delete_transient( 'pressnative_verify_nonce' );
 
 				return rest_ensure_response(
@@ -571,8 +543,7 @@ add_action( 'rest_api_init', function () {
 					)
 				);
 			},
-			// Public by design: PressNative Cloud calls it; access requires the single-use challenge stored by wp-admin.
-			'permission_callback' => '__return_true',
+			'permission_callback' => array( 'PressNative_Admin', 'permission_check_verify_ownership' ),
 		)
 	);
 
@@ -1079,54 +1050,53 @@ try {
 add_action( 'init', function () {
 	add_shortcode( 'pressnative_download', function ( $atts ) {
 		$atts = shortcode_atts( array(
-			'style'     => 'both',     // 'ios', 'android', 'both'
-			'size'      => 'medium',   // 'small', 'medium', 'large'
-			'text'      => '',         // Custom text override
-			'ios_url'   => '',         // Custom iOS URL
-			'android_url' => '',       // Custom Android URL
+			'style'       => 'both',     // 'ios', 'android', 'both'
+			'size'        => 'medium',   // 'small', 'medium', 'large'
+			'text'        => '',         // Custom text override
+			'ios_url'     => '',         // Custom iOS URL
+			'android_url' => '',         // Custom Android URL
 		), $atts, 'pressnative_download' );
 
-		$app_name = get_option( PressNative_Options::OPTION_APP_NAME, get_bloginfo( 'name' ) );
-		$default_text = $atts['text'] ?: "Download {$app_name}";
 		$site_url = untrailingslashit( home_url() );
 
 		// Generate fallback HTML for web browsers with deferred deep linking
 		$html = '<div class="pressnative-download-buttons" style="text-align: center; margin: 20px 0;">';
 
 		if ( $atts['style'] === 'ios' || $atts['style'] === 'both' ) {
-			$ios_base_url = $atts['ios_url'] ?: 'https://apps.apple.com/app/pressnative/id0000000000';
-			$ios_url = $ios_base_url . '?pt=pressnative&ct=' . urlencode( $site_url );
-			$html .= '<a href="' . esc_url( $ios_url ) . '" class="pressnative-ios-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #000; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">📱 Download for iOS</a>';
+			$ios_base_url = $atts['ios_url'] ? esc_url_raw( $atts['ios_url'] ) : 'https://apps.apple.com/app/pressnative/id0000000000';
+			$ios_url      = $ios_base_url . '?pt=pressnative&ct=' . rawurlencode( $site_url );
+			$html        .= '<a href="' . esc_url( $ios_url ) . '" class="pressnative-ios-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #000; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">📱 Download for iOS</a>';
 		}
 
 		if ( $atts['style'] === 'android' || $atts['style'] === 'both' ) {
-			$android_base_url = $atts['android_url'] ?: 'https://play.google.com/store/apps/details?id=app.pressnative.hub';
-			$android_url = $android_base_url . '&referrer=utm_source%3Dpressnative%26utm_content%3D' . urlencode( $site_url );
-			$html .= '<a href="' . esc_url( $android_url ) . '" class="pressnative-android-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #34A853; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">🤖 Download for Android</a>';
+			$android_base_url = $atts['android_url'] ? esc_url_raw( $atts['android_url'] ) : 'https://play.google.com/store/apps/details?id=app.pressnative.hub';
+			$android_url      = $android_base_url . '&referrer=utm_source%3Dpressnative%26utm_content%3D' . rawurlencode( $site_url );
+			$html            .= '<a href="' . esc_url( $android_url ) . '" class="pressnative-android-download" style="display: inline-block; margin: 5px; padding: 12px 24px; background: #34A853; color: white; text-decoration: none; border-radius: 8px; font-weight: bold;">🤖 Download for Android</a>';
 		}
 
 		$html .= '</div>';
 
-		return $html;
+		return wp_kses_post( $html );
 	} );
 
 	// Debug shortcode for testing deep links
-	add_shortcode( 'pressnative_debug_links', function ( $atts ) {
+	add_shortcode( 'pressnative_debug_links', function () {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			return ''; // Only show to admins
 		}
 
-		$site_url = untrailingslashit( home_url() );
-		$deep_link_url = 'https://pressnative.app/open?site=' . rawurlencode( $site_url );
+		$site_url          = untrailingslashit( home_url() );
+		$deep_link_url     = 'https://pressnative.app/open?site=' . rawurlencode( $site_url );
 		$custom_scheme_url = 'app.pressnative.hub://site?url=' . rawurlencode( $site_url );
+		$allowed_protocols = array_merge( wp_allowed_protocols(), array( 'app.pressnative.hub' ) );
 
-		$html = '<div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">';
+		$html  = '<div style="background: #f0f0f0; padding: 20px; border-radius: 8px; margin: 20px 0;">';
 		$html .= '<h3>🔧 PressNative Debug Links (Admin Only)</h3>';
 		$html .= '<p><strong>Deep Link (HTTPS):</strong><br><a href="' . esc_url( $deep_link_url ) . '" target="_blank">' . esc_html( $deep_link_url ) . '</a></p>';
-		$html .= '<p><strong>Custom Scheme:</strong><br><a href="' . esc_url( $custom_scheme_url ) . '" target="_blank">' . esc_html( $custom_scheme_url ) . '</a></p>';
+		$html .= '<p><strong>Custom Scheme:</strong><br><a href="' . esc_url( $custom_scheme_url, $allowed_protocols ) . '" target="_blank">' . esc_html( $custom_scheme_url ) . '</a></p>';
 		$html .= '<p><em>Click these links on your mobile device to test deep linking.</em></p>';
 		$html .= '</div>';
 
-		return $html;
+		return wp_kses( $html, wp_kses_allowed_html( 'post' ), $allowed_protocols );
 	} );
 } );

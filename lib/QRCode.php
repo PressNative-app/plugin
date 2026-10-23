@@ -1,6 +1,6 @@
 <?php
 
-namespace splitbrain\phpQRCode;
+namespace PressNative\Vendor\splitbrain\phpQRCode;
 
 /**
  *

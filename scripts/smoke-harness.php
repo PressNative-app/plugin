@@ -190,6 +190,23 @@ pressnative_smoke_step( 'GET /pressnative/v1/layout/home', function () {
 	}
 } );
 
+pressnative_smoke_step( 'shortcode [pressnative_qr]', function () {
+	$out = do_shortcode( '[pressnative_qr size="200"]' );
+	if ( false === strpos( $out, '<svg' ) || false === strpos( $out, '<rect' ) ) {
+		throw new RuntimeException( 'pressnative_qr shortcode did not render valid SVG markup' );
+	}
+} );
+
+pressnative_smoke_step( 'POST /pressnative/v1/verify-ownership permission check', function () {
+	$req = new WP_REST_Request( 'POST', '/pressnative/v1/verify-ownership' );
+	$req->set_header( 'Content-Type', 'application/json' );
+	$req->set_body( wp_json_encode( array( 'nonce' => 'wrong-nonce' ) ) );
+	$res = rest_do_request( $req );
+	if ( 403 !== $res->get_status() ) {
+		throw new RuntimeException( 'Expected 403 for invalid verify-ownership nonce, got ' . $res->get_status() );
+	}
+} );
+
 if ( $failures ) {
 	fwrite( STDERR, "\nWordPress smoke test failed:\n" );
 	foreach ( $failures as $failure ) {

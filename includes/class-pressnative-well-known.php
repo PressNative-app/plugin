@@ -323,8 +323,7 @@ class PressNative_Well_Known {
 				'callback'            => function () {
 					return rest_ensure_response( PressNative_Options::get_store_listing() );
 				},
-				// Public: app store metadata (description, URLs) the site owner published.
-				'permission_callback' => '__return_true',
+				'permission_callback' => array( 'PressNative_Admin', 'permission_check_admin_or_registry' ),
 			)
 		);
 
@@ -351,21 +350,34 @@ class PressNative_Well_Known {
 			'pressnative/v1',
 			'/resolve-url',
 			array(
-				'methods'             => WP_REST_Server::CREATABLE,
+				'methods'             => array( WP_REST_Server::READABLE, WP_REST_Server::CREATABLE ),
 				'callback'            => function ( WP_REST_Request $request ) {
-					$params = $request->get_json_params();
-					$url    = isset( $params['url'] ) ? (string) $params['url'] : '';
-					if ( $url === '' ) {
+					if ( ! PressNative_Rate_Limit::allow( 'resolve_url', 60, MINUTE_IN_SECONDS ) ) {
+						return PressNative_Rate_Limit::error();
+					}
+					$url = (string) $request->get_param( 'url' );
+					if ( '' === $url ) {
+						$params = $request->get_json_params();
+						$url    = is_array( $params ) && isset( $params['url'] ) ? esc_url_raw( (string) $params['url'] ) : '';
+					}
+					if ( '' === $url ) {
 						return new WP_Error( 'missing_url', 'url is required', array( 'status' => 400 ) );
 					}
 					$resolved = self::resolve_url( $url );
-					if ( $resolved === null ) {
+					if ( null === $resolved ) {
 						return new WP_Error( 'not_found', 'URL could not be resolved', array( 'status' => 404 ) );
 					}
 					return rest_ensure_response( $resolved );
 				},
-				// Public: maps a same-site URL to published content for deep links.
+				// Public: maps a same-site URL to published content for deep links; rate-limited.
 				'permission_callback' => '__return_true',
+				'args'                => array(
+					'url' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'esc_url_raw',
+					),
+				),
 			)
 		);
 

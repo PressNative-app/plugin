@@ -161,7 +161,7 @@ class PressNative_Analytics {
 	 * @param array|null  $metadata       Optional event metadata.
 	 * @return bool
 	 */
-	public static function forward_event_to_registry( $event_type, $resource_id = '', $resource_title = null, $device_type = null, $device_id = null, $metadata = null ) {
+	public static function forward_event_to_registry( $event_type, $resource_id = '', $resource_title = null, $device_type = null, $device_id = null, $metadata = null, $rate_limit_checked = false ) {
 		$event_type  = self::normalize_event_type( $event_type );
 		$valid_types = self::get_valid_event_types();
 		if ( ! in_array( $event_type, $valid_types, true ) ) {
@@ -172,6 +172,10 @@ class PressNative_Analytics {
 		$registry_url = PressNative_Admin::get_registry_url();
 		if ( ! $api_key || ! $registry_url ) {
 			return true;
+		}
+
+		if ( ! $rate_limit_checked && class_exists( 'PressNative_Rate_Limit' ) && ! PressNative_Rate_Limit::allow( 'track', 120, MINUTE_IN_SECONDS ) ) {
+			return false;
 		}
 
 		if ( $device_type === null ) {
@@ -278,7 +282,7 @@ class PressNative_Analytics {
 			return new WP_Error( 'invalid_event_type', __( 'Invalid event_type.', 'pressnative-apps' ), array( 'status' => 400 ) );
 		}
 
-		$ok = self::forward_event_to_registry( $event_type, $resource_id, $resource_title, $device_type, $device_id, $metadata );
+		$ok = self::forward_event_to_registry( $event_type, $resource_id, $resource_title, $device_type, $device_id, $metadata, true );
 		return rest_ensure_response( array( 'ok' => $ok ) );
 	}
 
